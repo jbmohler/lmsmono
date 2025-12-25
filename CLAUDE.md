@@ -40,9 +40,40 @@ LMS is a mature application with a 20-year-old data model. The PostgreSQL schema
 - Git is controlled manually, not by tooling
 - Single repository with `backend/` and `frontend/` directories
 
-### Docker
-- **python:3.13-slim-bookworm** base image
-- Multi-stage build (Node for frontend build, Python for runtime)
+### Docker (Primary Development Environment)
+
+All development tooling runs inside Docker containers. This ensures consistent environments and eliminates "works on my machine" issues.
+
+#### Container Strategy
+- **Backend container**: Python 3.13 with all dev tools (ruff, mypy, pytest)
+- **Frontend container**: Node.js 22 with all dev tools (ESLint, Prettier, knip, Vitest, Playwright)
+- **Production container**: Multi-stage build combining frontend assets with Python runtime
+
+#### Base Images
+- Backend dev: `python:3.13-slim-bookworm`
+- Frontend dev: `node:22-bookworm-slim`
+- Production: Multi-stage (Node for build, Python for runtime)
+
+#### What Runs Outside Docker
+- Git commands
+- Docker/docker-compose commands
+- IDE/editor
+
+#### Dev Environment Ports
+- `8080` - Nginx (main access point)
+- `5432` - PostgreSQL (direct access for tools)
+
+### Configuration (Docker Secrets)
+
+Backend configuration uses Docker secrets with JSON format:
+
+```
+secrets/
+├── config.example.json   # Template (committed)
+└── config.json           # Actual config (gitignored)
+```
+
+The config file is mounted at `/run/secrets/config.json` in the backend container.
 
 ## Architecture Principles
 
@@ -68,6 +99,7 @@ LMS is a mature application with a 20-year-old data model. The PostgreSQL schema
 - PostgreSQL with managed cloud hosting
 - Connect via psycopg3 with SSL
 - Schema is READ-ONLY from application perspective - no migrations generated
+- All primary/foreign keys are UUIDs
 - Double-entry accounting: every transaction must balance (debits = credits)
 
 ## Keyboard Navigation Requirements
@@ -151,40 +183,49 @@ When adding features:
 
 ## Testing Approach
 
-- Backend: pytest with pytest-asyncio fixtures
-- Frontend: Vitest for unit tests, Playwright for e2e
+All tests run inside their respective Docker containers.
+
+- Backend: pytest with pytest-asyncio fixtures (in backend container)
+- Frontend: Vitest for unit tests, Playwright for e2e (in frontend container)
 - Test keyboard navigation explicitly in e2e tests
 
 ## Common Commands
 
+All development commands run inside Docker containers via docker-compose.
+
 ```bash
-# Backend
-cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# First-time setup
+cp secrets/config.example.json secrets/config.json
+# Edit secrets/config.json as needed
 
-# Frontend
-cd frontend && pnpm install
-cd frontend && pnpm ng serve --open
+# Start development environment
+docker-compose up -d              # Start all containers
+docker-compose logs -f            # Follow logs
 
-# Linting
-cd frontend && pnpm knip          # dead code detection
-cd frontend && pnpm lint          # ESLint
-cd backend && ruff check .        # Python linting
-cd backend && mypy .              # Type checking
+# Access the application
+# http://localhost:8080           # Nginx routes to frontend/backend
 
-# Testing
-cd frontend && pnpm test          # Vitest
-cd frontend && pnpm e2e           # Playwright
-cd backend && pytest              # pytest
+# Linting (all inside containers)
+docker-compose exec frontend pnpm knip          # dead code detection
+docker-compose exec frontend pnpm lint          # ESLint
+docker-compose exec backend ruff check .        # Python linting
+docker-compose exec backend mypy .              # Type checking
+
+# Testing (all inside containers)
+docker-compose exec frontend pnpm test          # Vitest
+docker-compose exec frontend pnpm e2e           # Playwright
+docker-compose exec backend pytest              # pytest
 
 # Build for production
-cd frontend && pnpm ng build --configuration production
-# Output goes to frontend/dist/ and is served by FastAPI
-
-# Docker build
 docker build -t lms .
 
-# Run container
-docker run -p 8000:8000 -e DATABASE_URL=postgresql://... lms
+# Run production container
+docker run -p 8000:8000 lms
+
+# Shell access (for debugging)
+docker-compose exec backend bash
+docker-compose exec frontend sh
+docker-compose exec postgres psql -U lms -d lms
 ```
 
 ## API Conventions
@@ -194,6 +235,46 @@ docker run -p 8000:8000 -e DATABASE_URL=postgresql://... lms
 - ISO 8601 dates
 - Pagination via `?limit=N&offset=M`
 - Error responses: `{ "detail": "message" }`
+
+### Self-Describing Table Responses
+
+List endpoints return self-describing structures that enable automatic UI generation:
+
+```json
+{
+  "columns": [
+    {"key": "date", "label": "Date", "type": "date"},
+    {"key": "description", "label": "Description", "type": "string"},
+    {"key": "amount", "label": "Amount", "type": "currency"},
+    {"key": "account", "label": "Account", "type": "ref"}
+  ],
+  "data": [
+    {"date": "2024-01-15", "description": "Office supplies", "amount": 150.00, "account": {"id": 42, "name": "Office Expenses"}}
+  ]
+}
+```
+
+#### Column Types
+- `string`, `number`, `currency`, `date`, `datetime`, `boolean`, `uuid`
+- `ref` - foreign key reference (see below)
+
+#### Foreign Key References (`ref` type)
+
+Columns referencing other tables use `item_ref` structure with `id` (UUID) and `name`:
+
+```json
+{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "name": "Office Expenses"}
+```
+
+This allows the frontend to display human-readable names while retaining IDs for linking/actions.
+
+#### Frontend Auto-Construction
+
+The frontend uses column metadata to automatically:
+- Render appropriate input controls (date picker, number field, dropdown for refs)
+- Apply formatting (currency symbols, date localization)
+- Generate sortable/filterable table headers
+- Build export functionality (CSV, etc.)
 
 ## Authentication
 

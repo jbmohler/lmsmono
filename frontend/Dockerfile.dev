@@ -1,0 +1,19 @@
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
+
+# Install dependencies
+RUN pnpm install
+
+# Development tools are included in package.json
+# (ESLint, Prettier, knip, Vitest, Playwright)
+
+EXPOSE 4200
+
+CMD ["pnpm", "ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--disable-host-check"]

@@ -1,0 +1,19 @@
+# Web framework
+fastapi
+uvicorn[standard]
+
+# Database
+psycopg[binary,pool]
+
+# Validation & settings
+pydantic>=2.0
+pydantic-settings
+
+# Security
+argon2-cffi
+
+# Development tools
+ruff
+mypy
+pytest
+pytest-asyncio
