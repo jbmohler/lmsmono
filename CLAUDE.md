@@ -158,7 +158,8 @@ handleKeydown(event: KeyboardEvent) {
 - Type hints on all functions
 - Async functions for I/O operations
 - f-strings for formatting
-- Snake_case for variables and functions
+- snake_case for variables and functions
+- Prefer `import module` over `from module import func` (use `module.func()` at call sites)
 
 ### TypeScript/Angular
 - Strict TypeScript settings
