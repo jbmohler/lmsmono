@@ -7,19 +7,21 @@ Check boxes as tasks complete. Claude should read this file at session start to 
 ## Phase 1: Project Scaffolding
 - [x] Create README.md
 - [x] Create CLAUDE.md
-- [ ] Initialize Angular 17+ frontend with standalone components
-- [ ] Configure Tailwind CSS
-- [ ] Install Angular CDK
-- [ ] Initialize FastAPI backend
-- [ ] Set up project directory structure
-- [ ] Create Dockerfile (single container)
-- [ ] Create docker-compose.yml for local dev with PostgreSQL
-- [ ] Configure FastAPI to serve Angular static build
+- [x] Initialize Angular 21 frontend with standalone components
+- [x] Configure Tailwind CSS 4
+- [x] Install Angular CDK
+- [x] Initialize FastAPI backend
+- [x] Set up project directory structure
+- [x] Create docker-compose.yml for local dev with PostgreSQL
+- [x] Configure Nginx reverse proxy for dev
+- [x] Schema auto-import on database init
+- [ ] Create production Dockerfile (single container)
+- [ ] Configure FastAPI to serve Angular static build (production)
 
 ## Phase 2: Database Layer
-- [ ] Review and document existing schema (user provides SQL)
+- [x] Schema SQL received (6 files: core, authentication, contacts, databits, lmshacc, roscoe)
 - [ ] Set up psycopg3 async connection pool
-- [ ] Create database configuration (env vars, SSL)
+- [x] Create database configuration (Docker secrets)
 - [ ] Create base query execution helpers
 - [ ] Write account queries
 - [ ] Write transaction queries
@@ -27,7 +29,7 @@ Check boxes as tasks complete. Claude should read this file at session start to 
 - [ ] Write password vault queries
 
 ## Phase 3: Core API Routes
-- [ ] Health check endpoint
+- [x] Health check endpoint
 - [ ] Accounts CRUD endpoints
 - [ ] Transactions CRUD endpoints
 - [ ] Contacts CRUD endpoints
@@ -111,9 +113,14 @@ Check boxes as tasks complete. Claude should read this file at session start to 
 
 _Use this section to leave notes for the next session._
 
-**Last session:** Initial project setup - created README.md, CLAUDE.md, PLAN.md
+**Last session (2026-01-17):**
+- Fixed Angular build (TypeScript 5.7→5.9 for Angular 21 compatibility)
+- Fixed Nginx config (dynamic DNS resolution for Docker)
+- Removed exposed PostgreSQL port (now internal only)
+- Created schema init script with correct load order
+- Moved SQL files to `schema/sql/` subdirectory
 
-**Next steps:** Awaiting SQL schema from user, then begin Phase 1 scaffolding
+**Next steps:** Set up psycopg3 async connection pool, create query helpers
 
 **Blockers:** None
 
@@ -121,7 +128,14 @@ _Use this section to leave notes for the next session._
 
 ## Schema Status
 
-- [ ] Schema SQL received
+- [x] Schema SQL received
 - [ ] Schema reviewed and documented
 - [ ] Entity relationships mapped
 - [ ] Pydantic models drafted from schema
+
+### Schema Overview
+- `yenotsys` - Core system (eventlog, utility functions)
+- `public` - Authentication (users, roles, sessions, activities)
+- `contacts` - Contact management (personas, addresses, phones, emails, URLs)
+- `databits` - Password vault (bits, tags)
+- `hacc` - Accounting (accounts, accounttypes, journals, transactions, splits, tags)

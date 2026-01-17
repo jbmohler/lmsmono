@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: lms
       POSTGRES_PASSWORD: lms_dev_password
       POSTGRES_DB: lms
+    volumes:
+      - ./schema:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lms -d lms"]
       interval: 5s
