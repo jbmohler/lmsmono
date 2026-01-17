@@ -20,9 +20,9 @@ Check boxes as tasks complete. Claude should read this file at session start to 
 
 ## Phase 2: Database Layer
 - [x] Schema SQL received (6 files: core, authentication, contacts, databits, lmshacc, roscoe)
-- [ ] Set up psycopg3 async connection pool
+- [x] Set up psycopg3 async connection pool
 - [x] Create database configuration (Docker secrets)
-- [ ] Create base query execution helpers
+- [x] Create base query execution helpers (fetch_all, fetch_one, execute, execute_returning)
 - [ ] Write account queries
 - [ ] Write transaction queries
 - [ ] Write contact queries
@@ -119,8 +119,10 @@ _Use this section to leave notes for the next session._
 - Removed exposed PostgreSQL port (now internal only)
 - Created schema init script with correct load order
 - Moved SQL files to `schema/sql/` subdirectory
+- Implemented psycopg3 async connection pool (`backend/db.py`)
+- Created proof-of-concept: eventlog API + UI showing database read/write
 
-**Next steps:** Set up psycopg3 async connection pool, create query helpers
+**Next steps:** Write domain-specific queries (accounts, transactions, contacts)
 
 **Blockers:** None
 

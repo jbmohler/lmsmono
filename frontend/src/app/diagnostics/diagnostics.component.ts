@@ -1,0 +1,196 @@
+import { Component, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { DatePipe } from '@angular/common';
+import { Subject } from 'rxjs';
+import { switchMap, startWith } from 'rxjs/operators';
+
+interface HealthResponse {
+  status: string;
+  config_loaded: boolean;
+  database_host: string | null;
+  database_connected: boolean;
+}
+
+interface EventLogEntry {
+  id: number;
+  logtype: string;
+  logtime: string;
+  descr: string | null;
+}
+
+@Component({
+  selector: 'app-diagnostics',
+  standalone: true,
+  imports: [FormsModule, DatePipe],
+  template: `
+    <div class="space-y-6">
+      <!-- Health Status Card -->
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">System Status</h2>
+
+        @if (health(); as h) {
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span class="font-medium">API Status:</span>
+              <span class="ml-2 text-green-600">{{ h.status }}</span>
+            </div>
+            <div>
+              <span class="font-medium">Config:</span>
+              <span class="ml-2" [class.text-green-600]="h.config_loaded" [class.text-red-600]="!h.config_loaded">
+                {{ h.config_loaded ? 'Loaded' : 'Missing' }}
+              </span>
+            </div>
+            <div>
+              <span class="font-medium">Database Host:</span>
+              <span class="ml-2">{{ h.database_host }}</span>
+            </div>
+            <div>
+              <span class="font-medium">Database:</span>
+              <span class="ml-2" [class.text-green-600]="h.database_connected" [class.text-red-600]="!h.database_connected">
+                {{ h.database_connected ? 'Connected' : 'Disconnected' }}
+              </span>
+            </div>
+          </div>
+        } @else {
+          <p class="text-gray-500 text-sm">Loading...</p>
+        }
+
+        <button
+          (click)="refreshHealth()"
+          class="mt-4 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Refresh Status
+        </button>
+      </div>
+
+      <!-- Event Log Card -->
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Event Log (Database Proof of Concept)</h2>
+
+        <!-- Add Entry Form -->
+        <div class="flex gap-2 mb-4">
+          <input
+            type="text"
+            [(ngModel)]="newLogType"
+            placeholder="Log type (e.g., INFO, ERROR)"
+            class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            [(ngModel)]="newDescr"
+            placeholder="Description"
+            class="flex-2 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            (click)="addEntry()"
+            [disabled]="!newLogType"
+            class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Add Entry
+          </button>
+        </div>
+
+        <!-- Entries Table -->
+        @if (eventLog()?.length) {
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-200">
+                  <th class="text-left py-2 px-2 font-medium text-gray-600">ID</th>
+                  <th class="text-left py-2 px-2 font-medium text-gray-600">Type</th>
+                  <th class="text-left py-2 px-2 font-medium text-gray-600">Time</th>
+                  <th class="text-left py-2 px-2 font-medium text-gray-600">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (entry of eventLog(); track entry.id) {
+                  <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-2 px-2 text-gray-500">{{ entry.id }}</td>
+                    <td class="py-2 px-2">
+                      <span class="px-2 py-1 rounded text-xs font-medium"
+                        [class.bg-blue-100]="entry.logtype === 'INFO'"
+                        [class.text-blue-800]="entry.logtype === 'INFO'"
+                        [class.bg-red-100]="entry.logtype === 'ERROR'"
+                        [class.text-red-800]="entry.logtype === 'ERROR'"
+                        [class.bg-yellow-100]="entry.logtype === 'WARNING'"
+                        [class.text-yellow-800]="entry.logtype === 'WARNING'"
+                        [class.bg-gray-100]="!['INFO', 'ERROR', 'WARNING'].includes(entry.logtype)"
+                        [class.text-gray-800]="!['INFO', 'ERROR', 'WARNING'].includes(entry.logtype)"
+                      >
+                        {{ entry.logtype }}
+                      </span>
+                    </td>
+                    <td class="py-2 px-2 text-gray-600">{{ entry.logtime | date:'short' }}</td>
+                    <td class="py-2 px-2">{{ entry.descr || '-' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else if (eventLog()) {
+          <p class="text-gray-500 text-sm py-4 text-center">No entries yet. Add one above!</p>
+        } @else {
+          <p class="text-gray-500 text-sm py-4 text-center">Loading...</p>
+        }
+
+        <button
+          (click)="refreshEventLog()"
+          class="mt-4 bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+        >
+          Refresh Log
+        </button>
+      </div>
+    </div>
+  `,
+})
+export class DiagnosticsComponent {
+  private http = inject(HttpClient);
+
+  // Health status with refresh trigger
+  private refreshHealth$ = new Subject<void>();
+  health = toSignal(
+    this.refreshHealth$.pipe(
+      startWith(undefined),
+      switchMap(() => this.http.get<HealthResponse>('/api/health'))
+    )
+  );
+
+  // Event log with refresh trigger
+  private refreshEventLog$ = new Subject<void>();
+  eventLog = toSignal(
+    this.refreshEventLog$.pipe(
+      startWith(undefined),
+      switchMap(() => this.http.get<EventLogEntry[]>('/api/eventlog'))
+    )
+  );
+
+  // Form state
+  newLogType = '';
+  newDescr = '';
+
+  refreshHealth(): void {
+    this.refreshHealth$.next();
+  }
+
+  refreshEventLog(): void {
+    this.refreshEventLog$.next();
+  }
+
+  addEntry(): void {
+    if (!this.newLogType) return;
+
+    this.http.post<EventLogEntry>('/api/eventlog', {
+      logtype: this.newLogType,
+      descr: this.newDescr || null
+    }).subscribe({
+      next: () => {
+        this.newLogType = '';
+        this.newDescr = '';
+        this.refreshEventLog();
+      },
+      error: (err) => console.error('Failed to add entry:', err),
+    });
+  }
+}

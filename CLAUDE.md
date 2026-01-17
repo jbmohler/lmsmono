@@ -88,6 +88,8 @@ The config file is mounted at `/run/secrets/config.json` in the backend containe
 
 ### Frontend (Angular)
 
+See `frontend/CLAUDE.md` for detailed Angular patterns and guidelines.
+
 - Use **standalone components** (no NgModules)
 - Use **signals** for reactive state management
 - Tailwind for all styling - no component library CSS
