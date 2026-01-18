@@ -2,13 +2,21 @@
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-semibold text-gray-900">Transaction Calendar</h1>
     <div class="flex items-center gap-2">
-      <button class="p-2 text-gray-600 hover:bg-gray-100 rounded-md">
+      <button
+        (click)="previousMonth()"
+        class="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+        aria-label="Previous month"
+      >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      <span class="text-lg font-medium text-gray-700">January 2026</span>
-      <button class="p-2 text-gray-600 hover:bg-gray-100 rounded-md">
+      <span class="text-lg font-medium text-gray-700 min-w-40 text-center">{{ monthName() }}</span>
+      <button
+        (click)="nextMonth()"
+        class="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+        aria-label="Next month"
+      >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
@@ -16,19 +24,37 @@
     </div>
   </div>
 
-  <!-- Calendar grid placeholder -->
   <div class="bg-white rounded-lg shadow-sm border border-gray-200">
     <div class="grid grid-cols-7 border-b border-gray-200">
-      @for (day of weekDays; track day) {
+      @for (day of weekDays; track trackByDay($index, day)) {
         <div class="px-4 py-3 text-center text-sm font-medium text-gray-500 border-r border-gray-200 last:border-r-0">
           {{ day }}
         </div>
       }
     </div>
     <div class="grid grid-cols-7">
-      @for (i of calendarDays; track i) {
-        <div class="min-h-24 p-2 border-r border-b border-gray-200 last:border-r-0 hover:bg-gray-50 cursor-pointer">
-          <span class="text-sm text-gray-700">{{ i }}</span>
+      @for (day of calendarDays(); track trackByDate($index, day)) {
+        <div
+          class="min-h-24 p-2 border-r border-b border-gray-200 last:border-r-0 hover:bg-gray-50 cursor-pointer"
+          [class.bg-gray-50]="!day.isCurrentMonth"
+          [class.text-gray-400]="!day.isCurrentMonth"
+        >
+          <span class="text-sm font-medium" [class.text-gray-700]="day.isCurrentMonth" [class.text-gray-400]="!day.isCurrentMonth">
+            {{ day.day }}
+          </span>
+          <div class="mt-1 space-y-0.5">
+            @for (txn of day.transactions; track txn.id) {
+              <div
+                class="text-xs truncate px-1 py-0.5 rounded"
+                [class.bg-green-100]="txn.amount > 0"
+                [class.text-green-800]="txn.amount > 0"
+                [class.bg-red-100]="txn.amount < 0"
+                [class.text-red-800]="txn.amount < 0"
+              >
+                {{ txn.payee }}
+              </div>
+            }
+          </div>
         </div>
       }
     </div>
