@@ -1,0 +1,24 @@
+<div class="max-w-7xl mx-auto p-6">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900">Reports</h1>
+    <p class="text-sm text-gray-500 mt-1">Financial reports and analysis</p>
+  </div>
+
+  <!-- Report categories -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    @for (report of reports; track report.id) {
+      <a
+        [routerLink]="['/reports', report.id]"
+        class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:border-blue-300 hover:shadow-md transition-all"
+      >
+        <div class="flex items-start gap-4">
+          <div class="p-2 bg-blue-50 rounded-lg text-blue-600" [innerHTML]="report.icon"></div>
+          <div>
+            <h2 class="text-lg font-medium text-gray-900">{{ report.name }}</h2>
+            <p class="text-sm text-gray-500 mt-1">{{ report.description }}</p>
+          </div>
+        </div>
+      </a>
+    }
+  </div>
+</div>

@@ -1,0 +1,59 @@
+<div class="h-screen grid grid-rows-[auto_1fr_auto] bg-gray-100">
+  <!-- Header -->
+  <header class="bg-slate-800">
+    <div class="max-w-7xl mx-auto px-4">
+      <!-- Top bar with logo -->
+      <div class="flex items-center h-12">
+        <a routerLink="/" class="text-lg font-semibold text-white tracking-tight">LMS</a>
+      </div>
+    </div>
+    <!-- Tab bar -->
+    <div class="bg-slate-700">
+      <div class="max-w-7xl mx-auto px-4">
+        <nav class="flex items-end gap-1 -mb-px">
+          <a
+            routerLink="/finances"
+            routerLinkActive="tab-active"
+            class="tab-link"
+          >
+            Finances
+          </a>
+          <a
+            routerLink="/contacts"
+            routerLinkActive="tab-active"
+            class="tab-link"
+          >
+            Contacts
+          </a>
+          <a
+            routerLink="/reports"
+            routerLinkActive="tab-active"
+            class="tab-link"
+          >
+            Reports
+          </a>
+          <a
+            routerLink="/diagnostics"
+            routerLinkActive="tab-active"
+            class="tab-link"
+          >
+            Diagnostics
+          </a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="overflow-auto">
+    <router-outlet />
+  </main>
+
+  <!-- Keyboard shortcut hints (shown at bottom) -->
+  <footer class="bg-slate-800 px-4 py-2">
+    <div class="max-w-7xl mx-auto flex items-center gap-6 text-xs text-slate-400">
+      <span><kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">Ctrl+Shift+R</kbd> Transactions</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">Ctrl+Shift+K</kbd> Contacts</span>
+    </div>
+  </footer>
+</div>

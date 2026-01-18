@@ -34,8 +34,8 @@ refresh() {
 ### Component Guidelines
 
 - **Keep app.component minimal** - it should only contain the shell layout and router outlet
-- **Feature pages go in feature folders** - e.g., `src/app/diagnostics/diagnostics.component.ts`
-- **Use standalone components** - no NgModules
+- **Feature pages go in feature folders** - e.g., `src/app/diagnostics/`
+- **All components are standalone** - this is Angular 21 default, do not include `standalone: true` in decorator
 - **Lazy-load routes** - use `loadComponent` in route definitions
 
 ```typescript
@@ -45,11 +45,45 @@ export const routes: Routes = [
 ];
 ```
 
+### Component File Structure
+
+**Always use 3 separate files for each component:**
+
+```
+feature/
+├── feature.component.ts      # Component class
+├── feature.component.html    # Template
+└── feature.component.scss    # Styles (can be empty, but file must exist)
+```
+
+**Component decorator pattern:**
+
+```typescript
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-feature',
+  templateUrl: './feature.component.html',
+  styleUrl: './feature.component.scss',
+  imports: [/* required imports */],
+})
+export class FeatureComponent {
+  // ...
+}
+```
+
+**Do NOT use:**
+- `standalone: true` - it's the Angular 21 default
+- `template:` - always use `templateUrl:` with separate .html file
+- `styles:` - always use `styleUrl:` with separate .scss file
+
 ### File Organization
 
 ```
 src/app/
 ├── app.component.ts        # Minimal shell with router-outlet
+├── app.component.html
+├── app.component.scss
 ├── app.routes.ts           # Route definitions
 ├── app.config.ts           # App configuration
 ├── shared/                 # Shared components, pipes, directives
@@ -57,10 +91,13 @@ src/app/
 │   ├── pipes/
 │   └── services/
 ├── diagnostics/            # Feature module
-│   └── diagnostics.component.ts
+│   ├── diagnostics.component.ts
+│   ├── diagnostics.component.html
+│   └── diagnostics.component.scss
 ├── accounts/               # Feature module
 │   ├── account-list.component.ts
-│   └── account-form.component.ts
+│   ├── account-list.component.html
+│   └── account-list.component.scss
 └── transactions/           # Feature module
     └── ...
 ```
@@ -68,7 +105,8 @@ src/app/
 ## Styling
 
 - **Tailwind CSS only** - no component library CSS
-- Use Tailwind utility classes inline in templates
+- Use Tailwind utility classes in templates
+- Use `.scss` files for component-specific styles and `:host` styling
 - Extract repeated patterns to `@apply` in component styles if needed
 
 ## Keyboard Navigation
@@ -82,14 +120,26 @@ This is a keyboard-first application. Every feature must be fully operable via k
 @ViewChildren(ListItemDirective) items: QueryList<ListItemDirective>;
 keyManager = new ListKeyManager(this.items).withWrap().withHomeAndEnd();
 
-// Global shortcuts via HostListener
-@HostListener('window:keydown', ['$event'])
-handleKeydown(event: KeyboardEvent) {
-  if (event.ctrlKey && event.key === 'n') {
-    this.newTransaction();
+// Global shortcuts via host property (NOT @HostListener decorator)
+@Component({
+  selector: 'app-feature',
+  templateUrl: './feature.component.html',
+  styleUrl: './feature.component.scss',
+  host: {
+    '(window:keydown)': 'handleKeydown($event)',
+  },
+})
+export class FeatureComponent {
+  handleKeydown(event: KeyboardEvent): void {
+    if (event.ctrlKey && event.key === 'n') {
+      event.preventDefault();
+      this.newTransaction();
+    }
   }
 }
 ```
+
+**Do NOT use `@HostListener` decorator** - always use the `host` property in `@Component` instead.
 
 ### Required Shortcuts
 - `Ctrl+N` - New transaction

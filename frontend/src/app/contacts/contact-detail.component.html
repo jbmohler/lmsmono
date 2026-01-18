@@ -1,0 +1,46 @@
+<div class="max-w-4xl mx-auto p-6">
+  <!-- Back link -->
+  <a
+    routerLink="/contacts"
+    class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6"
+  >
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+    </svg>
+    Back to Contacts
+  </a>
+
+  <!-- Contact header -->
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+    <div class="flex items-start justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-900">Contact Details</h1>
+        <p class="text-sm text-gray-500 mt-1">ID: {{ contactId() }}</p>
+      </div>
+      <button
+        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+      >
+        Edit
+      </button>
+    </div>
+  </div>
+
+  <!-- Contact info placeholder -->
+  <div class="grid grid-cols-2 gap-6">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <h2 class="text-sm font-medium text-gray-900 mb-4">Contact Information</h2>
+      <p class="text-sm text-gray-500">Contact details will appear here once the API is connected.</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <h2 class="text-sm font-medium text-gray-900 mb-4">Linked Credentials</h2>
+      <p class="text-sm text-gray-500">Password vault entries linked to this contact will appear here.</p>
+    </div>
+  </div>
+
+  <!-- Related transactions -->
+  <div class="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <h2 class="text-sm font-medium text-gray-900 mb-4">Related Transactions</h2>
+    <p class="text-sm text-gray-500">Transactions involving this contact will appear here.</p>
+  </div>
+</div>

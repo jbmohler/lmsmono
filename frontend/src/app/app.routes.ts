@@ -1,7 +1,53 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'diagnostics', pathMatch: 'full' },
+  { path: '', redirectTo: 'finances/transactions', pathMatch: 'full' },
+
+  // Finances section
+  {
+    path: 'finances',
+    loadComponent: () => import('./finances/finances-layout.component').then(m => m.FinancesLayoutComponent),
+    children: [
+      { path: '', redirectTo: 'transactions', pathMatch: 'full' },
+      {
+        path: 'transactions',
+        loadComponent: () =>
+          import('./finances/transactions/transaction-list.component').then(m => m.TransactionListComponent),
+      },
+      {
+        path: 'calendar',
+        loadComponent: () =>
+          import('./finances/calendar/transaction-calendar.component').then(m => m.TransactionCalendarComponent),
+      },
+      {
+        path: 'reconcile/:accountId',
+        loadComponent: () =>
+          import('./finances/reconcile/reconcile.component').then(m => m.ReconcileComponent),
+      },
+    ],
+  },
+
+  // Contacts section
+  {
+    path: 'contacts',
+    loadComponent: () => import('./contacts/contacts.component').then(m => m.ContactsComponent),
+  },
+  {
+    path: 'contacts/:contactId',
+    loadComponent: () => import('./contacts/contact-detail.component').then(m => m.ContactDetailComponent),
+  },
+
+  // Reports section
+  {
+    path: 'reports',
+    loadComponent: () => import('./reports/reports.component').then(m => m.ReportsComponent),
+  },
+  {
+    path: 'reports/:reportType',
+    loadComponent: () => import('./reports/report-viewer.component').then(m => m.ReportViewerComponent),
+  },
+
+  // Diagnostics (dev tool)
   {
     path: 'diagnostics',
     loadComponent: () => import('./diagnostics/diagnostics.component').then(m => m.DiagnosticsComponent),

@@ -1,0 +1,66 @@
+<div class="max-w-7xl mx-auto p-6">
+  <!-- Back link -->
+  <a
+    routerLink="/reports"
+    class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6"
+  >
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+    </svg>
+    Back to Reports
+  </a>
+
+  <!-- Report header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold text-gray-900 capitalize">{{ reportType()?.replace('-', ' ') }}</h1>
+      <p class="text-sm text-gray-500 mt-1">Report type: {{ reportType() }}</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600">From:</label>
+        <input
+          type="date"
+          class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600">To:</label>
+        <input
+          type="date"
+          class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <button
+        class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        Generate
+      </button>
+    </div>
+  </div>
+
+  <!-- Export buttons -->
+  <div class="flex items-center gap-2 mb-6">
+    <button
+      class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+    >
+      Export CSV
+    </button>
+    <button
+      class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+    >
+      Export PDF
+    </button>
+    <button
+      class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+    >
+      Print
+    </button>
+  </div>
+
+  <!-- Report content placeholder -->
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center text-gray-500">
+    <p class="text-sm">Report data will appear here once the API is connected.</p>
+    <p class="text-xs mt-1 text-gray-400">Select a date range and click Generate to view the report.</p>
+  </div>
+</div>

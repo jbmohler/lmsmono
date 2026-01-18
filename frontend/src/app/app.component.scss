@@ -1,0 +1,27 @@
+.tab-link {
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  border-radius: 0.5rem 0.5rem 0 0;
+  transition: all 150ms ease-in-out;
+  color: rgb(203 213 225); /* slate-300 */
+  border: 1px solid transparent;
+
+  &:hover {
+    color: white;
+    background-color: rgb(71 85 105); /* slate-600 */
+  }
+
+  &.tab-active {
+    background-color: rgb(243 244 246); /* gray-100 */
+    color: rgb(30 41 59); /* slate-800 */
+    border-color: rgb(71 85 105); /* slate-600 */
+    border-bottom-color: rgb(243 244 246); /* gray-100 */
+
+    &:hover {
+      background-color: rgb(243 244 246);
+      color: rgb(30 41 59);
+    }
+  }
+}
