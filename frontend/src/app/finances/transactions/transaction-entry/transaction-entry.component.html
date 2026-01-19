@@ -1,0 +1,237 @@
+<dialog
+  #dialog
+  class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0"
+  (close)="dialogClose.emit()"
+  (keydown)="handleKeydown($event)"
+>
+  <!-- Header -->
+  <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-gray-900">New Transaction</h2>
+    <button
+      type="button"
+      (click)="onCancel()"
+      class="text-gray-400 hover:text-gray-600 p-1 rounded"
+      aria-label="Close"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Body -->
+  <div class="px-6 py-4 overflow-y-auto flex-1">
+    <!-- Header fields -->
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div>
+        <label for="txn-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+        <input
+          #dateInput
+          id="txn-date"
+          type="date"
+          [ngModel]="date()"
+          (ngModelChange)="date.set($event)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+      <div>
+        <label for="txn-reference" class="block text-sm font-medium text-gray-700 mb-1">Reference</label>
+        <input
+          id="txn-reference"
+          type="text"
+          [ngModel]="reference()"
+          (ngModelChange)="reference.set($event)"
+          placeholder="Check #, Invoice #"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+      <div>
+        <label for="txn-payee" class="block text-sm font-medium text-gray-700 mb-1">Payee</label>
+        <input
+          id="txn-payee"
+          type="text"
+          [ngModel]="payee()"
+          (ngModelChange)="payee.set($event)"
+          placeholder="Payee name"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+      <div>
+        <label for="txn-memo" class="block text-sm font-medium text-gray-700 mb-1">Memo</label>
+        <input
+          id="txn-memo"
+          type="text"
+          [ngModel]="memo()"
+          (ngModelChange)="memo.set($event)"
+          placeholder="Notes"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+    </div>
+
+    <!-- Line items table -->
+    <div class="border border-gray-200 rounded-md overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-1/2">Account</th>
+            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase w-1/4">Debit</th>
+            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase w-1/4">Credit</th>
+            <th class="px-2 py-2 w-8"></th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          @for (line of lines(); track trackByLineId($index, line); let i = $index) {
+            <tr [attr.data-line-id]="line.id">
+              <td class="px-2 py-1">
+                <select
+                  #lineInput
+                  [ngModel]="line.accountId"
+                  (ngModelChange)="updateLine(line.id, 'accountId', $event)"
+                  class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select account...</option>
+                  <optgroup label="Assets">
+                    @for (acct of accounts; track acct.id) {
+                      @if (acct.type === 'asset') {
+                        <option [value]="acct.id">{{ acct.name }}</option>
+                      }
+                    }
+                  </optgroup>
+                  <optgroup label="Liabilities">
+                    @for (acct of accounts; track acct.id) {
+                      @if (acct.type === 'liability') {
+                        <option [value]="acct.id">{{ acct.name }}</option>
+                      }
+                    }
+                  </optgroup>
+                  <optgroup label="Equity">
+                    @for (acct of accounts; track acct.id) {
+                      @if (acct.type === 'equity') {
+                        <option [value]="acct.id">{{ acct.name }}</option>
+                      }
+                    }
+                  </optgroup>
+                  <optgroup label="Income">
+                    @for (acct of accounts; track acct.id) {
+                      @if (acct.type === 'income') {
+                        <option [value]="acct.id">{{ acct.name }}</option>
+                      }
+                    }
+                  </optgroup>
+                  <optgroup label="Expenses">
+                    @for (acct of accounts; track acct.id) {
+                      @if (acct.type === 'expense') {
+                        <option [value]="acct.id">{{ acct.name }}</option>
+                      }
+                    }
+                  </optgroup>
+                </select>
+              </td>
+              <td class="px-2 py-1">
+                <input
+                  #lineInput
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  [ngModel]="line.debit"
+                  (ngModelChange)="updateLine(line.id, 'debit', $event)"
+                  placeholder="0.00"
+                  class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </td>
+              <td class="px-2 py-1">
+                <input
+                  #lineInput
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  [ngModel]="line.credit"
+                  (ngModelChange)="updateLine(line.id, 'credit', $event)"
+                  placeholder="0.00"
+                  class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 credit-input"
+                />
+              </td>
+              <td class="px-2 py-1 text-center">
+                @if (lines().length > 2) {
+                  <button
+                    type="button"
+                    (click)="removeLine(line.id)"
+                    class="text-gray-400 hover:text-red-600 p-1"
+                    tabindex="-1"
+                    aria-label="Remove line"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+        <tfoot class="bg-gray-50">
+          <tr>
+            <td class="px-4 py-2 text-right text-sm font-medium text-gray-700">Totals</td>
+            <td class="px-4 py-2 text-right text-sm font-medium" [class.text-gray-900]="isBalanced()" [class.text-red-600]="!isBalanced()">
+              {{ formatCurrency(totalDebits()) }}
+            </td>
+            <td class="px-4 py-2 text-right text-sm font-medium" [class.text-gray-900]="isBalanced()" [class.text-red-600]="!isBalanced()">
+              {{ formatCurrency(totalCredits()) }}
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Add line button -->
+    <button
+      type="button"
+      (click)="addLine()"
+      class="mt-3 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+      tabindex="-1"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      Add line
+      <span class="text-gray-400 text-xs ml-2">(Ctrl+Enter)</span>
+    </button>
+
+    <!-- Balance warning -->
+    @if (!isBalanced() && (totalDebits() > 0 || totalCredits() > 0)) {
+      <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+        <p class="text-sm text-yellow-800">
+          Transaction is out of balance by {{ formatCurrency(balanceDifference()) }}.
+          Debits must equal credits.
+        </p>
+      </div>
+    }
+  </div>
+
+  <!-- Footer -->
+  <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+    <div class="text-xs text-gray-500">
+      <span class="font-medium">Shortcuts:</span>
+      Ctrl+S save | Ctrl+Enter add line | Ctrl+Backspace delete line | Esc cancel
+    </div>
+    <div class="flex gap-3">
+      <button
+        type="button"
+        (click)="onCancel()"
+        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        (click)="onSave()"
+        [disabled]="!isBalanced()"
+        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Save Transaction
+      </button>
+    </div>
+  </div>
+</dialog>

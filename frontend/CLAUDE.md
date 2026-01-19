@@ -31,6 +31,58 @@ refresh() {
 }
 ```
 
+### Signal-Based APIs (Angular 21)
+
+**Use signal-based functions instead of decorators:**
+
+```typescript
+// BAD - decorator-based (deprecated)
+@Output() save = new EventEmitter<void>();
+@ViewChild('input') inputEl!: ElementRef;
+@ViewChildren('item') items!: QueryList<ElementRef>;
+
+// GOOD - signal-based
+save = output<void>();
+inputEl = viewChild<ElementRef>('input');
+items = viewChildren<ElementRef>('item');
+```
+
+**Signal queries return signals** - call them to get the value:
+
+```typescript
+// viewChild returns Signal<T | undefined>
+// viewChildren returns Signal<readonly T[]>
+const inputs = this.items();  // readonly ElementRef[]
+inputs[0]?.nativeElement.focus();
+```
+
+**Use `afterNextRender` instead of `ngAfterViewInit` + setTimeout:**
+
+```typescript
+// BAD - lifecycle hook with setTimeout
+ngAfterViewInit(): void {
+  setTimeout(() => {
+    this.inputEl.nativeElement.focus();
+  }, 0);
+}
+
+// GOOD - afterNextRender in constructor
+constructor() {
+  afterNextRender(() => {
+    this.inputEl()?.nativeElement.focus();
+  });
+}
+
+// GOOD - afterNextRender after state change
+addItem(): void {
+  this.items.update(list => [...list, newItem]);
+  afterNextRender(() => {
+    const inputs = this.itemInputs();
+    inputs[inputs.length - 1]?.nativeElement.focus();
+  });
+}
+```
+
 ### Component Guidelines
 
 - **Keep app.component minimal** - it should only contain the shell layout and router outlet
@@ -116,10 +168,6 @@ This is a keyboard-first application. Every feature must be fully operable via k
 ### Implementation Patterns
 
 ```typescript
-// Use Angular CDK ListKeyManager for list navigation
-@ViewChildren(ListItemDirective) items: QueryList<ListItemDirective>;
-keyManager = new ListKeyManager(this.items).withWrap().withHomeAndEnd();
-
 // Global shortcuts via host property (NOT @HostListener decorator)
 @Component({
   selector: 'app-feature',
@@ -142,12 +190,21 @@ export class FeatureComponent {
 **Do NOT use `@HostListener` decorator** - always use the `host` property in `@Component` instead.
 
 ### Required Shortcuts
-- `Ctrl+N` - New transaction
+- `Ctrl+Shift+N` - New transaction (avoid browser's Ctrl+N)
 - `Ctrl+S` - Save current form
 - `Escape` - Close modal/cancel
 - `Arrow keys` - Navigate lists and tables
 - `Enter` - Select/open item
 - `Tab` - Standard focus navigation
+
+### Avoid Browser Hotkeys
+Never use these common browser shortcuts:
+- `Ctrl+N` - New window
+- `Ctrl+T` - New tab
+- `Ctrl+W` - Close tab
+- `Ctrl+L` / `Ctrl+D` - Address bar / Bookmark
+- `Ctrl+H` / `Ctrl+J` - History / Downloads
+- `F5` / `Ctrl+R` - Refresh
 
 ### Focus Management
 - Trap focus in modals (`cdkTrapFocus`)

@@ -125,7 +125,7 @@ handleKeydown(event: KeyboardEvent) {
 ```
 
 ### Required Shortcuts
-- `Ctrl+N` - New transaction
+- `Ctrl+Shift+N` - New transaction (avoid browser's Ctrl+N)
 - `Ctrl+S` - Save current form
 - `Escape` - Close modal/cancel
 - `Arrow keys` - Navigate lists and tables

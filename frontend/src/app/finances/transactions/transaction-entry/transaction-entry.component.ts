@@ -1,0 +1,219 @@
+import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+interface Account {
+  id: string;
+  name: string;
+  type: 'asset' | 'liability' | 'equity' | 'income' | 'expense';
+}
+
+interface TransactionLine {
+  id: number;
+  accountId: string;
+  debit: number | null;
+  credit: number | null;
+}
+
+@Component({
+  selector: 'app-transaction-entry',
+  templateUrl: './transaction-entry.component.html',
+  styleUrl: './transaction-entry.component.scss',
+  imports: [FormsModule],
+})
+export class TransactionEntryComponent {
+  initialDate = input<string>();
+
+  dialogClose = output<void>();
+  dialogSave = output<void>();
+
+  dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
+  dateInput = viewChild<ElementRef<HTMLInputElement>>('dateInput');
+  lineInputs = viewChildren<ElementRef<HTMLInputElement | HTMLSelectElement>>('lineInput');
+
+  // Header fields
+  date = signal(this.todayString());
+  reference = signal('');
+  payee = signal('');
+  memo = signal('');
+
+  // Line items
+  private nextLineId = 1;
+  lines = signal<TransactionLine[]>([
+    { id: this.nextLineId++, accountId: '', debit: null, credit: null },
+    { id: this.nextLineId++, accountId: '', debit: null, credit: null },
+  ]);
+
+  // Mock account list
+  accounts: Account[] = [
+    { id: '1', name: 'Checking Account', type: 'asset' },
+    { id: '2', name: 'Savings Account', type: 'asset' },
+    { id: '3', name: 'Accounts Receivable', type: 'asset' },
+    { id: '4', name: 'Credit Card', type: 'liability' },
+    { id: '5', name: 'Accounts Payable', type: 'liability' },
+    { id: '6', name: 'Owner Equity', type: 'equity' },
+    { id: '7', name: 'Sales Revenue', type: 'income' },
+    { id: '8', name: 'Service Income', type: 'income' },
+    { id: '9', name: 'Interest Income', type: 'income' },
+    { id: '10', name: 'Office Supplies', type: 'expense' },
+    { id: '11', name: 'Rent Expense', type: 'expense' },
+    { id: '12', name: 'Utilities', type: 'expense' },
+    { id: '13', name: 'Payroll', type: 'expense' },
+    { id: '14', name: 'Insurance', type: 'expense' },
+  ];
+
+  // Computed totals
+  totalDebits = computed(() => {
+    return this.lines().reduce((sum, line) => sum + (line.debit || 0), 0);
+  });
+
+  totalCredits = computed(() => {
+    return this.lines().reduce((sum, line) => sum + (line.credit || 0), 0);
+  });
+
+  isBalanced = computed(() => {
+    const debits = this.totalDebits();
+    const credits = this.totalCredits();
+    return debits > 0 && Math.abs(debits - credits) < 0.01;
+  });
+
+  balanceDifference = computed(() => {
+    return Math.abs(this.totalDebits() - this.totalCredits());
+  });
+
+  constructor() {
+    // Set initial date from input if provided, then open dialog
+    afterNextRender(() => {
+      const initial = this.initialDate();
+      if (initial) {
+        this.date.set(initial);
+      }
+      this.dialog()?.nativeElement.showModal();
+      this.dateInput()?.nativeElement.focus();
+    });
+  }
+
+  close(): void {
+    this.dialog()?.nativeElement.close();
+    // Native close event will emit dialogClose
+  }
+
+  handleKeydown(event: KeyboardEvent): void {
+    // Ctrl+S - save
+    if (event.ctrlKey && event.key === 's') {
+      event.preventDefault();
+      this.onSave();
+      return;
+    }
+
+    // Ctrl+Enter - add new line
+    if (event.ctrlKey && event.key === 'Enter') {
+      event.preventDefault();
+      this.addLine();
+      return;
+    }
+
+    // Ctrl+Backspace - delete current line (if in line area)
+    if (event.ctrlKey && event.key === 'Backspace') {
+      const target = event.target as HTMLElement;
+      const row = target.closest('tr[data-line-id]');
+      if (row) {
+        const lineId = parseInt(row.getAttribute('data-line-id') || '0', 10);
+        if (lineId && this.lines().length > 2) {
+          event.preventDefault();
+          this.removeLine(lineId);
+        }
+      }
+      return;
+    }
+
+    // Tab from last cell of last row - add new line
+    if (event.key === 'Tab' && !event.shiftKey) {
+      const target = event.target as HTMLElement;
+      const row = target.closest('tr[data-line-id]');
+      if (row) {
+        const lineId = parseInt(row.getAttribute('data-line-id') || '0', 10);
+        const lines = this.lines();
+        const isLastRow = lines[lines.length - 1]?.id === lineId;
+        const isLastCell = target.classList.contains('credit-input');
+
+        if (isLastRow && isLastCell) {
+          event.preventDefault();
+          this.addLine();
+        }
+      }
+    }
+  }
+
+  addLine(): void {
+    this.lines.update(lines => [
+      ...lines,
+      { id: this.nextLineId++, accountId: '', debit: null, credit: null },
+    ]);
+
+    // Focus new line's account select after render
+    afterNextRender(() => {
+      const inputs = this.lineInputs();
+      const newLineFirstInput = inputs[inputs.length - 3]; // account select of new row
+      newLineFirstInput?.nativeElement?.focus();
+    });
+  }
+
+  removeLine(lineId: number): void {
+    if (this.lines().length <= 2) return; // Keep minimum 2 lines
+
+    const currentLines = this.lines();
+    const index = currentLines.findIndex(l => l.id === lineId);
+
+    this.lines.update(lines => lines.filter(l => l.id !== lineId));
+
+    // Focus previous line's account or first line if removing first
+    afterNextRender(() => {
+      const inputs = this.lineInputs();
+      const targetIndex = Math.max(0, (index - 1)) * 3;
+      inputs[targetIndex]?.nativeElement?.focus();
+    });
+  }
+
+  updateLine(lineId: number, field: 'accountId' | 'debit' | 'credit', value: string | number | null): void {
+    this.lines.update(lines =>
+      lines.map(line => {
+        if (line.id !== lineId) return line;
+
+        if (field === 'accountId') {
+          return { ...line, accountId: value as string };
+        } else if (field === 'debit') {
+          // Clear credit if entering debit
+          const debit = value === '' || value === null ? null : parseFloat(value as string) || null;
+          return { ...line, debit, credit: debit ? null : line.credit };
+        } else {
+          // Clear debit if entering credit
+          const credit = value === '' || value === null ? null : parseFloat(value as string) || null;
+          return { ...line, credit, debit: credit ? null : line.debit };
+        }
+      })
+    );
+  }
+
+  onSave(): void {
+    if (!this.isBalanced()) return;
+    this.dialogSave.emit();
+    this.close();
+  }
+
+  onCancel(): void {
+    this.close();
+  }
+
+  trackByLineId(_index: number, line: TransactionLine): number {
+    return line.id;
+  }
+
+  private todayString(): string {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  }
+
+  formatCurrency(value: number): string {
+    return value.toFixed(2);
+  }
+}

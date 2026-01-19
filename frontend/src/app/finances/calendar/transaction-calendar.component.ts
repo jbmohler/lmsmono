@@ -1,4 +1,5 @@
 import { Component, computed, signal } from '@angular/core';
+import { TransactionEntryComponent } from '../transactions/transaction-entry/transaction-entry.component';
 
 interface Transaction {
   id: string;
@@ -18,12 +19,20 @@ interface CalendarDay {
   selector: 'app-transaction-calendar',
   templateUrl: './transaction-calendar.component.html',
   styleUrl: './transaction-calendar.component.scss',
+  imports: [TransactionEntryComponent],
+  host: {
+    '(window:keydown)': 'handleKeydown($event)',
+  },
 })
 export class TransactionCalendarComponent {
   weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   currentYear = signal(2026);
   currentMonth = signal(0); // 0 = January
+
+  // Transaction entry dialog state
+  showEntryDialog = signal(false);
+  entryDate = signal<string | undefined>(undefined);
 
   monthName = computed(() => {
     const months = [
@@ -117,6 +126,14 @@ export class TransactionCalendarComponent {
     return days;
   });
 
+  handleKeydown(event: KeyboardEvent): void {
+    // Ctrl+Shift+N - open new transaction dialog
+    if (event.ctrlKey && event.shiftKey && event.key === 'N') {
+      event.preventDefault();
+      this.openEntryDialog();
+    }
+  }
+
   previousMonth(): void {
     if (this.currentMonth() === 0) {
       this.currentMonth.set(11);
@@ -133,6 +150,27 @@ export class TransactionCalendarComponent {
     } else {
       this.currentMonth.update(m => m + 1);
     }
+  }
+
+  openEntryDialog(date?: string): void {
+    this.entryDate.set(date);
+    this.showEntryDialog.set(true);
+  }
+
+  closeEntryDialog(): void {
+    this.showEntryDialog.set(false);
+    this.entryDate.set(undefined);
+  }
+
+  onDayClick(day: CalendarDay): void {
+    if (day.date) {
+      this.openEntryDialog(day.date);
+    }
+  }
+
+  onTransactionSaved(): void {
+    // TODO: Refresh calendar when API is connected
+    console.log('Transaction saved');
   }
 
   private formatDate(year: number, month: number, day: number): string {
