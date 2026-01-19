@@ -32,10 +32,6 @@ export const routes: Routes = [
     path: 'contacts',
     loadComponent: () => import('./contacts/contacts.component').then(m => m.ContactsComponent),
   },
-  {
-    path: 'contacts/:contactId',
-    loadComponent: () => import('./contacts/contact-detail.component').then(m => m.ContactDetailComponent),
-  },
 
   // Reports section
   {

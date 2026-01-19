@@ -1,0 +1,335 @@
+<div class="h-full flex flex-col">
+  @if (isEditing()) {
+    <!-- Edit Mode -->
+    @if (editData(); as data) {
+      <!-- Header -->
+      <div class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-gray-900">Edit Contact</h2>
+        <div class="flex items-center gap-2">
+          <button
+            (click)="cancelEdit()"
+            class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            (click)="saveEdit()"
+            class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+
+      <!-- Edit Form -->
+      <div class="flex-1 overflow-y-auto p-6">
+        <!-- Basic Info -->
+        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            @if (!data.isCorporate) {
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">First Name</label>
+                <input
+                  type="text"
+                  [ngModel]="data.firstName"
+                  (ngModelChange)="updateField('firstName', $event)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            }
+            <div [class.col-span-2]="data.isCorporate">
+              <label class="block text-xs font-medium text-gray-500 mb-1">
+                {{ data.isCorporate ? 'Company Name' : 'Last Name' }}
+              </label>
+              <input
+                type="text"
+                [ngModel]="data.lastName"
+                (ngModelChange)="updateField('lastName', $event)"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          @if (!data.isCorporate) {
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Title</label>
+                <input
+                  type="text"
+                  [ngModel]="data.title"
+                  (ngModelChange)="updateField('title', $event)"
+                  placeholder="Mr., Ms., Dr."
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Organization</label>
+                <input
+                  type="text"
+                  [ngModel]="data.organization"
+                  (ngModelChange)="updateField('organization', $event)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Contact Info (unified list) -->
+        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-medium text-gray-700">Contact Info</h3>
+            <div class="flex gap-2">
+              <button (click)="addBit('email')" class="text-xs text-blue-600 hover:text-blue-800">+ Email</button>
+              <button (click)="addBit('phone')" class="text-xs text-blue-600 hover:text-blue-800">+ Phone</button>
+              <button (click)="addBit('address')" class="text-xs text-blue-600 hover:text-blue-800">+ Address</button>
+              <button (click)="addBit('url')" class="text-xs text-blue-600 hover:text-blue-800">+ Link</button>
+            </div>
+          </div>
+
+          @for (bit of editSortedBits(); track trackById($index, bit); let first = $first; let last = $last) {
+            <div class="border border-gray-200 rounded-md p-3 mb-2">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <!-- Reorder buttons -->
+                  <div class="flex flex-col gap-0.5">
+                    <button
+                      (click)="moveBitUp(bit.id)"
+                      [disabled]="first"
+                      class="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs leading-none"
+                      title="Move up"
+                    >▲</button>
+                    <button
+                      (click)="moveBitDown(bit.id)"
+                      [disabled]="last"
+                      class="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs leading-none"
+                      title="Move down"
+                    >▼</button>
+                  </div>
+                  <!-- Primary star -->
+                  <button
+                    (click)="setPrimary(bit.id, bit.bitType)"
+                    class="text-gray-400 hover:text-yellow-500"
+                    [class.text-yellow-500]="bit.isPrimary"
+                    title="Set as primary"
+                  >
+                    @if (bit.isPrimary) { ★ } @else { ☆ }
+                  </button>
+                  <!-- Type badge -->
+                  <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                    {{ getBitTypeLabel(bit.bitType) }}
+                  </span>
+                  <!-- Label input -->
+                  <input
+                    type="text"
+                    [ngModel]="bit.label"
+                    (ngModelChange)="updateBit(bit.id, 'label', $event)"
+                    placeholder="Label"
+                    class="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                  />
+                </div>
+                <button (click)="removeBit(bit.id)" class="text-gray-400 hover:text-red-600">×</button>
+              </div>
+
+              <!-- Type-specific fields -->
+              @if (isEmail(bit)) {
+                <input
+                  type="email"
+                  [ngModel]="bit.email"
+                  (ngModelChange)="updateBit(bit.id, 'email', $event)"
+                  placeholder="email@example.com"
+                  class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              }
+
+              @if (isPhone(bit)) {
+                <input
+                  type="tel"
+                  [ngModel]="bit.number"
+                  (ngModelChange)="updateBit(bit.id, 'number', $event)"
+                  placeholder="(555) 123-4567"
+                  class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              }
+
+              @if (isAddress(bit)) {
+                <div class="grid grid-cols-1 gap-2">
+                  <input
+                    type="text"
+                    [ngModel]="bit.address1"
+                    (ngModelChange)="updateBit(bit.id, 'address1', $event)"
+                    placeholder="Address line 1"
+                    class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                  />
+                  <input
+                    type="text"
+                    [ngModel]="bit.address2"
+                    (ngModelChange)="updateBit(bit.id, 'address2', $event)"
+                    placeholder="Address line 2"
+                    class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                  />
+                  <div class="grid grid-cols-4 gap-2">
+                    <input
+                      type="text"
+                      [ngModel]="bit.city"
+                      (ngModelChange)="updateBit(bit.id, 'city', $event)"
+                      placeholder="City"
+                      class="col-span-2 px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    />
+                    <input
+                      type="text"
+                      [ngModel]="bit.state"
+                      (ngModelChange)="updateBit(bit.id, 'state', $event)"
+                      placeholder="State"
+                      class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    />
+                    <input
+                      type="text"
+                      [ngModel]="bit.zip"
+                      (ngModelChange)="updateBit(bit.id, 'zip', $event)"
+                      placeholder="ZIP"
+                      class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+              }
+
+              @if (isUrl(bit)) {
+                <div class="flex gap-2">
+                  <input
+                    type="url"
+                    [ngModel]="bit.url"
+                    (ngModelChange)="updateBit(bit.id, 'url', $event)"
+                    placeholder="https://..."
+                    class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    [ngModel]="bit.username"
+                    (ngModelChange)="updateBit(bit.id, 'username', $event)"
+                    placeholder="Username"
+                    class="w-32 px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                  />
+                </div>
+              }
+            </div>
+          } @empty {
+            <p class="text-sm text-gray-400 italic">No contact info</p>
+          }
+        </div>
+
+        <!-- Memo -->
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+          <textarea
+            [ngModel]="data.memo"
+            (ngModelChange)="updateField('memo', $event)"
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+        Ctrl+S to save | Escape to cancel
+      </div>
+    }
+  } @else {
+    <!-- View Mode -->
+    <!-- Header -->
+    <div class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-semibold text-gray-900">{{ displayName() }}</h2>
+        @if (!contact().isCorporate && contact().organization) {
+          <p class="text-sm text-gray-500">{{ contact().organization }}</p>
+        }
+        @if (contact().isCorporate) {
+          <p class="text-sm text-gray-500">Company</p>
+        }
+      </div>
+      <button
+        (click)="enterEditMode()"
+        class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+      >
+        Edit
+      </button>
+    </div>
+
+    <!-- View Content -->
+    <div class="flex-1 overflow-y-auto p-6">
+      @for (bit of sortedBits(); track trackById($index, bit)) {
+        <div class="mb-4">
+          @if (isEmail(bit)) {
+            <div class="flex items-center gap-2">
+              @if (bit.isPrimary) {
+                <span class="text-yellow-500 text-sm">★</span>
+              }
+              <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Email</span>
+              <a href="mailto:{{ bit.email }}" class="text-sm text-blue-600 hover:underline">{{ bit.email }}</a>
+              @if (bit.label) {
+                <span class="text-xs text-gray-400">({{ bit.label }})</span>
+              }
+            </div>
+          }
+
+          @if (isPhone(bit)) {
+            <div class="flex items-center gap-2">
+              @if (bit.isPrimary) {
+                <span class="text-yellow-500 text-sm">★</span>
+              }
+              <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Phone</span>
+              <a href="tel:{{ bit.number }}" class="text-sm text-gray-900">{{ bit.number }}</a>
+              @if (bit.label) {
+                <span class="text-xs text-gray-400">({{ bit.label }})</span>
+              }
+            </div>
+          }
+
+          @if (isAddress(bit)) {
+            <div class="flex items-start gap-2">
+              @if (bit.isPrimary) {
+                <span class="text-yellow-500 text-sm">★</span>
+              }
+              <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Address</span>
+              <div class="text-sm text-gray-900 whitespace-pre-line">{{ formatAddress(bit) }}</div>
+              @if (bit.label) {
+                <span class="text-xs text-gray-400">({{ bit.label }})</span>
+              }
+            </div>
+          }
+
+          @if (isUrl(bit)) {
+            <div class="flex items-center gap-2">
+              @if (bit.isPrimary) {
+                <span class="text-yellow-500 text-sm">★</span>
+              }
+              <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Link</span>
+              <a href="{{ bit.url }}" target="_blank" class="text-sm text-blue-600 hover:underline">{{ bit.url }}</a>
+              @if (bit.label) {
+                <span class="text-xs text-gray-400">({{ bit.label }})</span>
+              }
+              @if (bit.username) {
+                <span class="text-xs text-gray-400">@{{ bit.username }}</span>
+              }
+            </div>
+          }
+        </div>
+      } @empty {
+        <p class="text-sm text-gray-400 italic">No contact info</p>
+      }
+
+      <!-- Memo -->
+      @if (contact().memo) {
+        <div class="mt-6 pt-4 border-t border-gray-200">
+          <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Notes</h3>
+          <p class="text-sm text-gray-700 whitespace-pre-line">{{ contact().memo }}</p>
+        </div>
+      }
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+      Click Edit to modify
+    </div>
+  }
+</div>
