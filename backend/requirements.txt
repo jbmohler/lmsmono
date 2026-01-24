@@ -1,5 +1,5 @@
 # Web framework
-fastapi
+litestar[standard]
 uvicorn[standard]
 
 # Database

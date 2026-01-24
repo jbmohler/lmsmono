@@ -14,15 +14,15 @@ LMS is a mature application with a 20-year-old data model. The PostgreSQL schema
 
 ### Backend (Python)
 - **Python 3.13**
-- **FastAPI** (latest)
+- **Litestar** - async web framework with guards and DI
 - **psycopg 3** (async)
-- **Pydantic v2**
 - **uvicorn** - ASGI server
 - **ruff** - linting and formatting
 - **mypy** - type checking
 - **argon2-cffi** - password hashing
-- **pydantic-settings** - environment configuration
 - **pytest** + **pytest-asyncio** - testing
+
+See `backend/CLAUDE.md` for detailed Litestar patterns and guidelines.
 
 ### Frontend (Angular)
 - **Node.js 22 LTS**
@@ -77,14 +77,15 @@ The config file is mounted at `/run/secrets/config.json` in the backend containe
 
 ## Architecture Principles
 
-### Backend (Python/FastAPI)
+### Backend (Python/Litestar)
 
 - Use **psycopg3 async** for all database operations
 - Connection pooling via `AsyncConnectionPool`
 - Write raw SQL queries - no ORM. The schema is stable and SQL is explicit.
-- Keep queries in dedicated files under `backend/db/queries/`
-- Use Pydantic models for all API request/response validation
-- API routes grouped by domain under `backend/api/`
+- Keep complex queries in dedicated files under `backend/queries/`
+- Use **dataclasses** for request/response validation
+- Use **guards** for capability-based authorization
+- Controllers grouped by domain under `backend/api/`
 
 ### Frontend (Angular)
 
@@ -178,11 +179,10 @@ handleKeydown(event: KeyboardEvent) {
 ## File Organization
 
 When adding features:
-1. Backend route in `backend/api/{feature}.py`
-2. SQL queries in `backend/db/queries/{feature}.sql`
-3. Pydantic models in `backend/models/{feature}.py`
-4. Angular feature module in `frontend/src/app/{feature}/`
-5. Update routes in both backend `main.py` and Angular routing
+1. Backend controller in `backend/api/{feature}.py`
+2. SQL queries in `backend/queries/{feature}.sql` (for complex queries)
+3. Angular feature module in `frontend/src/app/{feature}/`
+4. Register controller in `backend/app.py` and update Angular routing
 
 ## Testing Approach
 
