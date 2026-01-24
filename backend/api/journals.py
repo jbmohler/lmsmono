@@ -1,0 +1,161 @@
+from dataclasses import dataclass
+from uuid import UUID
+
+import psycopg
+from litestar import Controller, delete, get, post, put
+from litestar.exceptions import HTTPException
+
+import core.db as db
+from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
+
+
+JOURNAL_COLUMNS = [
+    ColumnMeta(key="id", label="ID", type="uuid"),
+    ColumnMeta(key="jrn_name", label="Name", type="string"),
+    ColumnMeta(key="description", label="Description", type="string"),
+]
+
+
+@dataclass
+class JournalCreate:
+    jrn_name: str
+    description: str | None = None
+
+
+@dataclass
+class JournalUpdate:
+    jrn_name: str | None = None
+    description: str | None = None
+
+
+async def _get_journal_by_id(
+    conn: psycopg.AsyncConnection, journal_id: UUID
+) -> SingleRowResponse:
+    """Get a single journal by ID (shared logic)."""
+    return await db.select_one(
+        conn,
+        """
+        SELECT id, jrn_name, description
+        FROM hacc.journals
+        WHERE id = %(id)s
+        """,
+        {"id": journal_id},
+        columns=JOURNAL_COLUMNS,
+    )
+
+
+class JournalsController(Controller):
+    path = "/api/journals"
+    tags = ["journals"]
+
+    @get()
+    async def list_journals(
+        self,
+        conn: psycopg.AsyncConnection,
+    ) -> MultiRowResponse:
+        """List all journals."""
+        return await db.select_many(
+            conn,
+            """
+            SELECT id, jrn_name, description
+            FROM hacc.journals
+            ORDER BY jrn_name
+            """,
+            columns=JOURNAL_COLUMNS,
+        )
+
+    @get("/{journal_id:uuid}")
+    async def get_journal(
+        self,
+        conn: psycopg.AsyncConnection,
+        journal_id: UUID,
+    ) -> SingleRowResponse:
+        """Get a single journal by ID."""
+        return await _get_journal_by_id(conn, journal_id)
+
+    @post(status_code=201)
+    async def create_journal(
+        self,
+        conn: psycopg.AsyncConnection,
+        data: JournalCreate,
+    ) -> SingleRowResponse:
+        """Create a new journal."""
+        row = await db.execute_returning(
+            conn,
+            """
+            INSERT INTO hacc.journals (jrn_name, description)
+            VALUES (%(jrn_name)s, %(description)s)
+            RETURNING id, jrn_name, description
+            """,
+            {"jrn_name": data.jrn_name, "description": data.description},
+        )
+        if not row:
+            raise HTTPException(status_code=500, detail="Failed to create journal")
+        return SingleRowResponse(columns=JOURNAL_COLUMNS, data=row)
+
+    @put("/{journal_id:uuid}")
+    async def update_journal(
+        self,
+        conn: psycopg.AsyncConnection,
+        journal_id: UUID,
+        data: JournalUpdate,
+    ) -> SingleRowResponse:
+        """Update an existing journal."""
+        # Build dynamic update query
+        updates = []
+        params: dict[str, str | UUID | None] = {"id": journal_id}
+        if data.jrn_name is not None:
+            updates.append("jrn_name = %(jrn_name)s")
+            params["jrn_name"] = data.jrn_name
+        if data.description is not None:
+            updates.append("description = %(description)s")
+            params["description"] = data.description
+
+        if not updates:
+            # No updates, just return current state
+            return await _get_journal_by_id(conn, journal_id)
+
+        row = await db.execute_returning(
+            conn,
+            f"""
+            UPDATE hacc.journals
+            SET {", ".join(updates)}
+            WHERE id = %(id)s
+            RETURNING id, jrn_name, description
+            """,
+            params,
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Journal not found")
+        return SingleRowResponse(columns=JOURNAL_COLUMNS, data=row)
+
+    @delete("/{journal_id:uuid}", status_code=204)
+    async def delete_journal(
+        self,
+        conn: psycopg.AsyncConnection,
+        journal_id: UUID,
+    ) -> None:
+        """Delete a journal. Only succeeds if no accounts reference it."""
+        # Check if any accounts use this journal
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT COUNT(*) FROM hacc.accounts
+                WHERE journal_id = %(id)s
+                """,
+                {"id": journal_id},
+            )
+            row = await cur.fetchone()
+            if row and row[0] > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Cannot delete journal: accounts are using it",
+                )
+
+        count = await db.execute(
+            conn,
+            "DELETE FROM hacc.journals WHERE id = %(id)s",
+            {"id": journal_id},
+        )
+        if count == 0:
+            raise HTTPException(status_code=404, detail="Journal not found")

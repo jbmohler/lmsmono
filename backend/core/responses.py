@@ -25,3 +25,8 @@ class MultiRowResponse:
 
     columns: list[ColumnMeta]
     data: list[dict[str, Any]]
+
+
+def make_ref(id: str, name: str) -> dict[str, str]:
+    """Create a standard {id, name} reference struct for foreign keys."""
+    return {"id": id, "name": name}

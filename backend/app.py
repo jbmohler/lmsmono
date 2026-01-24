@@ -8,6 +8,9 @@ from core.config import AppConfig
 from core.db import init_pool, close_pool, provide_connection
 from api.health import HealthController, PingController
 from api.eventlog import EventLogController
+from api.accounts import AccountTypesController, AccountsController
+from api.journals import JournalsController
+from api.transactions import TransactionsController
 
 
 config: AppConfig | None = None
@@ -34,6 +37,10 @@ app = Litestar(
         HealthController,
         PingController,
         EventLogController,
+        AccountTypesController,
+        AccountsController,
+        JournalsController,
+        TransactionsController,
     ],
     dependencies={
         "conn": Provide(provide_connection),
