@@ -21,8 +21,14 @@ class DatabaseConfig:
 
 
 @dataclass
+class EncryptionConfig:
+    vault_key: str = ""
+
+
+@dataclass
 class AppConfig:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    encryption: EncryptionConfig = field(default_factory=EncryptionConfig)
 
     @classmethod
     def load(cls) -> "AppConfig":
@@ -33,7 +39,11 @@ class AppConfig:
             with open(path) as f:
                 data = json.load(f)
             db_data = data.get("database", {})
-            return cls(database=DatabaseConfig(**db_data))
+            enc_data = data.get("encryption", {})
+            return cls(
+                database=DatabaseConfig(**db_data),
+                encryption=EncryptionConfig(**enc_data),
+            )
 
         print(f"Warning: Config file not found at {config_path}")
         return cls()

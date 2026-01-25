@@ -5,6 +5,7 @@ from litestar import Litestar
 from litestar.di import Provide
 
 from core.config import AppConfig
+from core.crypto import init_crypto
 from core.db import init_pool, close_pool, provide_connection
 from api.health import HealthController, PingController
 from api.eventlog import EventLogController
@@ -26,6 +27,10 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
     if config.database.host:
         await init_pool(config.database.conninfo)
         print("Database pool initialized")
+
+    if config.encryption.vault_key:
+        init_crypto(config.encryption.vault_key)
+        print("Vault encryption initialized")
 
     yield
 

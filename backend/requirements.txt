@@ -11,6 +11,7 @@ pydantic-settings
 
 # Security
 argon2-cffi
+cryptography
 
 # Development tools
 ruff

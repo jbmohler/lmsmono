@@ -522,11 +522,11 @@ ACME_BITS = [
 - [x] Implement `DELETE /api/contacts/{id}` (delete persona)
 - [x] Register controller in `app.py`
 
-### Phase 2: Contact Bits API
-- [ ] Implement `POST /api/contacts/{id}/bits` (add bit)
-- [ ] Implement `PUT /api/contacts/{id}/bits/{bit_id}` (update bit)
-- [ ] Implement `DELETE /api/contacts/{id}/bits/{bit_id}` (remove bit)
-- [ ] Implement `POST /api/contacts/{id}/bits/reorder` (bulk reorder)
+### Phase 2: Contact Bits API ✓
+- [x] Implement `POST /api/contacts/{id}/bits` (add bit)
+- [x] Implement `PUT /api/contacts/{id}/bits/{bit_id}` (update bit)
+- [x] Implement `DELETE /api/contacts/{id}/bits/{bit_id}` (remove bit)
+- [x] Implement `POST /api/contacts/{id}/bits/reorder` (bulk reorder)
 
 ### Phase 3: Seed Data
 - [ ] Create `backend/seed/contacts.py`
@@ -549,10 +549,43 @@ ACME_BITS = [
 ## Security Considerations
 
 1. **Owner Validation**: All queries must filter by `owner_id` from session
-2. **Password Encryption**: URL passwords are encrypted server-side, never exposed
+2. **Password Encryption**: URL passwords encrypted with Fernet (see below)
 3. **Sharing**: Check `persona_shares` for non-owned contacts (future)
 4. **Input Validation**: Validate bit_type matches provided fields
 5. **SQL Injection**: Use parameterized queries exclusively
+
+### Password Encryption (Fernet)
+
+URL bit passwords are encrypted at rest using `cryptography.fernet.Fernet`:
+
+```python
+# core/crypto.py
+from cryptography.fernet import Fernet
+
+# Key loaded from config (32 bytes, base64-encoded)
+_fernet: Fernet | None = None
+
+def init_crypto(key: str) -> None:
+    global _fernet
+    _fernet = Fernet(key.encode())
+
+def encrypt_password(plaintext: str) -> bytes:
+    """Encrypt password for storage."""
+    if not _fernet:
+        raise RuntimeError("Crypto not initialized")
+    return _fernet.encrypt(plaintext.encode())
+
+def decrypt_password(ciphertext: bytes) -> str:
+    """Decrypt password from storage."""
+    if not _fernet:
+        raise RuntimeError("Crypto not initialized")
+    return _fernet.decrypt(ciphertext).decode()
+```
+
+**Key Management:**
+- Fernet key stored in `secrets/config.json` as `encryption_key`
+- Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+- Key must be 32 bytes, URL-safe base64-encoded
 
 ---
 
