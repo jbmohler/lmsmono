@@ -501,7 +501,7 @@ class ContactsController(Controller):
                 WHERE
                     p.owner_id = %(owner_id)s
                     AND (
-                        %(search)s IS NULL
+                        %(search)s::text IS NULL
                         OR pc.fts_search @@ websearch_to_tsquery('english', %(search)s)
                     )
                 ORDER BY pc.entity_name

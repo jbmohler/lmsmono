@@ -528,16 +528,16 @@ ACME_BITS = [
 - [x] Implement `DELETE /api/contacts/{id}/bits/{bit_id}` (remove bit)
 - [x] Implement `POST /api/contacts/{id}/bits/reorder` (bulk reorder)
 
-### Phase 3: Seed Data
-- [ ] Create `backend/seed/contacts.py`
-- [ ] Add seed personas and bits
-- [ ] Integrate with existing seed runner
+### Phase 3: Seed Data ✓
+- [x] Create `backend/seed/users.py` (dev user for FK constraint)
+- [x] Create `backend/seed/contacts.py` (personas and bits)
+- [x] Create `backend/seed/run.py` (CLI entry point)
 
-### Phase 4: Frontend Integration
-- [ ] Create `ContactsService` with HTTP calls
-- [ ] Update `ContactsComponent` to use real data
-- [ ] Add case transformation (snake_case ↔ camelCase)
-- [ ] Handle loading and error states
+### Phase 4: Frontend Integration ✓
+- [x] Create `ContactsService` with HTTP calls
+- [x] Update `ContactsComponent` to use real data
+- [x] Add case transformation (snake_case ↔ camelCase)
+- [x] Handle loading and error states
 
 ### Phase 5: Testing
 - [ ] Unit tests for API endpoints
