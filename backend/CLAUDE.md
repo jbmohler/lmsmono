@@ -244,7 +244,7 @@ class TransactionCreate:
 @dataclass
 class TransactionLine:
     account_id: str
-    amount: Decimal
+    amount: float
     is_debit: bool
 ```
 

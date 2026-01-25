@@ -3,6 +3,7 @@ from typing import Any
 
 import psycopg
 import psycopg.rows
+import psycopg.types.numeric
 import psycopg_pool
 from litestar.exceptions import NotFoundException
 
@@ -10,6 +11,13 @@ from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
 pool: psycopg_pool.AsyncConnectionPool | None = None
+
+
+async def _configure_connection(conn: psycopg.AsyncConnection) -> None:
+    """Configure connection to return floats instead of Decimals."""
+    # Register float loader for NUMERIC types (OID 1700)
+    # This ensures all NUMERIC/DECIMAL values come back as Python floats
+    conn.adapters.register_loader("numeric", psycopg.types.numeric.FloatLoader)
 
 
 async def init_pool(conninfo: str) -> None:
@@ -20,6 +28,7 @@ async def init_pool(conninfo: str) -> None:
         min_size=2,
         max_size=10,
         open=False,
+        configure=_configure_connection,
     )
     await pool.open()
     await pool.wait()

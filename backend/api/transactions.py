@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from decimal import Decimal
 from uuid import UUID
 
 import psycopg
@@ -32,7 +31,7 @@ TRANSACTION_DETAIL_COLUMNS = TRANSACTION_COLUMNS + [
 ]
 
 
-def sum_to_debit_credit(sum_value: Decimal) -> tuple[Decimal | None, Decimal | None]:
+def sum_to_debit_credit(sum_value: float) -> tuple[float | None, float | None]:
     """Convert DB sum to API debit/credit."""
     if sum_value > 0:
         return sum_value, None
@@ -41,20 +40,20 @@ def sum_to_debit_credit(sum_value: Decimal) -> tuple[Decimal | None, Decimal | N
     return None, None
 
 
-def debit_credit_to_sum(debit: Decimal | None, credit: Decimal | None) -> Decimal:
+def debit_credit_to_sum(debit: float | None, credit: float | None) -> float:
     """Convert API debit/credit to DB sum."""
     if debit:
         return debit
     elif credit:
         return -credit
-    return Decimal(0)
+    return 0.0
 
 
 @dataclass
 class SplitInput:
     account_id: str  # UUID
-    debit: Decimal | None = None
-    credit: Decimal | None = None
+    debit: float | None = None
+    credit: float | None = None
 
 
 @dataclass
@@ -83,7 +82,7 @@ def validate_splits(splits: list[SplitInput]) -> None:
             detail="Transaction must have at least 2 splits",
         )
 
-    total = Decimal(0)
+    total = 0.0
     for split in splits:
         if split.debit and split.credit:
             raise HTTPException(
@@ -97,7 +96,8 @@ def validate_splits(splits: list[SplitInput]) -> None:
             )
         total += debit_credit_to_sum(split.debit, split.credit)
 
-    if total != Decimal(0):
+    # Use epsilon for float comparison (0.01 cent tolerance)
+    if abs(total) > 0.001:
         raise HTTPException(
             status_code=400,
             detail="Transaction does not balance: debits must equal credits",

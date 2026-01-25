@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: lms
       POSTGRES_PASSWORD: lms_dev_password
       POSTGRES_DB: lms
+      SEED_DEV_DATA: "true"
     volumes:
       - ./schema:/docker-entrypoint-initdb.d:ro
     healthcheck:
