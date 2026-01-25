@@ -1,3 +1,120 @@
 @import "tailwindcss";
 @source "./app/**/*.html";
 @source "./app/**/*.ts";
+
+/* ==========================================================================
+   Global Element Styles
+   ========================================================================== */
+
+/* Form Inputs - base styles for all text-like inputs */
+input:where([type="text"], [type="date"], [type="number"], [type="email"], [type="tel"], [type="search"]),
+textarea,
+select {
+  @apply px-3 py-2 border border-gray-300 rounded-md text-sm
+         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+}
+
+/* Compact input modifier - use on parent or directly */
+.input-compact input,
+.input-compact select,
+.input-compact textarea,
+input.input-compact,
+select.input-compact,
+textarea.input-compact {
+  @apply px-2 py-1.5 rounded;
+}
+
+/* Labels */
+label {
+  @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+label.label-compact {
+  @apply text-xs text-gray-600;
+}
+
+/* ==========================================================================
+   Table Styles
+   ========================================================================== */
+
+table {
+  @apply min-w-full divide-y divide-gray-200;
+}
+
+thead {
+  @apply bg-gray-50;
+}
+
+th {
+  @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+th.text-center {
+  @apply text-center;
+}
+
+th.text-right {
+  @apply text-right;
+}
+
+tbody {
+  @apply bg-white divide-y divide-gray-200;
+}
+
+td {
+  @apply px-6 py-3 text-sm text-gray-500;
+}
+
+td.cell-primary {
+  @apply font-medium text-gray-900;
+}
+
+tr.row-hover {
+  @apply hover:bg-gray-50;
+}
+
+tr.row-clickable {
+  @apply hover:bg-gray-50 cursor-pointer;
+}
+
+/* ==========================================================================
+   Card / Panel
+   ========================================================================== */
+
+.card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn {
+  @apply px-4 py-2 text-sm font-medium rounded-md
+         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50;
+}
+
+.btn-success {
+  @apply bg-green-600 text-white hover:bg-green-700;
+}
+
+/* ==========================================================================
+   Dialog
+   ========================================================================== */
+
+dialog {
+  @apply bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden p-0;
+}
+
+dialog::backdrop {
+  @apply bg-black/50;
+}

@@ -2,17 +2,14 @@
   <!-- Header with filter -->
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-2xl font-semibold text-gray-900">Transactions</h1>
-    <button
-      (click)="openEntryDialog()"
-      class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-    >
+    <button (click)="openEntryDialog()" class="btn btn-primary">
       New Transaction
       <span class="ml-1 text-blue-200 text-xs">(Ctrl+Shift+N)</span>
     </button>
   </div>
 
   <!-- Filter bar -->
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+  <div class="card p-4 mb-6">
     <div class="flex items-center gap-4">
       <div class="flex-1">
         <label for="search" class="sr-only">Search transactions</label>
@@ -23,7 +20,7 @@
           [(ngModel)]="searchQuery"
           (ngModelChange)="onSearchChange()"
           placeholder="Search transactions..."
-          class="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="w-full"
         />
       </div>
       <div>
@@ -33,7 +30,6 @@
           type="date"
           [(ngModel)]="dateFrom"
           (ngModelChange)="onDateFromChange()"
-          class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
       <div>
@@ -43,57 +39,45 @@
           type="date"
           [(ngModel)]="dateTo"
           (ngModelChange)="onDateToChange()"
-          class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
-      <button
-        (click)="clearFilters()"
-        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
+      <button (click)="clearFilters()" class="btn btn-secondary">
         Clear
       </button>
     </div>
   </div>
 
   <!-- Transaction table -->
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-    <table class="min-w-full divide-y divide-gray-200">
-      <thead class="bg-gray-50">
+  <div class="card">
+    <table>
+      <thead>
         <tr>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Date
-          </th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Reference
-          </th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Payee
-          </th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Memo
-          </th>
+          <th>Date</th>
+          <th>Reference</th>
+          <th>Payee</th>
+          <th>Memo</th>
         </tr>
       </thead>
-      <tbody class="bg-white divide-y divide-gray-200">
+      <tbody>
         @if (transactions().length === 0) {
           <tr>
-            <td colspan="4" class="px-6 py-12 text-center text-gray-500">
+            <td colspan="4" class="text-center py-12">
               <p class="text-sm">No transactions found.</p>
             </td>
           </tr>
         } @else {
           @for (txn of transactions(); track txn.id) {
-            <tr class="hover:bg-gray-50 cursor-pointer" (click)="onRowClick(txn.id)">
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            <tr class="row-clickable" (click)="onRowClick(txn.id)">
+              <td class="cell-primary whitespace-nowrap">
                 {{ txn.trandate | date:'mediumDate' }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td class="whitespace-nowrap">
                 {{ txn.tranref || '-' }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <td class="cell-primary whitespace-nowrap">
                 {{ txn.payee || '-' }}
               </td>
-              <td class="px-6 py-4 text-sm text-gray-500 max-w-md truncate">
+              <td class="max-w-md truncate">
                 {{ txn.memo || '-' }}
               </td>
             </tr>

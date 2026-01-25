@@ -159,7 +159,53 @@ src/app/
 - **Tailwind CSS only** - no component library CSS
 - Use Tailwind utility classes in templates
 - Use `.scss` files for component-specific styles and `:host` styling
-- Extract repeated patterns to `@apply` in component styles if needed
+
+### Global Styles (styles.css)
+
+Common UI patterns are defined in `src/styles.css` using `@apply`. Use these classes instead of repeating Tailwind utilities:
+
+**Cards/Panels:**
+- `.card` - white background, rounded corners, subtle border and shadow
+
+**Buttons:**
+- `.btn` - base button styles (use with a variant)
+- `.btn-primary` - blue primary action button
+- `.btn-secondary` - white/gray secondary button
+- `.btn-success` - green success/add button
+
+**Forms:**
+- Global styles automatically apply to `input`, `select`, `textarea`
+- `.input-compact` - smaller padding for dense forms (apply to parent or element)
+- `.label-compact` - smaller label text for dense forms
+
+**Tables:**
+- Global styles automatically apply to `table`, `thead`, `th`, `tbody`, `td`
+- `.cell-primary` - darker text for primary column content
+- `.row-hover` - highlight row on hover
+- `.row-clickable` - hover highlight + pointer cursor
+
+**Dialogs:**
+- Global styles automatically apply to `<dialog>` elements
+
+```html
+<!-- Example usage -->
+<div class="card p-4">
+  <div class="input-compact">
+    <label class="label-compact">Date</label>
+    <input type="date" />
+  </div>
+  <button class="btn btn-primary">Save</button>
+</div>
+
+<table>
+  <tbody>
+    <tr class="row-clickable">
+      <td class="cell-primary">Primary content</td>
+      <td>Secondary content</td>
+    </tr>
+  </tbody>
+</table>
+```
 
 ## Keyboard Navigation
 

@@ -1,26 +1,26 @@
 <div class="p-6">
   <h1 class="text-xl font-semibold text-gray-900 mb-4">Journals</h1>
 
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-    <table class="min-w-full divide-y divide-gray-200">
-      <thead class="bg-gray-50">
+  <div class="card">
+    <table>
+      <thead>
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+          <th>Name</th>
+          <th>Description</th>
         </tr>
       </thead>
-      <tbody class="bg-white divide-y divide-gray-200">
+      <tbody>
         @if (journals().length === 0) {
           <tr>
-            <td colspan="2" class="px-6 py-8 text-center text-gray-500 text-sm">
+            <td colspan="2" class="text-center py-8">
               No journals found.
             </td>
           </tr>
         } @else {
           @for (journal of journals(); track journal.id) {
-            <tr class="hover:bg-gray-50">
-              <td class="px-6 py-3 text-sm font-medium text-gray-900">{{ journal.jrn_name }}</td>
-              <td class="px-6 py-3 text-sm text-gray-500">{{ journal.description || '-' }}</td>
+            <tr class="row-hover">
+              <td class="cell-primary">{{ journal.jrn_name }}</td>
+              <td>{{ journal.description || '-' }}</td>
             </tr>
           }
         }

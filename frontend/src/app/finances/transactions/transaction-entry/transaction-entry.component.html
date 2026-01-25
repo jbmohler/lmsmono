@@ -1,6 +1,6 @@
 <dialog
   #dialog
-  class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0"
+  class="w-full max-w-3xl flex flex-col"
   (close)="dialogClose.emit()"
   (keydown)="handleKeydown($event)"
 >
@@ -33,69 +33,69 @@
       </div>
     } @else {
     <!-- Header fields -->
-    <div class="space-y-3 mb-4">
+    <div class="space-y-3 mb-4 input-compact">
       <!-- Row 1: Date, Reference, Payee -->
       <div class="flex gap-3">
         <div class="w-36">
-          <label for="txn-date" class="block text-xs font-medium text-gray-600 mb-1">Date</label>
+          <label for="txn-date" class="label-compact">Date</label>
           <input
             #dateInput
             id="txn-date"
             type="date"
             [ngModel]="date()"
             (ngModelChange)="date.set($event)"
-            class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full"
           />
         </div>
         <div class="w-32">
-          <label for="txn-reference" class="block text-xs font-medium text-gray-600 mb-1">Reference</label>
+          <label for="txn-reference" class="label-compact">Reference</label>
           <input
             id="txn-reference"
             type="text"
             [ngModel]="reference()"
             (ngModelChange)="reference.set($event)"
             placeholder="Check #"
-            class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full"
           />
         </div>
         <div class="flex-1">
-          <label for="txn-payee" class="block text-xs font-medium text-gray-600 mb-1">Payee</label>
+          <label for="txn-payee" class="label-compact">Payee</label>
           <input
             id="txn-payee"
             type="text"
             [ngModel]="payee()"
             (ngModelChange)="payee.set($event)"
             placeholder="Payee name"
-            class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full"
           />
         </div>
       </div>
       <!-- Row 2: Memo -->
       <div>
-        <label for="txn-memo" class="block text-xs font-medium text-gray-600 mb-1">Memo</label>
+        <label for="txn-memo" class="label-compact">Memo</label>
         <input
           id="txn-memo"
           type="text"
           [ngModel]="memo()"
           (ngModelChange)="memo.set($event)"
           placeholder="Notes"
-          class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="w-full"
         />
       </div>
     </div>
 
     <!-- Line items table -->
-    <div class="border border-gray-200 rounded-md overflow-hidden">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+    <div class="border border-gray-200 rounded-md overflow-hidden input-compact">
+      <table>
+        <thead>
           <tr>
-            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-1/2">Account</th>
-            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase w-1/4">Debit</th>
-            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase w-1/4">Credit</th>
-            <th class="px-2 py-2 w-8"></th>
+            <th class="w-1/2">Account</th>
+            <th class="text-right w-1/4">Debit</th>
+            <th class="text-right w-1/4">Credit</th>
+            <th class="w-8"></th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody>
           @for (line of lines(); track trackByLineId($index, line); let i = $index) {
             <tr [attr.data-line-id]="line.id">
               <td class="px-2 py-1">
@@ -103,7 +103,7 @@
                   #lineInput
                   [ngModel]="line.accountId"
                   (ngModelChange)="updateLine(line.id, 'accountId', $event)"
-                  class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full"
                 >
                   <option value="">Select account...</option>
                   @for (entry of accountsByType() | keyvalue; track entry.key) {
@@ -124,7 +124,7 @@
                   (change)="updateLine(line.id, 'debit', $any($event.target).value)"
                   (blur)="formatOnBlur($event)"
                   placeholder="0.00"
-                  class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full text-right"
                 />
               </td>
               <td class="px-2 py-1">
@@ -136,7 +136,7 @@
                   (change)="updateLine(line.id, 'credit', $any($event.target).value)"
                   (blur)="formatOnBlur($event)"
                   placeholder="0.00"
-                  class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 credit-input"
+                  class="w-full text-right credit-input"
                 />
               </td>
               <td class="px-2 py-1 text-center">
@@ -212,18 +212,14 @@
       Ctrl+S save | Ctrl+Enter add line | Ctrl+Backspace delete line | Esc cancel
     </div>
     <div class="flex gap-3">
-      <button
-        type="button"
-        (click)="onCancel()"
-        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
+      <button type="button" (click)="onCancel()" class="btn btn-secondary">
         Cancel
       </button>
       <button
         type="button"
         (click)="onSave()"
         [disabled]="!isBalanced() || saving()"
-        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="btn btn-primary"
       >
         @if (saving()) {
           Saving...

@@ -6,16 +6,10 @@
       <div class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900">Edit Contact</h2>
         <div class="flex items-center gap-2">
-          <button
-            (click)="cancelEdit()"
-            class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
+          <button (click)="cancelEdit()" class="btn btn-secondary">
             Cancel
           </button>
-          <button
-            (click)="saveEdit()"
-            class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-          >
+          <button (click)="saveEdit()" class="btn btn-primary">
             Save
           </button>
         </div>
@@ -24,50 +18,50 @@
       <!-- Edit Form -->
       <div class="flex-1 overflow-y-auto p-6">
         <!-- Basic Info -->
-        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <div class="card p-4 mb-4">
           <div class="grid grid-cols-2 gap-4 mb-4">
             @if (!data.isCorporate) {
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">First Name</label>
+                <label class="label-compact">First Name</label>
                 <input
                   type="text"
                   [ngModel]="data.firstName"
                   (ngModelChange)="updateField('firstName', $event)"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full"
                 />
               </div>
             }
             <div [class.col-span-2]="data.isCorporate">
-              <label class="block text-xs font-medium text-gray-500 mb-1">
+              <label class="label-compact">
                 {{ data.isCorporate ? 'Company Name' : 'Last Name' }}
               </label>
               <input
                 type="text"
                 [ngModel]="data.lastName"
                 (ngModelChange)="updateField('lastName', $event)"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full"
               />
             </div>
           </div>
           @if (!data.isCorporate) {
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Title</label>
+                <label class="label-compact">Title</label>
                 <input
                   type="text"
                   [ngModel]="data.title"
                   (ngModelChange)="updateField('title', $event)"
                   placeholder="Mr., Ms., Dr."
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full"
                 />
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Organization</label>
+                <label class="label-compact">Organization</label>
                 <input
                   type="text"
                   [ngModel]="data.organization"
                   (ngModelChange)="updateField('organization', $event)"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full"
                 />
               </div>
             </div>
@@ -75,7 +69,7 @@
         </div>
 
         <!-- Contact Info (unified list) -->
-        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <div class="card p-4 mb-4 input-compact">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-sm font-medium text-gray-700">Contact Info</h3>
             <div class="flex gap-2">
@@ -124,7 +118,7 @@
                     [ngModel]="bit.label"
                     (ngModelChange)="updateBit(bit.id, 'label', $event)"
                     placeholder="Label"
-                    class="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                    class="w-24"
                   />
                 </div>
                 <button (click)="removeBit(bit.id)" class="text-gray-400 hover:text-red-600">×</button>
@@ -137,7 +131,7 @@
                   [ngModel]="bit.email"
                   (ngModelChange)="updateBit(bit.id, 'email', $event)"
                   placeholder="email@example.com"
-                  class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full"
                 />
               }
 
@@ -147,7 +141,7 @@
                   [ngModel]="bit.number"
                   (ngModelChange)="updateBit(bit.id, 'number', $event)"
                   placeholder="(555) 123-4567"
-                  class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="w-full"
                 />
               }
 
@@ -158,14 +152,14 @@
                     [ngModel]="bit.address1"
                     (ngModelChange)="updateBit(bit.id, 'address1', $event)"
                     placeholder="Address line 1"
-                    class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    class="w-full"
                   />
                   <input
                     type="text"
                     [ngModel]="bit.address2"
                     (ngModelChange)="updateBit(bit.id, 'address2', $event)"
                     placeholder="Address line 2"
-                    class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    class="w-full"
                   />
                   <div class="grid grid-cols-4 gap-2">
                     <input
@@ -173,21 +167,19 @@
                       [ngModel]="bit.city"
                       (ngModelChange)="updateBit(bit.id, 'city', $event)"
                       placeholder="City"
-                      class="col-span-2 px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                      class="col-span-2"
                     />
                     <input
                       type="text"
                       [ngModel]="bit.state"
                       (ngModelChange)="updateBit(bit.id, 'state', $event)"
                       placeholder="State"
-                      class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
                     />
                     <input
                       type="text"
                       [ngModel]="bit.zip"
                       (ngModelChange)="updateBit(bit.id, 'zip', $event)"
                       placeholder="ZIP"
-                      class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
                     />
                   </div>
                 </div>
@@ -200,14 +192,14 @@
                     [ngModel]="bit.url"
                     (ngModelChange)="updateBit(bit.id, 'url', $event)"
                     placeholder="https://..."
-                    class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="flex-1"
                   />
                   <input
                     type="text"
                     [ngModel]="bit.username"
                     (ngModelChange)="updateBit(bit.id, 'username', $event)"
                     placeholder="Username"
-                    class="w-32 px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    class="w-32"
                   />
                 </div>
               }
@@ -218,13 +210,13 @@
         </div>
 
         <!-- Memo -->
-        <div class="bg-white rounded-lg border border-gray-200 p-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+        <div class="card p-4">
+          <label class="mb-2">Notes</label>
           <textarea
             [ngModel]="data.memo"
             (ngModelChange)="updateField('memo', $event)"
             rows="3"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full"
           ></textarea>
         </div>
       </div>
@@ -247,10 +239,7 @@
           <p class="text-sm text-gray-500">Company</p>
         }
       </div>
-      <button
-        (click)="enterEditMode()"
-        class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-      >
+      <button (click)="enterEditMode()" class="btn btn-secondary">
         Edit
       </button>
     </div>

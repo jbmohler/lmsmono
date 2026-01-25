@@ -9,7 +9,7 @@
     @for (report of reports; track report.id) {
       <a
         [routerLink]="['/reports', report.id]"
-        class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:border-blue-300 hover:shadow-md transition-all"
+        class="card p-6 hover:border-blue-300 hover:shadow-md transition-all"
       >
         <div class="flex items-start gap-4">
           <div class="p-2 bg-blue-50 rounded-lg text-blue-600" [innerHTML]="report.icon"></div>
