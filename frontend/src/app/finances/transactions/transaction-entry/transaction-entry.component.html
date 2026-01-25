@@ -6,7 +6,13 @@
 >
   <!-- Header -->
   <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-    <h2 class="text-lg font-semibold text-gray-900">New Transaction</h2>
+    <h2 class="text-lg font-semibold text-gray-900">
+      @if (isEditMode()) {
+        Edit Transaction
+      } @else {
+        New Transaction
+      }
+    </h2>
     <button
       type="button"
       (click)="onCancel()"
@@ -21,50 +27,59 @@
 
   <!-- Body -->
   <div class="px-6 py-4 overflow-y-auto flex-1">
+    @if (loading()) {
+      <div class="flex items-center justify-center py-12">
+        <span class="text-gray-500">Loading transaction...</span>
+      </div>
+    } @else {
     <!-- Header fields -->
-    <div class="grid grid-cols-4 gap-4 mb-6">
-      <div>
-        <label for="txn-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-        <input
-          #dateInput
-          id="txn-date"
-          type="date"
-          [ngModel]="date()"
-          (ngModelChange)="date.set($event)"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
+    <div class="space-y-3 mb-4">
+      <!-- Row 1: Date, Reference, Payee -->
+      <div class="flex gap-3">
+        <div class="w-36">
+          <label for="txn-date" class="block text-xs font-medium text-gray-600 mb-1">Date</label>
+          <input
+            #dateInput
+            id="txn-date"
+            type="date"
+            [ngModel]="date()"
+            (ngModelChange)="date.set($event)"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div class="w-32">
+          <label for="txn-reference" class="block text-xs font-medium text-gray-600 mb-1">Reference</label>
+          <input
+            id="txn-reference"
+            type="text"
+            [ngModel]="reference()"
+            (ngModelChange)="reference.set($event)"
+            placeholder="Check #"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div class="flex-1">
+          <label for="txn-payee" class="block text-xs font-medium text-gray-600 mb-1">Payee</label>
+          <input
+            id="txn-payee"
+            type="text"
+            [ngModel]="payee()"
+            (ngModelChange)="payee.set($event)"
+            placeholder="Payee name"
+            class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
       </div>
+      <!-- Row 2: Memo -->
       <div>
-        <label for="txn-reference" class="block text-sm font-medium text-gray-700 mb-1">Reference</label>
-        <input
-          id="txn-reference"
-          type="text"
-          [ngModel]="reference()"
-          (ngModelChange)="reference.set($event)"
-          placeholder="Check #, Invoice #"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-      </div>
-      <div>
-        <label for="txn-payee" class="block text-sm font-medium text-gray-700 mb-1">Payee</label>
-        <input
-          id="txn-payee"
-          type="text"
-          [ngModel]="payee()"
-          (ngModelChange)="payee.set($event)"
-          placeholder="Payee name"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-      </div>
-      <div>
-        <label for="txn-memo" class="block text-sm font-medium text-gray-700 mb-1">Memo</label>
+        <label for="txn-memo" class="block text-xs font-medium text-gray-600 mb-1">Memo</label>
         <input
           id="txn-memo"
           type="text"
           [ngModel]="memo()"
           (ngModelChange)="memo.set($event)"
           placeholder="Notes"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
     </div>
@@ -91,51 +106,23 @@
                   class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select account...</option>
-                  <optgroup label="Assets">
-                    @for (acct of accounts; track acct.id) {
-                      @if (acct.type === 'asset') {
-                        <option [value]="acct.id">{{ acct.name }}</option>
+                  @for (entry of accountsByType() | keyvalue; track entry.key) {
+                    <optgroup [label]="entry.key">
+                      @for (acct of entry.value; track acct.id) {
+                        <option [value]="acct.id">{{ acct.acc_name }}</option>
                       }
-                    }
-                  </optgroup>
-                  <optgroup label="Liabilities">
-                    @for (acct of accounts; track acct.id) {
-                      @if (acct.type === 'liability') {
-                        <option [value]="acct.id">{{ acct.name }}</option>
-                      }
-                    }
-                  </optgroup>
-                  <optgroup label="Equity">
-                    @for (acct of accounts; track acct.id) {
-                      @if (acct.type === 'equity') {
-                        <option [value]="acct.id">{{ acct.name }}</option>
-                      }
-                    }
-                  </optgroup>
-                  <optgroup label="Income">
-                    @for (acct of accounts; track acct.id) {
-                      @if (acct.type === 'income') {
-                        <option [value]="acct.id">{{ acct.name }}</option>
-                      }
-                    }
-                  </optgroup>
-                  <optgroup label="Expenses">
-                    @for (acct of accounts; track acct.id) {
-                      @if (acct.type === 'expense') {
-                        <option [value]="acct.id">{{ acct.name }}</option>
-                      }
-                    }
-                  </optgroup>
+                    </optgroup>
+                  }
                 </select>
               </td>
               <td class="px-2 py-1">
                 <input
                   #lineInput
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  [ngModel]="line.debit"
-                  (ngModelChange)="updateLine(line.id, 'debit', $event)"
+                  type="text"
+                  inputmode="decimal"
+                  [value]="formatAmount(line.debit)"
+                  (change)="updateLine(line.id, 'debit', $any($event.target).value)"
+                  (blur)="formatOnBlur($event)"
                   placeholder="0.00"
                   class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -143,11 +130,11 @@
               <td class="px-2 py-1">
                 <input
                   #lineInput
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  [ngModel]="line.credit"
-                  (ngModelChange)="updateLine(line.id, 'credit', $event)"
+                  type="text"
+                  inputmode="decimal"
+                  [value]="formatAmount(line.credit)"
+                  (change)="updateLine(line.id, 'credit', $any($event.target).value)"
+                  (blur)="formatOnBlur($event)"
                   placeholder="0.00"
                   class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 credit-input"
                 />
@@ -208,6 +195,14 @@
         </p>
       </div>
     }
+
+    <!-- Error message -->
+    @if (errorMessage()) {
+      <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+        <p class="text-sm text-red-800">{{ errorMessage() }}</p>
+      </div>
+    }
+    }
   </div>
 
   <!-- Footer -->
@@ -227,10 +222,14 @@
       <button
         type="button"
         (click)="onSave()"
-        [disabled]="!isBalanced()"
+        [disabled]="!isBalanced() || saving()"
         class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Save Transaction
+        @if (saving()) {
+          Saving...
+        } @else {
+          Save Transaction
+        }
       </button>
     </div>
   </div>

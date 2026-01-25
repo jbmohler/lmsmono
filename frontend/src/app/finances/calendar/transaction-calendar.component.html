@@ -44,13 +44,10 @@
             {{ day.day }}
           </span>
           <div class="mt-1 space-y-0.5">
-            @for (txn of day.transactions; track txn.id) {
+            @for (txn of day.transactions; track trackByTxnId($index, txn)) {
               <div
-                class="text-xs truncate px-1 py-0.5 rounded"
-                [class.bg-green-100]="txn.amount > 0"
-                [class.text-green-800]="txn.amount > 0"
-                [class.bg-red-100]="txn.amount < 0"
-                [class.text-red-800]="txn.amount < 0"
+                class="text-xs truncate px-1 py-0.5 rounded bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer"
+                (click)="onTransactionClick($event, txn)"
               >
                 {{ txn.payee }}
               </div>
@@ -66,6 +63,7 @@
 @if (showEntryDialog()) {
   <app-transaction-entry
     [initialDate]="entryDate()"
+    [transactionId]="editTransactionId()"
     (dialogClose)="closeEntryDialog()"
     (dialogSave)="onTransactionSaved()"
   />

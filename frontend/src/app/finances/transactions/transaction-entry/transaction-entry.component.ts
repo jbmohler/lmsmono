@@ -1,11 +1,9 @@
-import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender } from '@angular/core';
+import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender, inject, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
-interface Account {
-  id: string;
-  name: string;
-  type: 'asset' | 'liability' | 'equity' | 'income' | 'expense';
-}
+import { KeyValuePipe } from '@angular/common';
+import { AccountService } from '../../services/account.service';
+import { TransactionService } from '../../services/transaction.service';
+import { SplitInput } from '../../models/transaction.model';
 
 interface TransactionLine {
   id: number;
@@ -18,10 +16,17 @@ interface TransactionLine {
   selector: 'app-transaction-entry',
   templateUrl: './transaction-entry.component.html',
   styleUrl: './transaction-entry.component.scss',
-  imports: [FormsModule],
+  imports: [FormsModule, KeyValuePipe],
 })
 export class TransactionEntryComponent {
+  private accountService = inject(AccountService);
+  private transactionService = inject(TransactionService);
+
+  /** Initial date for new transactions */
   initialDate = input<string>();
+
+  /** Transaction ID for editing existing transactions */
+  transactionId = input<string>();
 
   dialogClose = output<void>();
   dialogSave = output<void>();
@@ -30,11 +35,19 @@ export class TransactionEntryComponent {
   dateInput = viewChild<ElementRef<HTMLInputElement>>('dateInput');
   lineInputs = viewChildren<ElementRef<HTMLInputElement | HTMLSelectElement>>('lineInput');
 
+  // Edit mode flag
+  isEditMode = computed(() => !!this.transactionId());
+
   // Header fields
   date = signal(this.todayString());
   reference = signal('');
   payee = signal('');
   memo = signal('');
+
+  // Loading and saving state
+  loading = signal(false);
+  saving = signal(false);
+  errorMessage = signal<string | null>(null);
 
   // Line items
   private nextLineId = 1;
@@ -43,23 +56,8 @@ export class TransactionEntryComponent {
     { id: this.nextLineId++, accountId: '', debit: null, credit: null },
   ]);
 
-  // Mock account list
-  accounts: Account[] = [
-    { id: '1', name: 'Checking Account', type: 'asset' },
-    { id: '2', name: 'Savings Account', type: 'asset' },
-    { id: '3', name: 'Accounts Receivable', type: 'asset' },
-    { id: '4', name: 'Credit Card', type: 'liability' },
-    { id: '5', name: 'Accounts Payable', type: 'liability' },
-    { id: '6', name: 'Owner Equity', type: 'equity' },
-    { id: '7', name: 'Sales Revenue', type: 'income' },
-    { id: '8', name: 'Service Income', type: 'income' },
-    { id: '9', name: 'Interest Income', type: 'income' },
-    { id: '10', name: 'Office Supplies', type: 'expense' },
-    { id: '11', name: 'Rent Expense', type: 'expense' },
-    { id: '12', name: 'Utilities', type: 'expense' },
-    { id: '13', name: 'Payroll', type: 'expense' },
-    { id: '14', name: 'Insurance', type: 'expense' },
-  ];
+  // Accounts from service, grouped by type
+  accountsByType = this.accountService.accountsByType;
 
   // Computed totals
   totalDebits = computed(() => {
@@ -81,14 +79,51 @@ export class TransactionEntryComponent {
   });
 
   constructor() {
+    // Load transaction data when transactionId changes
+    effect(() => {
+      const id = this.transactionId();
+      if (id) {
+        this.loadTransaction(id);
+      }
+    });
+
     // Set initial date from input if provided, then open dialog
     afterNextRender(() => {
       const initial = this.initialDate();
-      if (initial) {
+      if (initial && !this.transactionId()) {
         this.date.set(initial);
       }
       this.dialog()?.nativeElement.showModal();
       this.dateInput()?.nativeElement.focus();
+    });
+  }
+
+  private loadTransaction(id: string): void {
+    this.loading.set(true);
+    this.errorMessage.set(null);
+
+    this.transactionService.getById(id).subscribe({
+      next: (response) => {
+        const txn = response.data;
+        this.date.set(txn.trandate);
+        this.reference.set(txn.tranref || '');
+        this.payee.set(txn.payee || '');
+        this.memo.set(txn.memo || '');
+
+        // Convert splits to lines
+        const newLines: TransactionLine[] = txn.splits.map((split) => ({
+          id: this.nextLineId++,
+          accountId: split.account.id,
+          debit: split.debit,
+          credit: split.credit,
+        }));
+        this.lines.set(newLines);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.errorMessage.set(err.message || 'Failed to load transaction');
+      },
     });
   }
 
@@ -195,9 +230,47 @@ export class TransactionEntryComponent {
   }
 
   onSave(): void {
-    if (!this.isBalanced()) return;
-    this.dialogSave.emit();
-    this.close();
+    if (!this.isBalanced() || this.saving()) return;
+
+    this.saving.set(true);
+    this.errorMessage.set(null);
+
+    const splits: SplitInput[] = this.lines()
+      .filter((line) => line.accountId && (line.debit || line.credit))
+      .map((line) => ({
+        account_id: line.accountId,
+        debit: line.debit ?? undefined,
+        credit: line.credit ?? undefined,
+      }));
+
+    const id = this.transactionId();
+    const request$ = id
+      ? this.transactionService.update(id, {
+          trandate: this.date(),
+          tranref: this.reference() || null,
+          payee: this.payee() || null,
+          memo: this.memo() || null,
+          splits,
+        })
+      : this.transactionService.create({
+          trandate: this.date(),
+          tranref: this.reference() || undefined,
+          payee: this.payee() || undefined,
+          memo: this.memo() || undefined,
+          splits,
+        });
+
+    request$.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.dialogSave.emit();
+        this.close();
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.errorMessage.set(err.message || 'Failed to save transaction');
+      },
+    });
   }
 
   onCancel(): void {
@@ -215,5 +288,24 @@ export class TransactionEntryComponent {
 
   formatCurrency(value: number): string {
     return value.toFixed(2);
+  }
+
+  /** Format amount for display in input (empty string for null/zero) */
+  formatAmount(value: number | null): string {
+    if (value === null || value === 0) {
+      return '';
+    }
+    return value.toFixed(2);
+  }
+
+  /** Reformat input value on blur to ensure 2 decimal places */
+  formatOnBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = parseFloat(input.value);
+    if (!isNaN(value) && value > 0) {
+      input.value = value.toFixed(2);
+    } else if (input.value !== '') {
+      input.value = '';
+    }
   }
 }

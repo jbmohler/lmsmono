@@ -1,35 +1,42 @@
-import { Component, ElementRef, ViewChild, AfterViewInit, signal } from '@angular/core';
+import { Component, afterNextRender, inject, signal, viewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DatePipe } from '@angular/common';
 import { TransactionEntryComponent } from './transaction-entry/transaction-entry.component';
+import { TransactionService } from '../services/transaction.service';
 
 @Component({
   selector: 'app-transaction-list',
   templateUrl: './transaction-list.component.html',
   styleUrl: './transaction-list.component.scss',
-  imports: [FormsModule, TransactionEntryComponent],
+  imports: [FormsModule, DatePipe, TransactionEntryComponent],
   host: {
     '(window:keydown)': 'handleGlobalKeydown($event)',
   },
 })
-export class TransactionListComponent implements AfterViewInit {
-  @ViewChild('searchInput') searchInput!: ElementRef<HTMLInputElement>;
+export class TransactionListComponent {
+  private transactionService = inject(TransactionService);
+
+  searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
   showEntryDialog = signal(false);
+  editTransactionId = signal<string | undefined>(undefined);
 
+  // Bind to service filters
   searchQuery = '';
   dateFrom = '';
   dateTo = '';
 
-  ngAfterViewInit(): void {
-    // Focus the search input when navigating here via hotkey
-    // The slight delay ensures the view is fully rendered
-    setTimeout(() => {
-      this.searchInput?.nativeElement?.focus();
-    }, 0);
+  // Expose service data to template
+  transactions = this.transactionService.transactions;
+  columns = this.transactionService.columns;
+
+  constructor() {
+    afterNextRender(() => {
+      this.searchInput()?.nativeElement?.focus();
+    });
   }
 
   handleGlobalKeydown(event: KeyboardEvent): void {
-    // Ctrl+Shift+N - open new transaction dialog (avoid Ctrl+N browser new-tab)
     if (event.ctrlKey && event.shiftKey && event.key === 'N') {
       event.preventDefault();
       this.openEntryDialog();
@@ -37,19 +44,43 @@ export class TransactionListComponent implements AfterViewInit {
   }
 
   focusFilter(): void {
-    this.searchInput?.nativeElement?.focus();
+    this.searchInput()?.nativeElement?.focus();
   }
 
-  openEntryDialog(): void {
+  onSearchChange(): void {
+    this.transactionService.setFilters({ q: this.searchQuery || undefined });
+  }
+
+  onDateFromChange(): void {
+    this.transactionService.setFilters({ from: this.dateFrom || undefined });
+  }
+
+  onDateToChange(): void {
+    this.transactionService.setFilters({ to: this.dateTo || undefined });
+  }
+
+  clearFilters(): void {
+    this.searchQuery = '';
+    this.dateFrom = '';
+    this.dateTo = '';
+    this.transactionService.clearFilters();
+  }
+
+  openEntryDialog(transactionId?: string): void {
+    this.editTransactionId.set(transactionId);
     this.showEntryDialog.set(true);
   }
 
   closeEntryDialog(): void {
     this.showEntryDialog.set(false);
+    this.editTransactionId.set(undefined);
   }
 
   onTransactionSaved(): void {
-    // TODO: Refresh transaction list when API is connected
-    console.log('Transaction saved');
+    this.transactionService.refresh();
+  }
+
+  onRowClick(transactionId: string): void {
+    this.openEntryDialog(transactionId);
   }
 }

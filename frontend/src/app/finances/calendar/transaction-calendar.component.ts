@@ -1,18 +1,18 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, signal, inject, effect } from '@angular/core';
 import { TransactionEntryComponent } from '../transactions/transaction-entry/transaction-entry.component';
+import { TransactionService } from '../services/transaction.service';
 
-interface Transaction {
+interface CalendarTransaction {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   payee: string;
-  amount: number;
 }
 
 interface CalendarDay {
   day: number | null;
   date: string | null;
   isCurrentMonth: boolean;
-  transactions: Transaction[];
+  transactions: CalendarTransaction[];
 }
 
 @Component({
@@ -25,14 +25,17 @@ interface CalendarDay {
   },
 })
 export class TransactionCalendarComponent {
+  private transactionService = inject(TransactionService);
+
   weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  currentYear = signal(2026);
-  currentMonth = signal(0); // 0 = January
+  currentYear = signal(new Date().getFullYear());
+  currentMonth = signal(new Date().getMonth());
 
   // Transaction entry dialog state
   showEntryDialog = signal(false);
   entryDate = signal<string | undefined>(undefined);
+  editTransactionId = signal<string | undefined>(undefined);
 
   monthName = computed(() => {
     const months = [
@@ -42,37 +45,53 @@ export class TransactionCalendarComponent {
     return `${months[this.currentMonth()]} ${this.currentYear()}`;
   });
 
-  // Mock transaction data
-  private transactions: Transaction[] = [
-    { id: '1', date: '2026-01-03', payee: 'Whole Foods Market', amount: -127.43 },
-    { id: '2', date: '2026-01-03', payee: 'Shell Gas Station', amount: -45.00 },
-    { id: '3', date: '2026-01-07', payee: 'Payroll Deposit', amount: 3250.00 },
-    { id: '4', date: '2026-01-10', payee: 'Netflix', amount: -15.99 },
-    { id: '5', date: '2026-01-10', payee: 'Spotify', amount: -9.99 },
-    { id: '6', date: '2026-01-12', payee: 'Target', amount: -89.23 },
-    { id: '7', date: '2026-01-15', payee: 'Electric Company', amount: -142.50 },
-    { id: '8', date: '2026-01-15', payee: 'Water Utility', amount: -38.00 },
-    { id: '9', date: '2026-01-18', payee: 'Amazon', amount: -67.99 },
-    { id: '10', date: '2026-01-21', payee: 'Payroll Deposit', amount: 3250.00 },
-    { id: '11', date: '2026-01-22', payee: 'Costco', amount: -234.56 },
-    { id: '12', date: '2026-01-25', payee: 'Rent Payment', amount: -1800.00 },
-    { id: '13', date: '2026-01-28', payee: 'Dentist', amount: -150.00 },
-    { id: '14', date: '2026-01-31', payee: 'Internet Provider', amount: -79.99 },
-    // February transactions
-    { id: '15', date: '2026-02-05', payee: 'Whole Foods Market', amount: -98.32 },
-    { id: '16', date: '2026-02-07', payee: 'Payroll Deposit', amount: 3250.00 },
-    { id: '17', date: '2026-02-14', payee: 'Restaurant - Valentines', amount: -185.00 },
-    { id: '18', date: '2026-02-21', payee: 'Payroll Deposit', amount: 3250.00 },
-    { id: '19', date: '2026-02-25', payee: 'Rent Payment', amount: -1800.00 },
-    // December 2025 transactions (for prev month nav)
-    { id: '20', date: '2025-12-15', payee: 'Holiday Shopping', amount: -450.00 },
-    { id: '21', date: '2025-12-24', payee: 'Gift Cards', amount: -200.00 },
-    { id: '22', date: '2025-12-31', payee: 'New Years Eve', amount: -125.00 },
-  ];
+  // Transactions from the service
+  private allTransactions = this.transactionService.transactions;
+
+  // Map transactions by date for quick lookup
+  private transactionsByDate = computed(() => {
+    const map = new Map<string, CalendarTransaction[]>();
+    for (const txn of this.allTransactions()) {
+      const date = txn.trandate;
+      if (!map.has(date)) {
+        map.set(date, []);
+      }
+      map.get(date)!.push({
+        id: txn.id,
+        date: txn.trandate,
+        payee: txn.payee || '(no payee)',
+      });
+    }
+    return map;
+  });
+
+  constructor() {
+    // Update filters when month changes to load relevant transactions
+    effect(() => {
+      const year = this.currentYear();
+      const month = this.currentMonth();
+
+      // Calculate date range for visible calendar (includes padding days)
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+
+      // Add buffer for prev/next month days shown in calendar
+      const from = new Date(firstDay);
+      from.setDate(from.getDate() - 7);
+      const to = new Date(lastDay);
+      to.setDate(to.getDate() + 14);
+
+      this.transactionService.setFilters({
+        from: this.formatDate(from.getFullYear(), from.getMonth(), from.getDate()),
+        to: this.formatDate(to.getFullYear(), to.getMonth(), to.getDate()),
+      });
+    });
+  }
 
   calendarDays = computed<CalendarDay[]>(() => {
     const year = this.currentYear();
     const month = this.currentMonth();
+    const txnMap = this.transactionsByDate();
 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -93,7 +112,7 @@ export class TransactionCalendarComponent {
         day,
         date: dateStr,
         isCurrentMonth: false,
-        transactions: this.getTransactionsForDate(dateStr),
+        transactions: txnMap.get(dateStr) || [],
       });
     }
 
@@ -104,7 +123,7 @@ export class TransactionCalendarComponent {
         day,
         date: dateStr,
         isCurrentMonth: true,
-        transactions: this.getTransactionsForDate(dateStr),
+        transactions: txnMap.get(dateStr) || [],
       });
     }
 
@@ -119,7 +138,7 @@ export class TransactionCalendarComponent {
         day,
         date: dateStr,
         isCurrentMonth: false,
-        transactions: this.getTransactionsForDate(dateStr),
+        transactions: txnMap.get(dateStr) || [],
       });
     }
 
@@ -152,14 +171,16 @@ export class TransactionCalendarComponent {
     }
   }
 
-  openEntryDialog(date?: string): void {
+  openEntryDialog(date?: string, transactionId?: string): void {
     this.entryDate.set(date);
+    this.editTransactionId.set(transactionId);
     this.showEntryDialog.set(true);
   }
 
   closeEntryDialog(): void {
     this.showEntryDialog.set(false);
     this.entryDate.set(undefined);
+    this.editTransactionId.set(undefined);
   }
 
   onDayClick(day: CalendarDay): void {
@@ -168,9 +189,13 @@ export class TransactionCalendarComponent {
     }
   }
 
+  onTransactionClick(event: Event, txn: CalendarTransaction): void {
+    event.stopPropagation(); // Prevent day click from firing
+    this.openEntryDialog(undefined, txn.id);
+  }
+
   onTransactionSaved(): void {
-    // TODO: Refresh calendar when API is connected
-    console.log('Transaction saved');
+    this.transactionService.refresh();
   }
 
   private formatDate(year: number, month: number, day: number): string {
@@ -179,15 +204,15 @@ export class TransactionCalendarComponent {
     return `${year}-${m}-${d}`;
   }
 
-  private getTransactionsForDate(date: string): Transaction[] {
-    return this.transactions.filter(t => t.date === date);
-  }
-
   trackByDate(_index: number, day: CalendarDay): string | null {
     return day.date;
   }
 
   trackByDay(_index: number, day: string): string {
     return day;
+  }
+
+  trackByTxnId(_index: number, txn: CalendarTransaction): string {
+    return txn.id;
   }
 }
