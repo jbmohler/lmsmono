@@ -11,6 +11,7 @@ from api.eventlog import EventLogController
 from api.accounts import AccountTypesController, AccountsController
 from api.journals import JournalsController
 from api.transactions import TransactionsController
+from api.contacts import ContactsController
 
 
 config: AppConfig | None = None
@@ -41,6 +42,7 @@ app = Litestar(
         AccountsController,
         JournalsController,
         TransactionsController,
+        ContactsController,
     ],
     dependencies={
         "conn": Provide(provide_connection),
