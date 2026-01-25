@@ -26,6 +26,14 @@ BIT_TYPE_TABLES = {
     "url": "contacts.urls",
 }
 
+# Map view bit_type values to API bit_type values
+VIEW_BIT_TYPE_MAP = {
+    "email_addresses": "email",
+    "phone_numbers": "phone",
+    "street_addresses": "address",
+    "urls": "url",
+}
+
 
 # Column definitions for persona list (summary view)
 PERSONA_LIST_COLUMNS = [
@@ -103,6 +111,8 @@ class BitCreate:
     url: str | None = None  # url type
     username: str | None = None
     password: str | None = None  # Will be encrypted before storage
+    pw_reset_dt: date | None = None  # Date password was last changed
+    pw_next_reset_dt: date | None = None  # Date password should be changed
 
 
 @dataclass
@@ -126,6 +136,9 @@ class BitUpdate:
     url: str | None = None
     username: str | None = None
     password: str | None = None  # Will be encrypted before storage
+    clear_password: bool = False  # If true, set password_enc to NULL
+    pw_reset_dt: date | None = None  # Date password was last changed
+    pw_next_reset_dt: date | None = None  # Date password should be changed
 
 
 @dataclass
@@ -172,9 +185,13 @@ async def _get_bits_for_persona(
         rows = await cur.fetchall()
         bits = []
         for row in rows:
-            bit = {
+            # Normalize bit_type from view format to API format
+            view_bit_type = row["bit_type"]
+            api_bit_type = VIEW_BIT_TYPE_MAP.get(view_bit_type, view_bit_type)
+
+            bit: dict = {
                 "id": row["id"],
-                "bit_type": row["bit_type"],
+                "bit_type": api_bit_type,
                 "name": row["name"],
                 "memo": row["memo"],
                 "is_primary": row["is_primary"],
@@ -182,9 +199,14 @@ async def _get_bits_for_persona(
             }
             # Merge bit_data fields into the bit object
             if row["bit_data"]:
-                # Filter out password_enc from URL bits (never expose to frontend)
                 bit_data = dict(row["bit_data"])
-                bit_data.pop("password_enc", None)
+
+                # For URL bits: extract password info but never expose password_enc
+                if api_bit_type == "url":
+                    password_enc = bit_data.pop("password_enc", None)
+                    bit["has_password"] = password_enc is not None
+                    # Keep pw_reset_dt and pw_next_reset_dt as-is (they're already in bit_data)
+
                 bit.update(bit_data)
             bits.append(bit)
         return bits
@@ -357,9 +379,11 @@ async def _insert_bit(
             await cur.execute(
                 """
                 INSERT INTO contacts.urls
-                    (persona_id, url, username, password_enc, name, memo, is_primary, bit_sequence)
+                    (persona_id, url, username, password_enc, pw_reset_dt, pw_next_reset_dt,
+                     name, memo, is_primary, bit_sequence)
                 VALUES
                     (%(persona_id)s, %(url)s, %(username)s, %(password_enc)s,
+                     %(pw_reset_dt)s, %(pw_next_reset_dt)s,
                      %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
                 RETURNING id
                 """,
@@ -368,6 +392,8 @@ async def _insert_bit(
                     "url": data.url,
                     "username": data.username,
                     "password_enc": password_enc,
+                    "pw_reset_dt": data.pw_reset_dt,
+                    "pw_next_reset_dt": data.pw_next_reset_dt,
                     "name": data.name,
                     "memo": data.memo,
                     "is_primary": data.is_primary,
@@ -445,6 +471,7 @@ async def _update_bit(
             updates.append("username = %(username)s")
             params["username"] = data.username
         if data.password is not None:
+            # Setting a new password
             if not crypto.is_initialized():
                 raise HTTPException(
                     status_code=500,
@@ -452,6 +479,15 @@ async def _update_bit(
                 )
             updates.append("password_enc = %(password_enc)s")
             params["password_enc"] = crypto.encrypt_password(data.password)
+        elif data.clear_password:
+            # Clearing the password (only if not setting a new one)
+            updates.append("password_enc = NULL")
+        if data.pw_reset_dt is not None:
+            updates.append("pw_reset_dt = %(pw_reset_dt)s")
+            params["pw_reset_dt"] = data.pw_reset_dt
+        if data.pw_next_reset_dt is not None:
+            updates.append("pw_next_reset_dt = %(pw_next_reset_dt)s")
+            params["pw_next_reset_dt"] = data.pw_next_reset_dt
 
     if not updates:
         return 1  # Nothing to update, but not an error
@@ -847,3 +883,45 @@ class ContactsController(Controller):
                 )
 
         return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
+
+    @get("/{contact_id:uuid}/bits/{bit_id:uuid}/password")
+    async def get_password(
+        self,
+        conn: psycopg.AsyncConnection,
+        contact_id: UUID,
+        bit_id: UUID,
+    ) -> dict:
+        """Decrypt and return a URL bit's password.
+
+        Only URL bits can have passwords. Returns 404 if the bit doesn't exist,
+        isn't a URL bit, or has no password set.
+        """
+        await _verify_persona_ownership(conn, contact_id, TEST_OWNER_ID)
+
+        # Only URL bits have passwords
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT password_enc
+                FROM contacts.urls
+                WHERE id = %(bit_id)s AND persona_id = %(persona_id)s
+                """,
+                {"bit_id": bit_id, "persona_id": contact_id},
+            )
+            row = await cur.fetchone()
+
+        if not row:
+            raise HTTPException(
+                status_code=404, detail="URL bit not found for this contact"
+            )
+
+        if not row["password_enc"]:
+            raise HTTPException(status_code=404, detail="No password set for this URL")
+
+        if not crypto.is_initialized():
+            raise HTTPException(
+                status_code=500, detail="Encryption not configured - cannot decrypt"
+            )
+
+        password = crypto.decrypt_password(row["password_enc"])
+        return {"password": password}

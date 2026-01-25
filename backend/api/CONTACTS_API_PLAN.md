@@ -539,9 +539,254 @@ ACME_BITS = [
 - [x] Add case transformation (snake_case ↔ camelCase)
 - [x] Handle loading and error states
 
-### Phase 5: Testing
+### Phase 5: Bit Edit Dialog with Password Support
+
+A focused dialog for editing individual contact bits with full support for all field types, including secure password handling for URL bits.
+
+#### Backend Changes
+
+**5.1 Extend URL bit fields in API**
+
+Add password-related date fields to the bit response and update DTOs:
+
+```python
+# URL bit response includes (password_enc never exposed directly):
+{
+  "id": "...",
+  "bit_type": "url",
+  "name": "Portal",
+  "url": "https://portal.example.com",
+  "username": "user123",
+  "has_password": true,           # Boolean flag (password_enc IS NOT NULL)
+  "pw_reset_dt": "2025-01-15",    # Date password was last changed
+  "pw_next_reset_dt": "2025-04-15" # Date password should be changed
+}
+```
+
+Update `BitCreate` and `BitUpdate` DTOs:
+```python
+@dataclass
+class BitCreate:
+    # ... existing fields ...
+    password: str | None = None           # Plaintext, encrypted before storage
+    pw_reset_dt: date | None = None
+    pw_next_reset_dt: date | None = None
+
+@dataclass
+class BitUpdate:
+    # ... existing fields ...
+    password: str | None = None           # If provided, re-encrypt and update
+    clear_password: bool = False          # If true, set password_enc to NULL
+    pw_reset_dt: date | None = None
+    pw_next_reset_dt: date | None = None
+```
+
+**5.2 Secure password retrieval endpoint**
+
+Add a dedicated endpoint for decrypting passwords (logged, rate-limited in production):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/contacts/{id}/bits/{bit_id}/password` | Decrypt and return password |
+
+Response:
+```json
+{
+  "password": "the-decrypted-password"
+}
+```
+
+Security considerations:
+- Only URL bits have passwords
+- Returns 404 if bit has no password
+- Should be audit-logged in production
+- Consider rate limiting
+
+**5.3 Update `contacts.bits` view handling**
+
+Modify `_get_bits_for_persona()` to include:
+- `has_password` (boolean): `password_enc IS NOT NULL`
+- `pw_reset_dt` (date): Last password change
+- `pw_next_reset_dt` (date): Next required change
+
+#### Frontend Changes
+
+**5.4 Create `BitEditDialogComponent`**
+
+New standalone dialog component for editing a single bit:
+
+```
+frontend/src/app/contacts/
+├── bit-edit-dialog/
+│   ├── bit-edit-dialog.component.ts
+│   ├── bit-edit-dialog.component.html
+│   └── bit-edit-dialog.component.scss
+```
+
+Features:
+- Opens as a modal dialog (uses `<dialog>` element)
+- Receives bit data as input
+- Emits saved bit or cancel
+- Type-specific form fields based on `bitType`
+
+**5.5 Type-specific form layouts**
+
+**Email bit:**
+```
+┌─────────────────────────────────────────┐
+│ Edit Email                          [×] │
+├─────────────────────────────────────────┤
+│ Label:    [Work________________]        │
+│ Email:    [john@example.com____]        │
+│ Primary:  [✓]                           │
+│ Memo:     [Notes about this email]      │
+├─────────────────────────────────────────┤
+│                    [Cancel]  [Save]     │
+└─────────────────────────────────────────┘
+```
+
+**Phone bit:**
+```
+┌─────────────────────────────────────────┐
+│ Edit Phone                          [×] │
+├─────────────────────────────────────────┤
+│ Label:    [Mobile______________]        │
+│ Number:   [(555) 123-4567______]        │
+│ Primary:  [✓]                           │
+│ Memo:     [Best time: afternoons]       │
+├─────────────────────────────────────────┤
+│                    [Cancel]  [Save]     │
+└─────────────────────────────────────────┘
+```
+
+**Address bit:**
+```
+┌─────────────────────────────────────────┐
+│ Edit Address                        [×] │
+├─────────────────────────────────────────┤
+│ Label:    [Office______________]        │
+│ Address:  [123 Main Street_____]        │
+│           [Suite 400___________]        │
+│ City:     [Springfield_________]        │
+│ State:    [IL__] ZIP: [62701___]        │
+│ Country:  [USA_________________]        │
+│ Primary:  [✓]                           │
+│ Memo:     [Use back entrance___]        │
+├─────────────────────────────────────────┤
+│                    [Cancel]  [Save]     │
+└─────────────────────────────────────────┘
+```
+
+**URL bit (with password vault features):**
+```
+┌─────────────────────────────────────────┐
+│ Edit Link                           [×] │
+├─────────────────────────────────────────┤
+│ Label:    [Customer Portal_____]        │
+│ URL:      [https://portal.acme.com]     │
+│ Username: [customer123_________]        │
+│                                         │
+│ ┌─ Password ──────────────────────────┐ │
+│ │ [••••••••••••] [👁] [📋]            │ │
+│ │ [Change Password...]                │ │
+│ │                                     │ │
+│ │ Last changed:  2025-01-15           │ │
+│ │ Change by:     2025-04-15 (90 days) │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ Primary:  [✓]                           │
+│ Memo:     [Use SSO when possible]       │
+├─────────────────────────────────────────┤
+│                    [Cancel]  [Save]     │
+└─────────────────────────────────────────┘
+```
+
+**5.6 Password field features**
+
+- **Masked display**: Show `••••••••` by default
+- **Show/hide toggle**: Eye icon to reveal password temporarily
+- **Copy to clipboard**: Button to copy password without revealing
+  - Uses Clipboard API: `navigator.clipboard.writeText(password)`
+  - Shows brief "Copied!" confirmation
+- **Change password**: Expands to show new password input fields
+- **Password dates**: Display and edit reset dates
+- **Visual warnings**: Highlight if password is overdue for change
+
+**5.7 Update `ContactsService`**
+
+Add method to fetch decrypted password:
+
+```typescript
+async getPassword(contactId: string, bitId: string): Promise<string> {
+  const response = await this.api
+    .getOne<{ password: string }>(`/api/contacts/${contactId}/bits/${bitId}/password`)
+    .toPromise();
+  return response!.data.password;
+}
+```
+
+**5.8 Update `ContactDetailComponent`**
+
+- Add click handler to open dialog for each bit
+- Replace inline edit mode with dialog-based editing
+- Keep inline display in view mode
+- Handle dialog save/cancel events
+
+**5.9 Keyboard shortcuts**
+
+- `Enter` on a bit row: Open edit dialog
+- `Escape`: Close dialog without saving
+- `Ctrl+S`: Save and close dialog
+- Focus trap within dialog
+
+#### Updated Frontend Model
+
+Extend `ContactUrl` interface in `contacts.model.ts`:
+
+```typescript
+export interface ContactUrl extends ContactBitBase {
+  bitType: 'url';
+  url: string;
+  username: string;
+  hasPassword: boolean;        // True if password_enc is set
+  passwordResetDate: string | null;    // ISO date of last change
+  passwordNextResetDate: string | null; // ISO date for next change
+}
+```
+
+Note: The actual password is never included in the model. It's fetched on-demand via `getPassword()` and only held in component state temporarily for clipboard operations.
+
+#### Implementation Checklist
+
+**Backend:**
+- [x] Add `has_password`, `pw_reset_dt`, `pw_next_reset_dt` to bit response
+- [x] Update `BitCreate` DTO with password date fields
+- [x] Update `BitUpdate` DTO with `clear_password` flag and date fields
+- [x] Update `_insert_bit()` to handle password dates
+- [x] Update `_update_bit()` to handle password dates and clearing
+- [x] Add `GET /api/contacts/{id}/bits/{bit_id}/password` endpoint
+- [x] Update seed data with sample passwords and dates
+
+**Frontend:**
+- [ ] Create `BitEditDialogComponent` with `<dialog>` element
+- [ ] Implement email bit form
+- [ ] Implement phone bit form
+- [ ] Implement address bit form
+- [ ] Implement URL bit form with password section
+- [ ] Add password show/hide toggle
+- [ ] Add copy password to clipboard
+- [ ] Add password change UI with date fields
+- [ ] Update `ContactsService` with `getPassword()` method
+- [ ] Update `ContactDetailComponent` to use dialog
+- [ ] Add keyboard navigation and shortcuts
+- [ ] Style with Tailwind CSS
+
+### Phase 6: Testing
 - [ ] Unit tests for API endpoints
+- [ ] Unit tests for password encryption/decryption
 - [ ] E2E tests for keyboard navigation
+- [ ] E2E tests for bit edit dialog
+- [ ] Test password copy to clipboard
 - [ ] Test search with full-text search
 
 ---

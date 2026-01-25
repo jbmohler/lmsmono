@@ -1,5 +1,6 @@
 """Seed data for contacts - personas and bits."""
 
+import core.crypto as crypto
 from seed.users import DEV_USER_ID
 
 # Sample personas with their bits
@@ -89,7 +90,7 @@ SEED_PERSONAS = [
             {"bit_type": "email", "email": "orders@acme.com", "name": "Orders", "is_primary": True},
             {"bit_type": "email", "email": "support@acme.com", "name": "Support", "is_primary": False},
             {"bit_type": "url", "url": "https://acme.com", "name": "Website", "is_primary": True},
-            {"bit_type": "url", "url": "https://portal.acme.com", "username": "customer123", "name": "Portal", "is_primary": False},
+            {"bit_type": "url", "url": "https://portal.acme.com", "username": "customer123", "password": "AcmePortal2025!", "pw_reset_dt": "2025-01-15", "pw_next_reset_dt": "2025-04-15", "name": "Portal", "is_primary": False},
             {"bit_type": "address", "address1": "1 Industrial Way", "city": "Commerce", "state": "CA", "zip": "90040", "country": "USA", "name": "HQ", "is_primary": True},
         ],
     },
@@ -102,7 +103,7 @@ SEED_PERSONAS = [
         "memo": "Monthly utility bill - account #12345",
         "bits": [
             {"bit_type": "phone", "number": "800-555-ELEC", "name": "Customer Service", "is_primary": True},
-            {"bit_type": "url", "url": "https://cityelectric.gov/pay", "username": "user@example.com", "name": "Bill Pay", "is_primary": True},
+            {"bit_type": "url", "url": "https://cityelectric.gov/pay", "username": "user@example.com", "password": "ElecBill#9876", "pw_reset_dt": "2024-11-01", "pw_next_reset_dt": "2025-02-01", "name": "Bill Pay", "is_primary": True},
             {"bit_type": "address", "address1": "PO Box 9999", "city": "Sacramento", "state": "CA", "zip": "95814", "country": "USA", "name": "Payment", "is_primary": True},
         ],
     },
@@ -117,7 +118,7 @@ SEED_PERSONAS = [
             {"bit_type": "phone", "number": "888-555-INSURE", "name": "Claims", "is_primary": True},
             {"bit_type": "phone", "number": "888-555-4678", "name": "Billing", "is_primary": False},
             {"bit_type": "email", "email": "claims@mvinsurance.com", "name": "Claims", "is_primary": True},
-            {"bit_type": "url", "url": "https://mvinsurance.com/portal", "username": "policyholder", "name": "Portal", "is_primary": True},
+            {"bit_type": "url", "url": "https://mvinsurance.com/portal", "username": "policyholder", "password": "Insure$ecure789", "pw_reset_dt": "2025-01-10", "pw_next_reset_dt": "2025-07-10", "name": "Portal", "is_primary": True},
         ],
     },
 ]
@@ -270,17 +271,31 @@ async def seed_contacts(conn) -> None:
                             },
                         )
                     elif bit_type == "url":
+                        # Encrypt password if provided
+                        password_enc = None
+                        if bit.get("password"):
+                            if crypto.is_initialized():
+                                password_enc = crypto.encrypt_password(bit["password"])
+                            else:
+                                print(f"  Warning: Crypto not initialized, skipping password for {bit.get('name')}")
+
                         await cur.execute(
                             """
                             INSERT INTO contacts.urls
-                                (persona_id, url, username, name, memo, is_primary, bit_sequence)
+                                (persona_id, url, username, password_enc, pw_reset_dt, pw_next_reset_dt,
+                                 name, memo, is_primary, bit_sequence)
                             VALUES
-                                (%(persona_id)s, %(url)s, %(username)s, %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
+                                (%(persona_id)s, %(url)s, %(username)s, %(password_enc)s,
+                                 %(pw_reset_dt)s, %(pw_next_reset_dt)s,
+                                 %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
                             """,
                             {
                                 "persona_id": persona_id,
                                 "url": bit["url"],
                                 "username": bit.get("username"),
+                                "password_enc": password_enc,
+                                "pw_reset_dt": bit.get("pw_reset_dt"),
+                                "pw_next_reset_dt": bit.get("pw_next_reset_dt"),
                                 "name": bit.get("name"),
                                 "memo": bit.get("memo"),
                                 "is_primary": bit.get("is_primary", False),
