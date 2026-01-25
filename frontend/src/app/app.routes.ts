@@ -24,6 +24,21 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./finances/reconcile/reconcile.component').then(m => m.ReconcileComponent),
       },
+      {
+        path: 'setup/account-types',
+        loadComponent: () =>
+          import('./finances/setup/account-types-list.component').then(m => m.AccountTypesListComponent),
+      },
+      {
+        path: 'setup/journals',
+        loadComponent: () =>
+          import('./finances/setup/journals-list.component').then(m => m.JournalsListComponent),
+      },
+      {
+        path: 'setup/accounts',
+        loadComponent: () =>
+          import('./finances/setup/accounts-list.component').then(m => m.AccountsListComponent),
+      },
     ],
   },
 

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 
 @Component({
@@ -7,4 +7,10 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
   styleUrl: './finances-layout.component.scss',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
 })
-export class FinancesLayoutComponent {}
+export class FinancesLayoutComponent {
+  setupExpanded = signal(false);
+
+  toggleSetup(): void {
+    this.setupExpanded.update(v => !v);
+  }
+}

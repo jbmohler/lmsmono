@@ -34,7 +34,7 @@ export class AccountService {
   accounts = computed(() => this.accountsResponse()?.data ?? []);
 
   /** Column metadata for accounts */
-  accountColumns = computed<ColumnMeta[]>(() => this.accountsResponse()?.columns ?? []);
+  columns = computed<ColumnMeta[]>(() => this.accountsResponse()?.columns ?? []);
 
   // Account types (static reference data)
   private accountTypesResponse = toSignal(
