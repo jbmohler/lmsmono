@@ -1,27 +1,27 @@
-<div class="space-y-6">
+<div class="flex flex-col gap-6">
   <!-- Health Status Card -->
-  <div class="card p-6">
-    <h2 class="text-xl font-bold text-gray-800 mb-4">System Status</h2>
+  <div class="card p-6 flex flex-col gap-4">
+    <h2 class="text-xl font-bold text-gray-800">System Status</h2>
 
     @if (health(); as h) {
       <div class="grid grid-cols-2 gap-4 text-sm">
-        <div>
+        <div class="flex gap-2">
           <span class="font-medium">API Status:</span>
-          <span class="ml-2 text-green-600">{{ h.status }}</span>
+          <span class="text-green-600">{{ h.status }}</span>
         </div>
-        <div>
+        <div class="flex gap-2">
           <span class="font-medium">Config:</span>
-          <span class="ml-2" [class.text-green-600]="h.config_loaded" [class.text-red-600]="!h.config_loaded">
+          <span [class.text-green-600]="h.config_loaded" [class.text-red-600]="!h.config_loaded">
             {{ h.config_loaded ? 'Loaded' : 'Missing' }}
           </span>
         </div>
-        <div>
+        <div class="flex gap-2">
           <span class="font-medium">Database Host:</span>
-          <span class="ml-2">{{ h.database_host }}</span>
+          <span>{{ h.database_host }}</span>
         </div>
-        <div>
+        <div class="flex gap-2">
           <span class="font-medium">Database:</span>
-          <span class="ml-2" [class.text-green-600]="h.database_connected" [class.text-red-600]="!h.database_connected">
+          <span [class.text-green-600]="h.database_connected" [class.text-red-600]="!h.database_connected">
             {{ h.database_connected ? 'Connected' : 'Disconnected' }}
           </span>
         </div>
@@ -30,17 +30,17 @@
       <p class="text-gray-500 text-sm">Loading...</p>
     }
 
-    <button (click)="refreshHealth()" class="mt-4 btn btn-primary">
+    <button (click)="refreshHealth()" class="btn btn-primary self-start">
       Refresh Status
     </button>
   </div>
 
   <!-- Event Log Card -->
-  <div class="card p-6">
-    <h2 class="text-xl font-bold text-gray-800 mb-4">Event Log (Database Proof of Concept)</h2>
+  <div class="card p-6 flex flex-col gap-4">
+    <h2 class="text-xl font-bold text-gray-800">Event Log (Database Proof of Concept)</h2>
 
     <!-- Add Entry Form -->
-    <div class="flex gap-2 mb-4">
+    <div class="flex gap-2">
       <input
         type="text"
         [(ngModel)]="newLogType"
@@ -101,7 +101,7 @@
       <p class="text-gray-500 text-sm py-4 text-center">Loading...</p>
     }
 
-    <button (click)="refreshEventLog()" class="mt-4 btn btn-secondary">
+    <button (click)="refreshEventLog()" class="btn btn-secondary self-start">
       Refresh Log
     </button>
   </div>

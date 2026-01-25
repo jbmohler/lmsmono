@@ -1,13 +1,13 @@
-<div class="p-6">
-  <div class="flex items-center justify-between mb-6">
-    <div>
+<div class="p-6 flex flex-col gap-6">
+  <div class="flex items-center justify-between">
+    <div class="flex flex-col gap-1">
       <h1 class="text-2xl font-semibold text-gray-900">Reconciliation</h1>
-      <p class="text-sm text-gray-500 mt-1">Account ID: {{ accountId() }}</p>
+      <p class="text-sm text-gray-500">Account ID: {{ accountId() }}</p>
     </div>
   </div>
 
   <!-- Statement balance input -->
-  <div class="card p-4 mb-6 input-compact">
+  <div class="card p-4 input-compact">
     <div class="flex items-center gap-6">
       <div>
         <label class="label-compact">Statement Date</label>
@@ -34,9 +34,9 @@
     <div class="px-4 py-3 border-b border-gray-200">
       <h2 class="text-sm font-medium text-gray-700">Unreconciled Transactions</h2>
     </div>
-    <div class="p-12 text-center text-gray-500">
+    <div class="p-12 text-center text-gray-500 flex flex-col gap-1">
       <p class="text-sm">No unreconciled transactions.</p>
-      <p class="text-xs mt-1 text-gray-400">Select an account from the sidebar to begin reconciliation.</p>
+      <p class="text-xs text-gray-400">Select an account from the sidebar to begin reconciliation.</p>
     </div>
   </div>
 </div>

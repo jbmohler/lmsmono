@@ -207,6 +207,45 @@ Common UI patterns are defined in `src/styles.css` using `@apply`. Use these cla
 </table>
 ```
 
+### Spacing: Prefer Gap Over Margins
+
+**Avoid asymmetric margins** (`mb-*`, `mt-*`, `ml-*`, `mr-*`) between sibling elements. Instead, use `flex` or `flex-col` with `gap-*` on the parent container:
+
+```html
+<!-- BAD - asymmetric margins -->
+<div>
+  <h1 class="mb-6">Title</h1>
+  <div class="card mb-6">Filter bar</div>
+  <div class="card">Content</div>
+</div>
+
+<!-- GOOD - gap on parent -->
+<div class="flex flex-col gap-6">
+  <h1>Title</h1>
+  <div class="card">Filter bar</div>
+  <div class="card">Content</div>
+</div>
+
+<!-- BAD - horizontal margin -->
+<div>
+  <span class="font-medium">Label:</span>
+  <span class="ml-2">Value</span>
+</div>
+
+<!-- GOOD - horizontal gap -->
+<div class="flex gap-2">
+  <span class="font-medium">Label:</span>
+  <span>Value</span>
+</div>
+```
+
+**Why:** Gap-based spacing is symmetric, predictable, and easier to maintain. It keeps spacing concerns on the parent rather than scattered across children.
+
+**When margins are OK:**
+- Padding inside elements (`p-*`, `px-*`, `py-*`)
+- Single elements that need specific positioning
+- Border-adjacent spacing like `pt-4 border-t` for visual separation
+
 ## Keyboard Navigation
 
 This is a keyboard-first application. Every feature must be fully operable via keyboard.

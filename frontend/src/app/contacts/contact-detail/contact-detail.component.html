@@ -16,10 +16,10 @@
       </div>
 
       <!-- Edit Form -->
-      <div class="flex-1 overflow-y-auto p-6">
+      <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
         <!-- Basic Info -->
-        <div class="card p-4 mb-4">
-          <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="card p-4 flex flex-col gap-4">
+          <div class="grid grid-cols-2 gap-4">
             @if (!data.isCorporate) {
               <div>
                 <label class="label-compact">First Name</label>
@@ -69,8 +69,8 @@
         </div>
 
         <!-- Contact Info (unified list) -->
-        <div class="card p-4 mb-4 input-compact">
-          <div class="flex items-center justify-between mb-3">
+        <div class="card p-4 input-compact flex flex-col gap-3">
+          <div class="flex items-center justify-between">
             <h3 class="text-sm font-medium text-gray-700">Contact Info</h3>
             <div class="flex gap-2">
               <button (click)="addBit('email')" class="text-xs text-blue-600 hover:text-blue-800">+ Email</button>
@@ -81,8 +81,8 @@
           </div>
 
           @for (bit of editSortedBits(); track trackById($index, bit); let first = $first; let last = $last) {
-            <div class="border border-gray-200 rounded-md p-3 mb-2">
-              <div class="flex items-center justify-between mb-2">
+            <div class="border border-gray-200 rounded-md p-3 flex flex-col gap-2">
+              <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <!-- Reorder buttons -->
                   <div class="flex flex-col gap-0.5">
@@ -210,8 +210,8 @@
         </div>
 
         <!-- Memo -->
-        <div class="card p-4">
-          <label class="mb-2">Notes</label>
+        <div class="card p-4 flex flex-col gap-2">
+          <label>Notes</label>
           <textarea
             [ngModel]="data.memo"
             (ngModelChange)="updateField('memo', $event)"
@@ -245,9 +245,9 @@
     </div>
 
     <!-- View Content -->
-    <div class="flex-1 overflow-y-auto p-6">
+    <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
       @for (bit of sortedBits(); track trackById($index, bit)) {
-        <div class="mb-4">
+        <div>
           @if (isEmail(bit)) {
             <div class="flex items-center gap-2">
               @if (bit.isPrimary) {
@@ -309,8 +309,8 @@
 
       <!-- Memo -->
       @if (contact().memo) {
-        <div class="mt-6 pt-4 border-t border-gray-200">
-          <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Notes</h3>
+        <div class="pt-4 border-t border-gray-200 flex flex-col gap-2">
+          <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</h3>
           <p class="text-sm text-gray-700 whitespace-pre-line">{{ contact().memo }}</p>
         </div>
       }
