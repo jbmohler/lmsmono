@@ -31,6 +31,9 @@ export interface ContactUrl extends ContactBitBase {
   bitType: 'url';
   url: string;
   username: string;
+  hasPassword: boolean;
+  pwResetDt: string | null;
+  pwNextResetDt: string | null;
 }
 
 export type ContactBit = ContactEmail | ContactPhone | ContactAddress | ContactUrl;

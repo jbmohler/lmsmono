@@ -1,0 +1,312 @@
+<dialog #dialog class="bit-edit-dialog">
+  <div class="dialog-header">
+    <h2>{{ getDialogTitle() }}</h2>
+    <button type="button" class="close-btn" (click)="close()" aria-label="Close">
+      &times;
+    </button>
+  </div>
+
+  <form (ngSubmit)="save()" class="dialog-body">
+    <!-- Common fields -->
+    <div class="form-row">
+      <label for="label">Label</label>
+      <input
+        id="label"
+        type="text"
+        [ngModel]="editBit()?.label"
+        (ngModelChange)="updateField('label', $event)"
+        name="label"
+        placeholder="e.g., Work, Home, Mobile"
+      />
+    </div>
+
+    <!-- Email-specific fields -->
+    @if (isEmail() && emailBit) {
+      <div class="form-row">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          [ngModel]="emailBit.email"
+          (ngModelChange)="updateField('email', $event)"
+          name="email"
+          required
+        />
+      </div>
+    }
+
+    <!-- Phone-specific fields -->
+    @if (isPhone() && phoneBit) {
+      <div class="form-row">
+        <label for="number">Number</label>
+        <input
+          id="number"
+          type="tel"
+          [ngModel]="phoneBit.number"
+          (ngModelChange)="updateField('number', $event)"
+          name="number"
+          required
+        />
+      </div>
+    }
+
+    <!-- Address-specific fields -->
+    @if (isAddress() && addressBit) {
+      <div class="form-row">
+        <label for="address1">Address</label>
+        <input
+          id="address1"
+          type="text"
+          [ngModel]="addressBit.address1"
+          (ngModelChange)="updateField('address1', $event)"
+          name="address1"
+          placeholder="Street address"
+        />
+      </div>
+      <div class="form-row">
+        <label for="address2">&nbsp;</label>
+        <input
+          id="address2"
+          type="text"
+          [ngModel]="addressBit.address2"
+          (ngModelChange)="updateField('address2', $event)"
+          name="address2"
+          placeholder="Apt, Suite, etc."
+        />
+      </div>
+      <div class="form-row">
+        <label for="city">City</label>
+        <input
+          id="city"
+          type="text"
+          [ngModel]="addressBit.city"
+          (ngModelChange)="updateField('city', $event)"
+          name="city"
+        />
+      </div>
+      <div class="form-row form-row-split">
+        <div class="split-field">
+          <label for="state">State</label>
+          <input
+            id="state"
+            type="text"
+            [ngModel]="addressBit.state"
+            (ngModelChange)="updateField('state', $event)"
+            name="state"
+          />
+        </div>
+        <div class="split-field">
+          <label for="zip">ZIP</label>
+          <input
+            id="zip"
+            type="text"
+            [ngModel]="addressBit.zip"
+            (ngModelChange)="updateField('zip', $event)"
+            name="zip"
+          />
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="country">Country</label>
+        <input
+          id="country"
+          type="text"
+          [ngModel]="addressBit.country"
+          (ngModelChange)="updateField('country', $event)"
+          name="country"
+        />
+      </div>
+    }
+
+    <!-- URL-specific fields -->
+    @if (isUrl() && urlBit) {
+      <div class="form-row">
+        <label for="url">URL</label>
+        <input
+          id="url"
+          type="url"
+          [ngModel]="urlBit.url"
+          (ngModelChange)="updateField('url', $event)"
+          name="url"
+          required
+        />
+      </div>
+      <div class="form-row">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          [ngModel]="urlBit.username"
+          (ngModelChange)="updateField('username', $event)"
+          name="username"
+        />
+      </div>
+
+      <!-- Password section -->
+      <fieldset class="password-section">
+        <legend>Password</legend>
+
+        @if (urlBit.hasPassword && !showPasswordChange()) {
+          <div class="password-display">
+            <div class="password-field">
+              @if (passwordVisible()) {
+                <span class="password-text">{{ decryptedPassword() }}</span>
+              } @else {
+                <span class="password-masked">••••••••••••</span>
+              }
+            </div>
+            <div class="password-actions">
+              <button
+                type="button"
+                class="icon-btn"
+                (click)="togglePasswordVisibility()"
+                [attr.aria-label]="passwordVisible() ? 'Hide password' : 'Show password'"
+                title="{{ passwordVisible() ? 'Hide' : 'Show' }}"
+              >
+                @if (passwordVisible()) {
+                  <span class="icon">🙈</span>
+                } @else {
+                  <span class="icon">👁</span>
+                }
+              </button>
+              <button
+                type="button"
+                class="icon-btn"
+                (click)="copyPassword()"
+                aria-label="Copy password"
+                title="Copy"
+              >
+                @if (copyFeedback()) {
+                  <span class="icon">✓</span>
+                } @else {
+                  <span class="icon">📋</span>
+                }
+              </button>
+            </div>
+          </div>
+
+          <div class="password-dates">
+            @if (urlBit.pwResetDt) {
+              <div class="date-info">
+                <span class="date-label">Last changed:</span>
+                <span>{{ urlBit.pwResetDt }}</span>
+              </div>
+            }
+            @if (urlBit.pwNextResetDt) {
+              <div class="date-info" [class.overdue]="isOverdue(urlBit.pwNextResetDt)">
+                <span class="date-label">Change by:</span>
+                <span>{{ urlBit.pwNextResetDt }}</span>
+              </div>
+            }
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            (click)="togglePasswordChange()"
+          >
+            Change Password...
+          </button>
+        }
+
+        @if (!urlBit.hasPassword || showPasswordChange()) {
+          <div class="password-change-form">
+            @if (urlBit.hasPassword) {
+              <div class="form-row checkbox-row">
+                <label>
+                  <input
+                    type="checkbox"
+                    [ngModel]="clearPassword()"
+                    (ngModelChange)="clearPassword.set($event)"
+                    name="clearPassword"
+                  />
+                  Remove password
+                </label>
+              </div>
+            }
+
+            @if (!clearPassword()) {
+              <div class="form-row">
+                <label for="newPassword">{{ urlBit.hasPassword ? 'New Password' : 'Password' }}</label>
+                <input
+                  id="newPassword"
+                  type="password"
+                  [ngModel]="newPassword()"
+                  (ngModelChange)="newPassword.set($event)"
+                  name="newPassword"
+                />
+              </div>
+
+              <div class="form-row">
+                <label for="pwResetDt">Last Changed</label>
+                <input
+                  id="pwResetDt"
+                  type="date"
+                  [ngModel]="urlBit.pwResetDt"
+                  (ngModelChange)="updateField('pwResetDt', $event)"
+                  name="pwResetDt"
+                />
+              </div>
+
+              <div class="form-row">
+                <label for="pwNextResetDt">Change By</label>
+                <input
+                  id="pwNextResetDt"
+                  type="date"
+                  [ngModel]="urlBit.pwNextResetDt"
+                  (ngModelChange)="updateField('pwNextResetDt', $event)"
+                  name="pwNextResetDt"
+                />
+              </div>
+            }
+
+            @if (urlBit.hasPassword) {
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                (click)="togglePasswordChange()"
+              >
+                Cancel
+              </button>
+            }
+          </div>
+        }
+      </fieldset>
+    }
+
+    <!-- Primary checkbox -->
+    <div class="form-row checkbox-row">
+      <label>
+        <input
+          type="checkbox"
+          [ngModel]="editBit()?.isPrimary"
+          (ngModelChange)="updateField('isPrimary', $event)"
+          name="isPrimary"
+        />
+        Primary
+      </label>
+    </div>
+
+    <!-- Memo field -->
+    <div class="form-row">
+      <label for="memo">Notes</label>
+      <textarea
+        id="memo"
+        [ngModel]="editBit()?.memo"
+        (ngModelChange)="updateField('memo', $event)"
+        name="memo"
+        rows="2"
+      ></textarea>
+    </div>
+
+    <!-- Actions -->
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" (click)="close()">
+        Cancel
+      </button>
+      <button type="submit" class="btn btn-primary">
+        Save
+      </button>
+    </div>
+  </form>
+</dialog>

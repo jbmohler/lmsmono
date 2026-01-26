@@ -10,7 +10,8 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ContactDetailComponent } from './contact-detail/contact-detail.component';
 import { ContactsService } from './services/contacts.service';
-import { Persona } from './contacts.model';
+import { ContactBit, Persona } from './contacts.model';
+import { BitUpdate } from './services/contacts.service';
 
 /** List item from API (minimal data for sidebar) */
 interface ContactListItem {
@@ -182,6 +183,62 @@ export class ContactsComponent {
 
       this.selectedContactId.set(savedContact.id);
       this.selectedContact.set(savedContact);
+    } catch {
+      // Error is handled by service
+    }
+  }
+
+  async onBitUpdated(event: {
+    bitId: string;
+    changes: Partial<ContactBit>;
+    password?: string;
+    clearPassword?: boolean;
+  }): Promise<void> {
+    const contactId = this.selectedContactId();
+    if (!contactId) return;
+
+    try {
+      // Build the update request
+      const update: BitUpdate = {};
+
+      const changes = event.changes;
+      if ('label' in changes) update.name = changes.label || null;
+      if ('memo' in changes) update.memo = changes.memo || null;
+      if ('isPrimary' in changes) update.is_primary = changes.isPrimary;
+      if ('bitSequence' in changes) update.bit_sequence = changes.bitSequence;
+
+      // Type-specific fields
+      if ('email' in changes) update.email = (changes as { email: string }).email;
+      if ('number' in changes) update.number = (changes as { number: string }).number;
+      if ('address1' in changes) update.address1 = (changes as { address1: string }).address1;
+      if ('address2' in changes) update.address2 = (changes as { address2: string }).address2;
+      if ('city' in changes) update.city = (changes as { city: string }).city;
+      if ('state' in changes) update.state = (changes as { state: string }).state;
+      if ('zip' in changes) update.zip = (changes as { zip: string }).zip;
+      if ('country' in changes) update.country = (changes as { country: string }).country;
+      if ('url' in changes) update.url = (changes as { url: string }).url;
+      if ('username' in changes) update.username = (changes as { username: string }).username;
+
+      // Password fields
+      if (event.password) {
+        update.password = event.password;
+      }
+      if (event.clearPassword) {
+        update.clear_password = true;
+      }
+      if ('pwResetDt' in changes) {
+        update.pw_reset_dt = (changes as { pwResetDt: string | null }).pwResetDt;
+      }
+      if ('pwNextResetDt' in changes) {
+        update.pw_next_reset_dt = (changes as { pwNextResetDt: string | null }).pwNextResetDt;
+      }
+
+      const updatedPersona = await this.contactsService.updateBit(
+        contactId,
+        event.bitId,
+        update as Partial<ContactBit>
+      );
+      this.selectedContact.set(updatedPersona);
     } catch {
       // Error is handled by service
     }

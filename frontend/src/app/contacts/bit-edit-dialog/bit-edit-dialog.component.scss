@@ -1,0 +1,190 @@
+.bit-edit-dialog {
+  min-width: 400px;
+  max-width: 500px;
+  padding: 1.5rem;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+
+  h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 0;
+    line-height: 1;
+
+    &:hover {
+      color: #374151;
+    }
+  }
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  input,
+  textarea {
+    width: 100%;
+  }
+}
+
+.form-row-split {
+  flex-direction: row;
+  gap: 1rem;
+
+  .split-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+
+.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+
+  input[type='checkbox'] {
+    width: auto;
+  }
+}
+
+.password-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+
+  legend {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    padding: 0 0.25rem;
+  }
+}
+
+.password-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.password-field {
+  flex: 1;
+  padding: 0.5rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+  font-family: monospace;
+}
+
+.password-masked {
+  color: #6b7280;
+}
+
+.password-text {
+  color: #111827;
+}
+
+.password-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.icon-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+  padding: 0.375rem 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  .icon {
+    display: inline-block;
+    width: 1.25rem;
+    text-align: center;
+  }
+}
+
+.password-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.813rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.date-info {
+  display: flex;
+  gap: 0.5rem;
+
+  .date-label {
+    color: #9ca3af;
+  }
+
+  &.overdue {
+    color: #dc2626;
+    font-weight: 500;
+  }
+}
+
+.password-change-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.813rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}

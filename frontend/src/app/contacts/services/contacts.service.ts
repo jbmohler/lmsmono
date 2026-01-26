@@ -57,6 +57,10 @@ interface ApiBit {
   country?: string;
   url?: string;
   username?: string;
+  // URL password fields
+  has_password?: boolean;
+  pw_reset_dt?: string | null;
+  pw_next_reset_dt?: string | null;
 }
 
 /**
@@ -101,6 +105,8 @@ export interface BitCreate {
   url?: string;
   username?: string;
   password?: string;
+  pw_reset_dt?: string | null;
+  pw_next_reset_dt?: string | null;
 }
 
 export interface BitUpdate {
@@ -119,10 +125,13 @@ export interface BitUpdate {
   url?: string;
   username?: string;
   password?: string;
+  clear_password?: boolean;
+  pw_reset_dt?: string | null;
+  pw_next_reset_dt?: string | null;
 }
 
 export interface BitReorderRequest {
-  items: Array<{ id: string; bit_sequence: number }>;
+  items: { id: string; bit_sequence: number }[];
 }
 
 /**
@@ -163,6 +172,9 @@ function transformBit(api: ApiBit): ContactBit {
         bitType: 'url',
         url: api.url ?? '',
         username: api.username ?? '',
+        hasPassword: api.has_password ?? false,
+        pwResetDt: api.pw_reset_dt ?? null,
+        pwNextResetDt: api.pw_next_reset_dt ?? null,
       } as ContactUrl;
     default:
       // Fallback - treat as email
@@ -239,7 +251,7 @@ function toBitCreate(bit: ContactBit): BitCreate {
     case 'phone':
       create.number = (bit as ContactPhone).number;
       break;
-    case 'address':
+    case 'address': {
       const addr = bit as ContactAddress;
       create.address1 = addr.address1;
       create.address2 = addr.address2;
@@ -248,11 +260,13 @@ function toBitCreate(bit: ContactBit): BitCreate {
       create.zip = addr.zip;
       create.country = addr.country;
       break;
-    case 'url':
+    }
+    case 'url': {
       const urlBit = bit as ContactUrl;
       create.url = urlBit.url;
       create.username = urlBit.username;
       break;
+    }
   }
 
   return create;
@@ -474,10 +488,24 @@ export class ContactsService {
     }
   }
 
+  /** Get decrypted password for a URL bit */
+  async getPassword(contactId: string, bitId: string): Promise<string> {
+    try {
+      const response = await this.api
+        .getOne<{ password: string }>(`/api/contacts/${contactId}/bits/${bitId}/password`)
+        .toPromise();
+      return response!.data.password;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to retrieve password';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
   /** Reorder contact bits */
   async reorderBits(
     contactId: string,
-    items: Array<{ id: string; bitSequence: number }>
+    items: { id: string; bitSequence: number }[]
   ): Promise<Persona> {
     this.loading.set(true);
     this.error.set(null);

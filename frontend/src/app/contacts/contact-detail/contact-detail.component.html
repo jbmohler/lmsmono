@@ -247,14 +247,20 @@
     <!-- View Content -->
     <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
       @for (bit of sortedBits(); track trackById($index, bit)) {
-        <div>
+        <div
+          class="bit-row cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1 rounded transition-colors"
+          (click)="openBitDialog(bit)"
+          (keydown.enter)="openBitDialog(bit)"
+          tabindex="0"
+          role="button"
+        >
           @if (isEmail(bit)) {
             <div class="flex items-center gap-2">
               @if (bit.isPrimary) {
                 <span class="text-yellow-500 text-sm">★</span>
               }
               <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Email</span>
-              <a href="mailto:{{ bit.email }}" class="text-sm text-blue-600 hover:underline">{{ bit.email }}</a>
+              <span class="text-sm text-blue-600">{{ bit.email }}</span>
               @if (bit.label) {
                 <span class="text-xs text-gray-400">({{ bit.label }})</span>
               }
@@ -267,7 +273,7 @@
                 <span class="text-yellow-500 text-sm">★</span>
               }
               <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Phone</span>
-              <a href="tel:{{ bit.number }}" class="text-sm text-gray-900">{{ bit.number }}</a>
+              <span class="text-sm text-gray-900">{{ bit.number }}</span>
               @if (bit.label) {
                 <span class="text-xs text-gray-400">({{ bit.label }})</span>
               }
@@ -293,12 +299,15 @@
                 <span class="text-yellow-500 text-sm">★</span>
               }
               <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Link</span>
-              <a href="{{ bit.url }}" target="_blank" class="text-sm text-blue-600 hover:underline">{{ bit.url }}</a>
+              <span class="text-sm text-blue-600">{{ bit.url }}</span>
               @if (bit.label) {
                 <span class="text-xs text-gray-400">({{ bit.label }})</span>
               }
               @if (bit.username) {
                 <span class="text-xs text-gray-400">@{{ bit.username }}</span>
+              }
+              @if (bit.hasPassword) {
+                <span class="text-xs text-gray-400" title="Has password">🔒</span>
               }
             </div>
           }
@@ -318,7 +327,17 @@
 
     <!-- Footer -->
     <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
-      Click Edit to modify
+      Click on contact info to edit | Press Enter to open
     </div>
   }
 </div>
+
+<!-- Bit Edit Dialog -->
+@if (editingBit(); as bit) {
+  <app-bit-edit-dialog
+    [contactId]="contact().id"
+    [bit]="bit"
+    (saved)="saveBitFromDialog($event)"
+    (cancelled)="closeBitDialog()"
+  />
+}

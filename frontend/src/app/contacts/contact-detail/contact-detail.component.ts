@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed } from '@angular/core';
+import { Component, input, output, signal, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Persona,
@@ -8,24 +8,32 @@ import {
   ContactAddress,
   ContactUrl,
 } from '../contacts.model';
+import { BitEditDialogComponent, BitEditResult } from '../bit-edit-dialog/bit-edit-dialog.component';
+import { ContactsService } from '../services/contacts.service';
 
 @Component({
   selector: 'app-contact-detail',
   templateUrl: './contact-detail.component.html',
   styleUrl: './contact-detail.component.scss',
-  imports: [FormsModule],
+  imports: [FormsModule, BitEditDialogComponent],
   host: {
     '(keydown)': 'handleKeydown($event)',
   },
 })
 export class ContactDetailComponent {
+  private contactsService = inject(ContactsService);
+
   contact = input.required<Persona>();
   contactSaved = output<Persona>();
+  bitUpdated = output<{ bitId: string; changes: Partial<ContactBit>; password?: string; clearPassword?: boolean }>();
 
   isEditing = signal(false);
 
   // Edit state - deep copy of contact for editing
   editData = signal<Persona | null>(null);
+
+  // Bit dialog state
+  editingBit = signal<ContactBit | null>(null);
 
   displayName = computed(() => {
     const c = this.contact();
@@ -125,7 +133,15 @@ export class ContactDetailComponent {
           };
           break;
         case 'url':
-          newBit = { ...baseProps, bitType: 'url', url: '', username: '' };
+          newBit = {
+            ...baseProps,
+            bitType: 'url',
+            url: '',
+            username: '',
+            hasPassword: false,
+            pwResetDt: null,
+            pwNextResetDt: null,
+          };
           break;
       }
 
@@ -246,5 +262,38 @@ export class ContactDetailComponent {
 
   trackById(_index: number, item: { id: string }): string {
     return item.id;
+  }
+
+  // Bit dialog operations
+  openBitDialog(bit: ContactBit): void {
+    this.editingBit.set(bit);
+  }
+
+  closeBitDialog(): void {
+    this.editingBit.set(null);
+  }
+
+  async saveBitFromDialog(result: BitEditResult): Promise<void> {
+    const { bit, password, clearPassword } = result;
+    this.editingBit.set(null);
+
+    // If in edit mode, update local state
+    if (this.isEditing()) {
+      this.editData.update(data => {
+        if (!data) return data;
+        return {
+          ...data,
+          bits: data.bits.map(b => b.id === bit.id ? bit : b),
+        };
+      });
+    } else {
+      // In view mode, emit update to parent
+      this.bitUpdated.emit({
+        bitId: bit.id,
+        changes: bit,
+        password,
+        clearPassword,
+      });
+    }
   }
 }

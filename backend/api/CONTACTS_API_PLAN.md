@@ -768,18 +768,18 @@ Note: The actual password is never included in the model. It's fetched on-demand
 - [x] Update seed data with sample passwords and dates
 
 **Frontend:**
-- [ ] Create `BitEditDialogComponent` with `<dialog>` element
-- [ ] Implement email bit form
-- [ ] Implement phone bit form
-- [ ] Implement address bit form
-- [ ] Implement URL bit form with password section
-- [ ] Add password show/hide toggle
-- [ ] Add copy password to clipboard
-- [ ] Add password change UI with date fields
-- [ ] Update `ContactsService` with `getPassword()` method
-- [ ] Update `ContactDetailComponent` to use dialog
-- [ ] Add keyboard navigation and shortcuts
-- [ ] Style with Tailwind CSS
+- [x] Create `BitEditDialogComponent` with `<dialog>` element
+- [x] Implement email bit form
+- [x] Implement phone bit form
+- [x] Implement address bit form
+- [x] Implement URL bit form with password section
+- [x] Add password show/hide toggle
+- [x] Add copy password to clipboard
+- [x] Add password change UI with date fields
+- [x] Update `ContactsService` with `getPassword()` method
+- [x] Update `ContactDetailComponent` to use dialog
+- [x] Add keyboard navigation and shortcuts
+- [x] Style with Tailwind CSS
 
 ### Phase 6: Testing
 - [ ] Unit tests for API endpoints

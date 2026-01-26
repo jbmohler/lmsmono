@@ -7,7 +7,7 @@
    ========================================================================== */
 
 /* Form Inputs - base styles for all text-like inputs */
-input:where([type="text"], [type="date"], [type="number"], [type="email"], [type="tel"], [type="search"]),
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="file"]):not([type="range"]):not([type="color"]),
 textarea,
 select {
   @apply px-3 py-2 border border-gray-300 rounded-md text-sm
@@ -112,7 +112,7 @@ tr.row-clickable {
    ========================================================================== */
 
 dialog {
-  @apply bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden p-0;
+  @apply bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden p-0 m-auto;
 }
 
 dialog::backdrop {
