@@ -26,6 +26,9 @@ export class ContactDetailComponent {
   contact = input.required<Persona>();
   contactSaved = output<Persona>();
   bitUpdated = output<{ bitId: string; changes: Partial<ContactBit>; password?: string; clearPassword?: boolean }>();
+  bitAdded = output<{ bit: ContactBit; password?: string }>();
+  bitDeleted = output<{ bitId: string }>();
+  bitMoved = output<{ bitId: string; direction: 'up' | 'down' }>();
 
   isEditing = signal(false);
 
@@ -273,27 +276,99 @@ export class ContactDetailComponent {
     this.editingBit.set(null);
   }
 
+  /** Create a new bit template and open the dialog (for view mode) */
+  addBitFromView(bitType: ContactBit['bitType']): void {
+    // Get max sequence to place new bit at end
+    const maxSeq = this.contact().bits.reduce((max, b) => Math.max(max, b.bitSequence), 0);
+    const baseProps = {
+      id: `new-${Date.now()}`,
+      label: '',
+      memo: '',
+      isPrimary: this.contact().bits.filter(b => b.bitType === bitType).length === 0,
+      bitSequence: maxSeq + 10,
+    };
+
+    let newBit: ContactBit;
+    switch (bitType) {
+      case 'email':
+        newBit = { ...baseProps, bitType: 'email', email: '' };
+        break;
+      case 'phone':
+        newBit = { ...baseProps, bitType: 'phone', number: '' };
+        break;
+      case 'address':
+        newBit = {
+          ...baseProps,
+          bitType: 'address',
+          address1: '',
+          address2: '',
+          city: '',
+          state: '',
+          zip: '',
+          country: '',
+        };
+        break;
+      case 'url':
+        newBit = {
+          ...baseProps,
+          bitType: 'url',
+          url: '',
+          username: '',
+          hasPassword: false,
+          pwResetDt: null,
+          pwNextResetDt: null,
+        };
+        break;
+    }
+
+    this.editingBit.set(newBit);
+  }
+
   async saveBitFromDialog(result: BitEditResult): Promise<void> {
-    const { bit, password, clearPassword } = result;
+    const { bit, password, clearPassword, isNew } = result;
     this.editingBit.set(null);
 
     // If in edit mode, update local state
     if (this.isEditing()) {
       this.editData.update(data => {
         if (!data) return data;
-        return {
-          ...data,
-          bits: data.bits.map(b => b.id === bit.id ? bit : b),
-        };
+        if (isNew) {
+          // Add new bit to local state
+          return { ...data, bits: [...data.bits, bit] };
+        } else {
+          // Update existing bit in local state
+          return {
+            ...data,
+            bits: data.bits.map(b => b.id === bit.id ? bit : b),
+          };
+        }
       });
     } else {
-      // In view mode, emit update to parent
-      this.bitUpdated.emit({
-        bitId: bit.id,
-        changes: bit,
-        password,
-        clearPassword,
-      });
+      // In view mode, emit to parent
+      if (isNew) {
+        this.bitAdded.emit({ bit, password });
+      } else {
+        this.bitUpdated.emit({
+          bitId: bit.id,
+          changes: bit,
+          password,
+          clearPassword,
+        });
+      }
     }
+  }
+
+  /** Confirm and delete a bit (view mode) */
+  confirmDeleteBit(bit: ContactBit): void {
+    const typeLabel = this.getBitTypeLabel(bit.bitType).toLowerCase();
+    const confirmed = window.confirm(`Delete this ${typeLabel}?`);
+    if (confirmed) {
+      this.bitDeleted.emit({ bitId: bit.id });
+    }
+  }
+
+  /** Move a bit up or down (view mode) */
+  moveBitFromView(bitId: string, direction: 'up' | 'down'): void {
+    this.bitMoved.emit({ bitId, direction });
   }
 }

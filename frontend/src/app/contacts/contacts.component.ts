@@ -188,6 +188,22 @@ export class ContactsComponent {
     }
   }
 
+  async onBitAdded(event: { bit: ContactBit; password?: string }): Promise<void> {
+    const contactId = this.selectedContactId();
+    if (!contactId) return;
+
+    try {
+      const updatedPersona = await this.contactsService.addBit(
+        contactId,
+        event.bit,
+        event.password
+      );
+      this.selectedContact.set(updatedPersona);
+    } catch {
+      // Error is handled by service
+    }
+  }
+
   async onBitUpdated(event: {
     bitId: string;
     changes: Partial<ContactBit>;
@@ -238,6 +254,46 @@ export class ContactsComponent {
         event.bitId,
         update as Partial<ContactBit>
       );
+      this.selectedContact.set(updatedPersona);
+    } catch {
+      // Error is handled by service
+    }
+  }
+
+  async onBitDeleted(event: { bitId: string }): Promise<void> {
+    const contactId = this.selectedContactId();
+    if (!contactId) return;
+
+    try {
+      await this.contactsService.deleteBit(contactId, event.bitId);
+      // Reload contact to get fresh data
+      const updatedContact = await this.contactsService.getById(contactId);
+      this.selectedContact.set(updatedContact);
+    } catch {
+      // Error is handled by service
+    }
+  }
+
+  async onBitMoved(event: { bitId: string; direction: 'up' | 'down' }): Promise<void> {
+    const contact = this.selectedContact();
+    if (!contact) return;
+
+    const sorted = [...contact.bits].sort((a, b) => a.bitSequence - b.bitSequence);
+    const index = sorted.findIndex(b => b.id === event.bitId);
+    if (index < 0) return;
+
+    const swapIndex = event.direction === 'up' ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= sorted.length) return;
+
+    // Swap bit sequences
+    const current = sorted[index];
+    const other = sorted[swapIndex];
+
+    try {
+      const updatedPersona = await this.contactsService.reorderBits(contact.id, [
+        { id: current.id, bitSequence: other.bitSequence },
+        { id: other.id, bitSequence: current.bitSequence },
+      ]);
       this.selectedContact.set(updatedPersona);
     } catch {
       // Error is handled by service

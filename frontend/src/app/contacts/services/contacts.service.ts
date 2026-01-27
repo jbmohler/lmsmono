@@ -427,14 +427,34 @@ export class ContactsService {
     }
   }
 
+  /** Get a single contact bit by ID */
+  async getBit(contactId: string, bitId: string): Promise<ContactBit> {
+    try {
+      const response = await this.api
+        .getOne<ApiBit>(`/api/contacts/${contactId}/bits/${bitId}`)
+        .toPromise();
+      return transformBit(response!.data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load contact info';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
   /** Add a contact bit */
-  async addBit(contactId: string, bit: ContactBit): Promise<Persona> {
+  async addBit(contactId: string, bit: ContactBit, password?: string): Promise<Persona> {
     this.loading.set(true);
     this.error.set(null);
 
     try {
+      const createData = toBitCreate(bit);
+      // Add password for URL bits if provided
+      if (password && bit.bitType === 'url') {
+        createData.password = password;
+      }
+
       const response = await this.api
-        .create<ApiPersona, BitCreate>(`/api/contacts/${contactId}/bits`, toBitCreate(bit))
+        .create<ApiPersona, BitCreate>(`/api/contacts/${contactId}/bits`, createData)
         .toPromise();
       this.loading.set(false);
       return transformPersona(response!.data);

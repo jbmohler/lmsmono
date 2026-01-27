@@ -71,7 +71,10 @@
       <app-contact-detail
         [contact]="contact"
         (contactSaved)="onContactSaved($event)"
+        (bitAdded)="onBitAdded($event)"
         (bitUpdated)="onBitUpdated($event)"
+        (bitDeleted)="onBitDeleted($event)"
+        (bitMoved)="onBitMoved($event)"
       />
     } @else if (selectedContactId() && loading()) {
       <!-- Loading state while fetching contact details -->

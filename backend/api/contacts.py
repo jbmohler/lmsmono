@@ -884,6 +884,89 @@ class ContactsController(Controller):
 
         return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
 
+    @get("/{contact_id:uuid}/bits/{bit_id:uuid}")
+    async def get_bit(
+        self,
+        conn: psycopg.AsyncConnection,
+        contact_id: UUID,
+        bit_id: UUID,
+    ) -> SingleRowResponse:
+        """Get a single contact bit by ID."""
+        await _verify_persona_ownership(conn, contact_id, TEST_OWNER_ID)
+
+        # Determine which table the bit is in
+        bit_type = await _get_bit_type(conn, bit_id)
+        if not bit_type:
+            raise HTTPException(status_code=404, detail="Contact bit not found")
+
+        # Verify the bit belongs to this persona
+        table = BIT_TYPE_TABLES[bit_type]
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                f"SELECT persona_id FROM {table} WHERE id = %(id)s",
+                {"id": bit_id},
+            )
+            row = await cur.fetchone()
+            if not row or row["persona_id"] != contact_id:
+                raise HTTPException(
+                    status_code=404, detail="Contact bit not found for this contact"
+                )
+
+        # Fetch the bit from the unified view
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT
+                    id,
+                    bit_type,
+                    name,
+                    memo,
+                    is_primary,
+                    bit_sequence,
+                    bit_data
+                FROM contacts.bits
+                WHERE id = %(bit_id)s AND persona_id = %(persona_id)s
+                """,
+                {"bit_id": bit_id, "persona_id": contact_id},
+            )
+            row = await cur.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Contact bit not found")
+
+        # Normalize bit_type and merge bit_data
+        view_bit_type = row["bit_type"]
+        api_bit_type = VIEW_BIT_TYPE_MAP.get(view_bit_type, view_bit_type)
+
+        bit: dict = {
+            "id": row["id"],
+            "bit_type": api_bit_type,
+            "name": row["name"],
+            "memo": row["memo"],
+            "is_primary": row["is_primary"],
+            "bit_sequence": row["bit_sequence"],
+        }
+
+        if row["bit_data"]:
+            bit_data = dict(row["bit_data"])
+            # For URL bits: extract password info but never expose password_enc
+            if api_bit_type == "url":
+                password_enc = bit_data.pop("password_enc", None)
+                bit["has_password"] = password_enc is not None
+            bit.update(bit_data)
+
+        # Define columns for single bit response
+        bit_columns = [
+            ColumnMeta(key="id", label="ID", type="uuid"),
+            ColumnMeta(key="bit_type", label="Type", type="string"),
+            ColumnMeta(key="name", label="Label", type="string"),
+            ColumnMeta(key="memo", label="Memo", type="string"),
+            ColumnMeta(key="is_primary", label="Primary", type="boolean"),
+            ColumnMeta(key="bit_sequence", label="Sequence", type="number"),
+        ]
+
+        return SingleRowResponse(columns=bit_columns, data=bit)
+
     @get("/{contact_id:uuid}/bits/{bit_id:uuid}/password")
     async def get_password(
         self,

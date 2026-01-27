@@ -22,6 +22,7 @@ export interface BitEditResult {
   bit: ContactBit;
   password?: string;
   clearPassword?: boolean;
+  isNew?: boolean;
 }
 
 @Component({
@@ -47,6 +48,9 @@ export class BitEditDialogComponent {
   // Form state - clone of input bit
   editBit = signal<ContactBit | null>(null);
 
+  // Loading state for fetching fresh data
+  loading = signal(false);
+
   // Password handling for URL bits
   passwordVisible = signal(false);
   decryptedPassword = signal<string | null>(null);
@@ -61,9 +65,12 @@ export class BitEditDialogComponent {
     });
   }
 
-  open(): void {
-    // Deep clone the bit for editing
-    this.editBit.set(JSON.parse(JSON.stringify(this.bit())));
+  /** Check if this is a new bit (not yet saved to backend) */
+  isNewBit(): boolean {
+    return this.bit().id.startsWith('new-');
+  }
+
+  async open(): Promise<void> {
     this.passwordVisible.set(false);
     this.decryptedPassword.set(null);
     this.newPassword.set('');
@@ -73,6 +80,26 @@ export class BitEditDialogComponent {
     const dialog = this.dialogEl()?.nativeElement;
     if (dialog && !dialog.open) {
       dialog.showModal();
+    }
+
+    // For new bits, just use the template. For existing bits, load fresh data.
+    if (this.isNewBit()) {
+      this.editBit.set(JSON.parse(JSON.stringify(this.bit())));
+    } else {
+      // Load fresh data from backend
+      this.loading.set(true);
+      try {
+        const freshBit = await this.contactsService.getBit(
+          this.contactId(),
+          this.bit().id
+        );
+        this.editBit.set(freshBit);
+      } catch {
+        // On error, fall back to the input bit
+        this.editBit.set(JSON.parse(JSON.stringify(this.bit())));
+      } finally {
+        this.loading.set(false);
+      }
     }
   }
 
@@ -88,7 +115,7 @@ export class BitEditDialogComponent {
     const bit = this.editBit();
     if (!bit) return;
 
-    const result: BitEditResult = { bit };
+    const result: BitEditResult = { bit, isNew: this.isNewBit() };
 
     // Handle password for URL bits
     if (bit.bitType === 'url') {
@@ -207,12 +234,13 @@ export class BitEditDialogComponent {
 
   getDialogTitle(): string {
     const bit = this.editBit();
-    if (!bit) return 'Edit';
+    if (!bit) return this.isNewBit() ? 'Add' : 'Edit';
+    const action = this.isNewBit() ? 'Add' : 'Edit';
     switch (bit.bitType) {
-      case 'email': return 'Edit Email';
-      case 'phone': return 'Edit Phone';
-      case 'address': return 'Edit Address';
-      case 'url': return 'Edit Link';
+      case 'email': return `${action} Email`;
+      case 'phone': return `${action} Phone`;
+      case 'address': return `${action} Address`;
+      case 'url': return `${action} Link`;
     }
   }
 

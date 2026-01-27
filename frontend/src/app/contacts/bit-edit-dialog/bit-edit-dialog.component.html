@@ -6,6 +6,11 @@
     </button>
   </div>
 
+  @if (loading()) {
+    <div class="dialog-body loading-state">
+      <p>Loading...</p>
+    </div>
+  } @else {
   <form (ngSubmit)="save()" class="dialog-body">
     <!-- Common fields -->
     <div class="form-row">
@@ -309,4 +314,5 @@
       </button>
     </div>
   </form>
+  }
 </dialog>
