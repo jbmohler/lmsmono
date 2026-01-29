@@ -479,6 +479,10 @@ async def _update_bit(
                 )
             updates.append("password_enc = %(password_enc)s")
             params["password_enc"] = crypto.encrypt_password(data.password)
+            # Auto-set pw_reset_dt to today if not explicitly provided
+            if data.pw_reset_dt is None:
+                updates.append("pw_reset_dt = %(pw_reset_dt)s")
+                params["pw_reset_dt"] = date.today()
         elif data.clear_password:
             # Clearing the password (only if not setting a new one)
             updates.append("password_enc = NULL")
@@ -973,7 +977,7 @@ class ContactsController(Controller):
         conn: psycopg.AsyncConnection,
         contact_id: UUID,
         bit_id: UUID,
-    ) -> dict:
+    ) -> SingleRowResponse:
         """Decrypt and return a URL bit's password.
 
         Only URL bits can have passwords. Returns 404 if the bit doesn't exist,
@@ -1007,4 +1011,7 @@ class ContactsController(Controller):
             )
 
         password = crypto.decrypt_password(row["password_enc"])
-        return {"password": password}
+        return SingleRowResponse(
+            columns=[ColumnMeta(key="password", label="Password", type="string")],
+            data={"password": password},
+        )

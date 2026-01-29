@@ -14,6 +14,7 @@ import sys
 
 import psycopg
 
+import core.crypto as crypto
 from core.config import AppConfig
 from seed.users import seed_users, clear_users
 from seed.contacts import seed_contacts, clear_contacts
@@ -26,6 +27,13 @@ async def main(clear: bool = False) -> int:
     if not config.database.host:
         print("Error: No database configured")
         return 1
+
+    # Initialize crypto for password encryption
+    if config.encryption and config.encryption.vault_key:
+        crypto.init_crypto(config.encryption.vault_key)
+        print("Crypto initialized for password encryption")
+    else:
+        print("Warning: No encryption key configured, passwords will be skipped")
 
     print(f"Connecting to database: {config.database.host}/{config.database.name}")
 
