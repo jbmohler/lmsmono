@@ -362,7 +362,26 @@
                   <span class="text-xs text-gray-400 shrink-0">@{{ bit.username }}</span>
                 }
                 @if (bit.hasPassword) {
-                  <span class="text-xs text-gray-400 shrink-0" title="Has password">🔒</span>
+                  @if (isPasswordExpired(bit)) {
+                    <span class="expired-indicator shrink-0" title="Password expired">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </span>
+                  }
+                  <button
+                    (click)="copyPassword(bit); $event.stopPropagation()"
+                    class="copy-password-btn shrink-0"
+                    title="Copy password"
+                  >
+                    @if (copyingPasswordId() === bit.id) {
+                      <span class="text-green-600">✓</span>
+                    } @else {
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                    }
+                  </button>
                 }
               </div>
             }

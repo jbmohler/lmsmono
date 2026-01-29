@@ -39,6 +39,9 @@ export class ContactDetailComponent {
   // Bit dialog state
   editingBit = signal<ContactBit | null>(null);
 
+  // Password copy feedback
+  copyingPasswordId = signal<string | null>(null);
+
   displayName = computed(() => {
     const c = this.contact();
     if (c.isCorporate) {
@@ -371,5 +374,35 @@ export class ContactDetailComponent {
   /** Move a bit up or down (view mode) */
   moveBitFromView(bitId: string, direction: 'up' | 'down'): void {
     this.bitMoved.emit({ bitId, direction });
+  }
+
+  /** Check if a URL bit's password is expired */
+  isPasswordExpired(bit: ContactBit): boolean {
+    if (bit.bitType !== 'url') return false;
+    const urlBit = bit as ContactUrl;
+    if (!urlBit.pwNextResetDt) return false;
+    const expirationDate = new Date(urlBit.pwNextResetDt);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return expirationDate < today;
+  }
+
+  /** Copy password to clipboard (view mode) */
+  async copyPassword(bit: ContactBit): Promise<void> {
+    if (bit.bitType !== 'url') return;
+    const urlBit = bit as ContactUrl;
+    if (!urlBit.hasPassword) return;
+
+    try {
+      const password = await this.contactsService.getPassword(
+        this.contact().id,
+        bit.id
+      );
+      await navigator.clipboard.writeText(password);
+      this.copyingPasswordId.set(bit.id);
+      setTimeout(() => this.copyingPasswordId.set(null), 2000);
+    } catch {
+      // Error is handled by service
+    }
   }
 }
