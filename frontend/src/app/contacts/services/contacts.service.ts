@@ -275,7 +275,9 @@ function toBitCreate(bit: ContactBit): BitCreate {
 /**
  * Transform frontend ContactBit to API bit update request
  */
-function toBitUpdate(bit: Partial<ContactBit> & { bitType?: string }): BitUpdate {
+function toBitUpdate(
+  bit: Partial<ContactBit> & { bitType?: string; password?: string; clearPassword?: boolean }
+): BitUpdate {
   const update: BitUpdate = {};
 
   if ('label' in bit) update.name = bit.label || null;
@@ -294,6 +296,12 @@ function toBitUpdate(bit: Partial<ContactBit> & { bitType?: string }): BitUpdate
   if ('country' in bit) update.country = (bit as ContactAddress).country;
   if ('url' in bit) update.url = (bit as ContactUrl).url;
   if ('username' in bit) update.username = (bit as ContactUrl).username;
+
+  // Password fields
+  if ('password' in bit && bit.password) update.password = bit.password;
+  if ('clearPassword' in bit && bit.clearPassword) update.clear_password = true;
+  if ('pwResetDt' in bit) update.pw_reset_dt = (bit as ContactUrl).pwResetDt;
+  if ('pwNextResetDt' in bit) update.pw_next_reset_dt = (bit as ContactUrl).pwNextResetDt;
 
   return update;
 }

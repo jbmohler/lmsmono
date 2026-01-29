@@ -17,14 +17,31 @@
     <!-- Common fields -->
     <div class="form-row">
       <label for="label">Label</label>
-      <input
-        id="label"
-        type="text"
-        [ngModel]="editBit()?.label"
-        (ngModelChange)="updateField('label', $event)"
-        name="label"
-        placeholder="e.g., Work, Home, Mobile"
-      />
+      <div class="flex items-center gap-2">
+        <input
+          id="label"
+          type="text"
+          [ngModel]="editBit()?.label"
+          (ngModelChange)="updateField('label', $event)"
+          name="label"
+          placeholder="e.g., Work, Home, Mobile"
+          class="flex-1"
+        />
+        <button
+          type="button"
+          class="primary-toggle"
+          [class.is-primary]="editBit()?.isPrimary"
+          (click)="updateField('isPrimary', !editBit()?.isPrimary)"
+          [attr.aria-label]="editBit()?.isPrimary ? 'Remove primary' : 'Set as primary'"
+          [attr.title]="editBit()?.isPrimary ? 'Primary (click to remove)' : 'Set as primary'"
+        >
+          @if (editBit()?.isPrimary) {
+            <span class="star filled">★</span>
+          } @else {
+            <span class="star outline">☆</span>
+          }
+        </button>
+      </div>
     </div>
 
     <!-- Email-specific fields -->
@@ -280,19 +297,6 @@
         }
       </fieldset>
     }
-
-    <!-- Primary checkbox -->
-    <div class="form-row checkbox-row">
-      <label>
-        <input
-          type="checkbox"
-          [ngModel]="editBit()?.isPrimary"
-          (ngModelChange)="updateField('isPrimary', $event)"
-          name="isPrimary"
-        />
-        Primary
-      </label>
-    </div>
 
     <!-- Memo field -->
     <div class="form-row">
