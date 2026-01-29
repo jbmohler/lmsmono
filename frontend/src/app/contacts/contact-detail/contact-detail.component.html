@@ -3,16 +3,16 @@
     <!-- Edit Mode -->
     @if (editData(); as data) {
       <!-- Header -->
-      <div class="px-4 md:px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
+      <div class="dialog-header bg-white">
         <div class="flex items-center gap-2">
-          <button (click)="cancelEdit(); back.emit()" class="md:hidden p-1 text-gray-500 hover:text-gray-700" aria-label="Back">
+          <button (click)="cancelEdit(); back.emit()" class="md:hidden icon-btn" aria-label="Back">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h2 class="text-lg font-semibold text-gray-900">Edit Contact</h2>
+          <h2 class="dialog-header-title">Edit Contact</h2>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="dialog-actions">
           <button (click)="cancelEdit()" class="btn btn-secondary">
             Cancel
           </button>
@@ -88,17 +88,17 @@
               <div class="flex items-center justify-between flex-wrap gap-2">
                 <div class="flex items-center gap-2 flex-wrap">
                   <!-- Reorder buttons -->
-                  <div class="flex flex-col gap-0.5">
+                  <div class="icon-btn-vertical">
                     <button
                       (click)="moveBitUp(bit.id)"
                       [disabled]="first"
-                      class="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs leading-none"
+                      class="icon-btn icon-btn-move"
                       title="Move up"
                     >▲</button>
                     <button
                       (click)="moveBitDown(bit.id)"
                       [disabled]="last"
-                      class="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs leading-none"
+                      class="icon-btn icon-btn-move"
                       title="Move down"
                     >▼</button>
                   </div>
@@ -112,7 +112,7 @@
                     @if (bit.isPrimary) { ★ } @else { ☆ }
                   </button>
                   <!-- Type badge -->
-                  <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                  <span class="badge badge-gray">
                     {{ getBitTypeLabel(bit.bitType) }}
                   </span>
                   <!-- Label input -->
@@ -124,7 +124,7 @@
                     class="w-auto flex-shrink"
                   />
                 </div>
-                <button (click)="removeBit(bit.id)" class="text-gray-400 hover:text-red-600">×</button>
+                <button (click)="removeBit(bit.id)" class="icon-btn icon-btn-delete">×</button>
               </div>
 
               <!-- Type-specific fields -->
@@ -227,9 +227,9 @@
   } @else {
     <!-- View Mode -->
     <!-- Header -->
-    <div class="px-4 md:px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
+    <div class="dialog-header bg-white">
       <div class="flex items-center gap-2 min-w-0">
-        <button (click)="back.emit()" class="md:hidden p-1 text-gray-500 hover:text-gray-700 shrink-0" aria-label="Back">
+        <button (click)="back.emit()" class="md:hidden icon-btn shrink-0" aria-label="Back">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
@@ -263,26 +263,26 @@
       @for (bit of sortedBits(); track trackById($index, bit); let first = $first; let last = $last) {
         <div class="bit-row flex items-center gap-2 md:-mx-2 md:px-2 py-1 rounded transition-colors hover:bg-gray-50 group">
           <!-- Action buttons (visible on hover) -->
-          <div class="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
+          <div class="icon-btn-group opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
             <!-- Move up/down -->
-            <div class="flex flex-col">
+            <div class="icon-btn-vertical">
               <button
                 (click)="moveBitFromView(bit.id, 'up'); $event.stopPropagation()"
                 [disabled]="first"
-                class="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs leading-none p-0.5"
+                class="icon-btn icon-btn-move p-0.5"
                 title="Move up"
               >▲</button>
               <button
                 (click)="moveBitFromView(bit.id, 'down'); $event.stopPropagation()"
                 [disabled]="last"
-                class="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs leading-none p-0.5"
+                class="icon-btn icon-btn-move p-0.5"
                 title="Move down"
               >▼</button>
             </div>
             <!-- Edit -->
             <button
               (click)="openBitDialog(bit); $event.stopPropagation()"
-              class="text-gray-400 hover:text-blue-600 p-1"
+              class="icon-btn icon-btn-edit"
               title="Edit"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,7 +292,7 @@
             <!-- Delete -->
             <button
               (click)="confirmDeleteBit(bit); $event.stopPropagation()"
-              class="text-gray-400 hover:text-red-600 p-1"
+              class="icon-btn icon-btn-delete"
               title="Delete"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -312,9 +312,9 @@
             @if (isEmail(bit)) {
               <div class="flex items-center gap-2 min-w-0 flex-wrap">
                 @if (bit.isPrimary) {
-                  <span class="text-yellow-500 text-sm shrink-0">★</span>
+                  <span class="primary-star">★</span>
                 }
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0">Email</span>
+                <span class="badge badge-gray shrink-0">Email</span>
                 <span class="text-sm text-blue-600 truncate">{{ bit.email }}</span>
                 @if (bit.label) {
                   <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
@@ -325,9 +325,9 @@
             @if (isPhone(bit)) {
               <div class="flex items-center gap-2 min-w-0 flex-wrap">
                 @if (bit.isPrimary) {
-                  <span class="text-yellow-500 text-sm shrink-0">★</span>
+                  <span class="primary-star">★</span>
                 }
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0">Phone</span>
+                <span class="badge badge-gray shrink-0">Phone</span>
                 <span class="text-sm text-gray-900">{{ bit.number }}</span>
                 @if (bit.label) {
                   <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
@@ -338,9 +338,9 @@
             @if (isAddress(bit)) {
               <div class="flex items-start gap-2 min-w-0 flex-wrap">
                 @if (bit.isPrimary) {
-                  <span class="text-yellow-500 text-sm shrink-0">★</span>
+                  <span class="primary-star">★</span>
                 }
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0">Address</span>
+                <span class="badge badge-gray shrink-0">Address</span>
                 <div class="text-sm text-gray-900 whitespace-pre-line">{{ formatAddress(bit) }}</div>
                 @if (bit.label) {
                   <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
@@ -351,9 +351,9 @@
             @if (isUrl(bit)) {
               <div class="flex items-center gap-2 min-w-0 flex-wrap">
                 @if (bit.isPrimary) {
-                  <span class="text-yellow-500 text-sm shrink-0">★</span>
+                  <span class="primary-star">★</span>
                 }
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0">Link</span>
+                <span class="badge badge-gray shrink-0">Link</span>
                 <span class="text-sm text-blue-600 truncate min-w-0">{{ bit.url }}</span>
                 @if (bit.label) {
                   <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>

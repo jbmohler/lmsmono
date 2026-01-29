@@ -5,8 +5,8 @@
   (keydown)="handleKeydown($event)"
 >
   <!-- Header -->
-  <div class="px-4 md:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-    <h2 class="text-lg font-semibold text-gray-900">
+  <div class="dialog-header">
+    <h2 class="dialog-header-title">
       @if (isEditMode()) {
         Edit Transaction
       } @else {
@@ -16,7 +16,7 @@
     <button
       type="button"
       (click)="onCancel()"
-      class="text-gray-400 hover:text-gray-600 p-1 rounded"
+      class="dialog-close-btn"
       aria-label="Close"
     >
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +144,7 @@
                   <button
                     type="button"
                     (click)="removeLine(line.id)"
-                    class="text-gray-400 hover:text-red-600 p-1"
+                    class="icon-btn icon-btn-delete"
                     tabindex="-1"
                     aria-label="Remove line"
                   >
@@ -206,12 +206,12 @@
   </div>
 
   <!-- Footer -->
-  <div class="px-4 md:px-6 py-4 border-t border-gray-200 flex items-center justify-end md:justify-between bg-gray-50">
-    <div class="hidden md:block text-xs text-gray-500">
+  <div class="dialog-footer">
+    <div class="dialog-shortcuts">
       <span class="font-medium">Shortcuts:</span>
       Ctrl+S save | Ctrl+Enter add line | Ctrl+Backspace delete line | Esc cancel
     </div>
-    <div class="flex gap-3">
+    <div class="dialog-actions">
       <button type="button" (click)="onCancel()" class="btn btn-secondary">
         Cancel
       </button>

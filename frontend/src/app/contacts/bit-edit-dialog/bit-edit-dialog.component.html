@@ -1,17 +1,19 @@
-<dialog #dialog class="bit-edit-dialog">
+<dialog #dialog class="bit-edit-dialog flex flex-col">
   <div class="dialog-header">
-    <h2>{{ getDialogTitle() }}</h2>
-    <button type="button" class="close-btn" (click)="close()" aria-label="Close">
-      &times;
+    <h2 class="dialog-header-title">{{ getDialogTitle() }}</h2>
+    <button type="button" class="dialog-close-btn" (click)="close()" aria-label="Close">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
     </button>
   </div>
 
   @if (loading()) {
-    <div class="dialog-body loading-state">
+    <div class="form-body loading-state px-4 md:px-6 py-4">
       <p>Loading...</p>
     </div>
   } @else {
-  <form (ngSubmit)="save()" class="dialog-body">
+  <form id="bit-form" (ngSubmit)="save()" class="form-body px-4 md:px-6 py-4 overflow-y-auto flex-1">
     <!-- Common fields -->
     <div class="form-row">
       <label for="label">Label</label>
@@ -163,7 +165,7 @@
             <div class="password-actions">
               <button
                 type="button"
-                class="icon-btn"
+                class="pw-icon-btn"
                 (click)="togglePasswordVisibility()"
                 [attr.aria-label]="passwordVisible() ? 'Hide password' : 'Show password'"
                 title="{{ passwordVisible() ? 'Hide' : 'Show' }}"
@@ -176,7 +178,7 @@
               </button>
               <button
                 type="button"
-                class="icon-btn"
+                class="pw-icon-btn"
                 (click)="copyPassword()"
                 aria-label="Copy password"
                 title="Copy"
@@ -304,15 +306,18 @@
       ></textarea>
     </div>
 
-    <!-- Actions -->
+  </form>
+  }
+
+  <!-- Footer -->
+  <div class="dialog-footer !justify-end">
     <div class="dialog-actions">
       <button type="button" class="btn btn-secondary" (click)="close()">
         Cancel
       </button>
-      <button type="submit" class="btn btn-primary">
+      <button type="submit" form="bit-form" class="btn btn-primary" [disabled]="loading()">
         Save
       </button>
     </div>
-  </form>
-  }
+  </div>
 </dialog>

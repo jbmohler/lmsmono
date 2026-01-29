@@ -186,6 +186,26 @@ Common UI patterns are defined in `src/styles.css` using `@apply`. Use these cla
 
 **Dialogs:**
 - Global styles automatically apply to `<dialog>` elements
+- `.dialog-header` - flex header with border-bottom, responsive padding
+- `.dialog-header-title` - dialog title text style
+- `.dialog-close-btn` - close button in header
+- `.dialog-footer` - flex footer with border-top and gray background
+- `.dialog-shortcuts` - hidden on mobile, shows keyboard shortcut hints
+- `.dialog-actions` - flex container for action buttons
+
+**Badges:**
+- `.badge` - base badge style (use with a color variant)
+- `.badge-gray` - gray badge for type labels
+- `.badge-blue`, `.badge-green`, `.badge-red`, `.badge-yellow` - color variants
+- `.primary-star` - yellow star indicator for primary items
+
+**Icon Buttons:**
+- `.icon-btn` - base icon button (gray, hover to darker gray)
+- `.icon-btn-edit` - hover to blue
+- `.icon-btn-delete` - hover to red
+- `.icon-btn-move` - small text for up/down arrows with disabled state
+- `.icon-btn-group` - horizontal flex container for icon buttons
+- `.icon-btn-vertical` - vertical flex container (for up/down pairs)
 
 ```html
 <!-- Example usage -->

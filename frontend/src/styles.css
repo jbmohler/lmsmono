@@ -137,3 +137,90 @@ dialog::backdrop {
     @apply w-full h-full max-w-full max-h-full rounded-none m-0;
   }
 }
+
+/* Dialog Header */
+.dialog-header {
+  @apply px-4 md:px-6 py-4 border-b border-gray-200 flex items-center justify-between;
+}
+
+.dialog-header-title {
+  @apply text-lg font-semibold text-gray-900;
+}
+
+.dialog-close-btn {
+  @apply text-gray-400 hover:text-gray-600 p-1 rounded;
+}
+
+/* Dialog Footer */
+.dialog-footer {
+  @apply px-4 md:px-6 py-4 border-t border-gray-200 flex items-center justify-end md:justify-between bg-gray-50;
+}
+
+.dialog-shortcuts {
+  @apply hidden md:block text-xs text-gray-500;
+}
+
+.dialog-actions {
+  @apply flex gap-3;
+}
+
+/* ==========================================================================
+   Badges
+   ========================================================================== */
+
+.badge {
+  @apply text-xs font-medium px-2 py-0.5 rounded;
+}
+
+.badge-gray {
+  @apply text-gray-500 bg-gray-100;
+}
+
+.badge-blue {
+  @apply text-blue-700 bg-blue-100;
+}
+
+.badge-green {
+  @apply text-green-700 bg-green-100;
+}
+
+.badge-red {
+  @apply text-red-700 bg-red-100;
+}
+
+.badge-yellow {
+  @apply text-yellow-700 bg-yellow-100;
+}
+
+/* Primary star indicator */
+.primary-star {
+  @apply text-yellow-500 text-sm shrink-0;
+}
+
+/* ==========================================================================
+   Icon Buttons
+   ========================================================================== */
+
+.icon-btn {
+  @apply text-gray-400 hover:text-gray-600 p-1 transition-colors;
+}
+
+.icon-btn-edit {
+  @apply hover:text-blue-600;
+}
+
+.icon-btn-delete {
+  @apply hover:text-red-600;
+}
+
+.icon-btn-move {
+  @apply text-xs leading-none disabled:opacity-30 disabled:cursor-not-allowed;
+}
+
+.icon-btn-group {
+  @apply flex items-center gap-0.5;
+}
+
+.icon-btn-vertical {
+  @apply flex flex-col gap-0.5;
+}
