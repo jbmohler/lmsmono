@@ -1,16 +1,17 @@
-<div class="p-6 flex flex-col gap-6">
+<div class="p-4 md:p-6 flex flex-col gap-4 md:gap-6">
   <!-- Header with filter -->
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-semibold text-gray-900">Transactions</h1>
     <button (click)="openEntryDialog()" class="btn btn-primary flex items-center gap-1">
-      New Transaction
-      <span class="text-blue-200 text-xs">(Ctrl+Shift+N)</span>
+      <span class="hidden md:inline">New Transaction</span>
+      <span class="md:hidden">New</span>
+      <span class="hidden md:inline text-blue-200 text-xs">(Ctrl+Shift+N)</span>
     </button>
   </div>
 
   <!-- Filter bar -->
   <div class="card p-4">
-    <div class="flex items-center gap-4">
+    <div class="flex flex-col md:flex-row md:items-center gap-4">
       <div class="flex-1">
         <label for="search" class="sr-only">Search transactions</label>
         <input
@@ -20,42 +21,45 @@
           [(ngModel)]="searchQuery"
           (ngModelChange)="onSearchChange()"
           placeholder="Search transactions..."
-          class="w-full"
         />
       </div>
-      <div>
-        <label for="dateFrom" class="sr-only">From date</label>
-        <input
-          id="dateFrom"
-          type="date"
-          [(ngModel)]="dateFrom"
-          (ngModelChange)="onDateFromChange()"
-        />
+      <div class="flex items-center gap-4 flex-wrap">
+        <div>
+          <label for="dateFrom" class="sr-only">From date</label>
+          <input
+            id="dateFrom"
+            type="date"
+            [(ngModel)]="dateFrom"
+            (ngModelChange)="onDateFromChange()"
+            class="w-auto"
+          />
+        </div>
+        <div>
+          <label for="dateTo" class="sr-only">To date</label>
+          <input
+            id="dateTo"
+            type="date"
+            [(ngModel)]="dateTo"
+            (ngModelChange)="onDateToChange()"
+            class="w-auto"
+          />
+        </div>
+        <button (click)="clearFilters()" class="btn btn-secondary">
+          Clear
+        </button>
       </div>
-      <div>
-        <label for="dateTo" class="sr-only">To date</label>
-        <input
-          id="dateTo"
-          type="date"
-          [(ngModel)]="dateTo"
-          (ngModelChange)="onDateToChange()"
-        />
-      </div>
-      <button (click)="clearFilters()" class="btn btn-secondary">
-        Clear
-      </button>
     </div>
   </div>
 
   <!-- Transaction table -->
-  <div class="card">
+  <div class="card overflow-x-auto">
     <table>
       <thead>
         <tr>
           <th>Date</th>
-          <th>Reference</th>
+          <th class="hidden md:table-cell">Reference</th>
           <th>Payee</th>
-          <th>Memo</th>
+          <th class="hidden md:table-cell">Memo</th>
         </tr>
       </thead>
       <tbody>
@@ -71,13 +75,13 @@
               <td class="cell-primary whitespace-nowrap">
                 {{ txn.trandate | date:'mediumDate' }}
               </td>
-              <td class="whitespace-nowrap">
+              <td class="hidden md:table-cell whitespace-nowrap">
                 {{ txn.tranref || '-' }}
               </td>
               <td class="cell-primary whitespace-nowrap">
                 {{ txn.payee || '-' }}
               </td>
-              <td class="max-w-md truncate">
+              <td class="hidden md:table-cell max-w-md truncate">
                 {{ txn.memo || '-' }}
               </td>
             </tr>

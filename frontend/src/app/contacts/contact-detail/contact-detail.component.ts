@@ -24,6 +24,7 @@ export class ContactDetailComponent {
   private contactsService = inject(ContactsService);
 
   contact = input.required<Persona>();
+  back = output<void>();
   contactSaved = output<Persona>();
   bitUpdated = output<{ bitId: string; changes: Partial<ContactBit>; password?: string; clearPassword?: boolean }>();
   bitAdded = output<{ bit: ContactBit; password?: string }>();

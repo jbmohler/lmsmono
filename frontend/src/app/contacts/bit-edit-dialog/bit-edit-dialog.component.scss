@@ -1,7 +1,10 @@
 .bit-edit-dialog {
-  min-width: 400px;
   max-width: 500px;
   padding: 1.5rem;
+
+  @media (min-width: 768px) {
+    min-width: 400px;
+  }
 }
 
 .dialog-header {

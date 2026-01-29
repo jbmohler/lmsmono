@@ -1,6 +1,35 @@
-<div class="flex h-full">
-  <!-- Sidebar -->
-  <aside class="w-56 bg-white border-r border-gray-200 flex flex-col">
+<div class="flex flex-col md:flex-row h-full">
+  <!-- Mobile horizontal nav strip -->
+  <nav class="flex md:hidden bg-white border-b border-gray-200 px-2 py-1 gap-1 overflow-x-auto">
+    <a
+      routerLink="transactions"
+      routerLinkActive="bg-blue-50 text-blue-700"
+      class="px-3 py-1.5 text-sm font-medium text-gray-700 rounded-md whitespace-nowrap hover:bg-gray-50"
+    >Transactions</a>
+    <a
+      routerLink="calendar"
+      routerLinkActive="bg-blue-50 text-blue-700"
+      class="px-3 py-1.5 text-sm font-medium text-gray-700 rounded-md whitespace-nowrap hover:bg-gray-50"
+    >Calendar</a>
+    <a
+      routerLink="setup/account-types"
+      routerLinkActive="bg-blue-50 text-blue-700"
+      class="px-3 py-1.5 text-sm font-medium text-gray-700 rounded-md whitespace-nowrap hover:bg-gray-50"
+    >Account Types</a>
+    <a
+      routerLink="setup/journals"
+      routerLinkActive="bg-blue-50 text-blue-700"
+      class="px-3 py-1.5 text-sm font-medium text-gray-700 rounded-md whitespace-nowrap hover:bg-gray-50"
+    >Journals</a>
+    <a
+      routerLink="setup/accounts"
+      routerLinkActive="bg-blue-50 text-blue-700"
+      class="px-3 py-1.5 text-sm font-medium text-gray-700 rounded-md whitespace-nowrap hover:bg-gray-50"
+    >Accounts</a>
+  </nav>
+
+  <!-- Desktop sidebar -->
+  <aside class="hidden md:flex w-56 bg-white border-r border-gray-200 flex-col">
     <nav class="flex-1 p-4 space-y-1">
       <a
         routerLink="transactions"

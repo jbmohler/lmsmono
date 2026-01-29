@@ -1,6 +1,10 @@
-<div class="h-full flex">
+<div class="h-full flex overflow-hidden">
   <!-- Left Panel: Contact List -->
-  <div class="w-80 border-r border-gray-200 flex flex-col bg-white">
+  <div
+    class="flex-1 md:flex-none md:w-80 md:border-r border-gray-200 flex flex-col bg-white"
+    [class.hidden]="mobileShowDetail() && selectedContact()"
+    [class.md:flex]="true"
+  >
     <!-- Header -->
     <div class="p-4 border-b border-gray-200 flex flex-col gap-3">
       <div class="flex items-center justify-between">
@@ -21,7 +25,6 @@
         [ngModel]="searchQuery()"
         (ngModelChange)="searchQuery.set($event)"
         placeholder="Search contacts..."
-        class="w-full"
       />
     </div>
 
@@ -65,10 +68,15 @@
     </div>
   </div>
 
-  <!-- Right Panel: Contact Detail -->
-  <div class="flex-1 bg-gray-50 overflow-hidden">
+  <!-- Right Panel: Contact Detail (hidden on mobile unless viewing detail) -->
+  <div
+    class="flex-1 bg-gray-50 overflow-hidden"
+    [class.hidden]="!mobileShowDetail()"
+    [class.md:block]="true"
+  >
     @if (selectedContact(); as contact) {
       <app-contact-detail
+        (back)="mobileShowDetail.set(false)"
         [contact]="contact"
         (contactSaved)="onContactSaved($event)"
         (bitAdded)="onBitAdded($event)"

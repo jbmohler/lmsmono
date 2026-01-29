@@ -1,10 +1,17 @@
-<div class="h-full flex flex-col">
+<div class="h-full flex flex-col overflow-hidden">
   @if (isEditing()) {
     <!-- Edit Mode -->
     @if (editData(); as data) {
       <!-- Header -->
-      <div class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-gray-900">Edit Contact</h2>
+      <div class="px-4 md:px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <button (click)="cancelEdit(); back.emit()" class="md:hidden p-1 text-gray-500 hover:text-gray-700" aria-label="Back">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 class="text-lg font-semibold text-gray-900">Edit Contact</h2>
+        </div>
         <div class="flex items-center gap-2">
           <button (click)="cancelEdit()" class="btn btn-secondary">
             Cancel
@@ -16,10 +23,10 @@
       </div>
 
       <!-- Edit Form -->
-      <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+      <div class="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4">
         <!-- Basic Info -->
         <div class="card p-4 flex flex-col gap-4">
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @if (!data.isCorporate) {
               <div>
                 <label class="label-compact">First Name</label>
@@ -27,7 +34,6 @@
                   type="text"
                   [ngModel]="data.firstName"
                   (ngModelChange)="updateField('firstName', $event)"
-                  class="w-full"
                 />
               </div>
             }
@@ -39,12 +45,11 @@
                 type="text"
                 [ngModel]="data.lastName"
                 (ngModelChange)="updateField('lastName', $event)"
-                class="w-full"
               />
             </div>
           </div>
           @if (!data.isCorporate) {
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="label-compact">Title</label>
                 <input
@@ -52,7 +57,6 @@
                   [ngModel]="data.title"
                   (ngModelChange)="updateField('title', $event)"
                   placeholder="Mr., Ms., Dr."
-                  class="w-full"
                 />
               </div>
               <div>
@@ -61,7 +65,6 @@
                   type="text"
                   [ngModel]="data.organization"
                   (ngModelChange)="updateField('organization', $event)"
-                  class="w-full"
                 />
               </div>
             </div>
@@ -70,9 +73,9 @@
 
         <!-- Contact Info (unified list) -->
         <div class="card p-4 input-compact flex flex-col gap-3">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between flex-wrap gap-2">
             <h3 class="text-sm font-medium text-gray-700">Contact Info</h3>
-            <div class="flex gap-2">
+            <div class="flex gap-2 flex-wrap">
               <button (click)="addBit('email')" class="text-xs text-blue-600 hover:text-blue-800">+ Email</button>
               <button (click)="addBit('phone')" class="text-xs text-blue-600 hover:text-blue-800">+ Phone</button>
               <button (click)="addBit('address')" class="text-xs text-blue-600 hover:text-blue-800">+ Address</button>
@@ -82,8 +85,8 @@
 
           @for (bit of editSortedBits(); track trackById($index, bit); let first = $first; let last = $last) {
             <div class="border border-gray-200 rounded-md p-3 flex flex-col gap-2">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <!-- Reorder buttons -->
                   <div class="flex flex-col gap-0.5">
                     <button
@@ -118,7 +121,7 @@
                     [ngModel]="bit.label"
                     (ngModelChange)="updateBit(bit.id, 'label', $event)"
                     placeholder="Label"
-                    class="w-24"
+                    class="w-auto flex-shrink"
                   />
                 </div>
                 <button (click)="removeBit(bit.id)" class="text-gray-400 hover:text-red-600">×</button>
@@ -131,7 +134,6 @@
                   [ngModel]="bit.email"
                   (ngModelChange)="updateBit(bit.id, 'email', $event)"
                   placeholder="email@example.com"
-                  class="w-full"
                 />
               }
 
@@ -141,27 +143,24 @@
                   [ngModel]="bit.number"
                   (ngModelChange)="updateBit(bit.id, 'number', $event)"
                   placeholder="(555) 123-4567"
-                  class="w-full"
                 />
               }
 
               @if (isAddress(bit)) {
-                <div class="grid grid-cols-1 gap-2">
+                <div class="flex flex-col gap-2">
                   <input
                     type="text"
                     [ngModel]="bit.address1"
                     (ngModelChange)="updateBit(bit.id, 'address1', $event)"
                     placeholder="Address line 1"
-                    class="w-full"
                   />
                   <input
                     type="text"
                     [ngModel]="bit.address2"
                     (ngModelChange)="updateBit(bit.id, 'address2', $event)"
                     placeholder="Address line 2"
-                    class="w-full"
                   />
-                  <div class="grid grid-cols-4 gap-2">
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <input
                       type="text"
                       [ngModel]="bit.city"
@@ -186,20 +185,20 @@
               }
 
               @if (isUrl(bit)) {
-                <div class="flex gap-2">
+                <div class="flex flex-col md:flex-row gap-2">
                   <input
                     type="url"
                     [ngModel]="bit.url"
                     (ngModelChange)="updateBit(bit.id, 'url', $event)"
                     placeholder="https://..."
-                    class="flex-1"
+                    class="md:flex-1"
                   />
                   <input
                     type="text"
                     [ngModel]="bit.username"
                     (ngModelChange)="updateBit(bit.id, 'username', $event)"
                     placeholder="Username"
-                    class="w-32"
+                    class="md:w-32"
                   />
                 </div>
               }
@@ -216,38 +215,44 @@
             [ngModel]="data.memo"
             (ngModelChange)="updateField('memo', $event)"
             rows="3"
-            class="w-full"
           ></textarea>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+      <div class="hidden md:block px-4 md:px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
         Ctrl+S to save | Escape to cancel
       </div>
     }
   } @else {
     <!-- View Mode -->
     <!-- Header -->
-    <div class="px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
-      <div>
-        <h2 class="text-xl font-semibold text-gray-900">{{ displayName() }}</h2>
-        @if (!contact().isCorporate && contact().organization) {
-          <p class="text-sm text-gray-500">{{ contact().organization }}</p>
-        }
-        @if (contact().isCorporate) {
-          <p class="text-sm text-gray-500">Company</p>
-        }
+    <div class="px-4 md:px-6 py-4 bg-white border-b border-gray-200 flex items-center justify-between">
+      <div class="flex items-center gap-2 min-w-0">
+        <button (click)="back.emit()" class="md:hidden p-1 text-gray-500 hover:text-gray-700 shrink-0" aria-label="Back">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div class="min-w-0">
+          <h2 class="text-xl font-semibold text-gray-900 truncate">{{ displayName() }}</h2>
+          @if (!contact().isCorporate && contact().organization) {
+            <p class="text-sm text-gray-500 truncate">{{ contact().organization }}</p>
+          }
+          @if (contact().isCorporate) {
+            <p class="text-sm text-gray-500">Company</p>
+          }
+        </div>
       </div>
-      <button (click)="enterEditMode()" class="btn btn-secondary">
+      <button (click)="enterEditMode()" class="btn btn-secondary shrink-0">
         Edit
       </button>
     </div>
 
     <!-- View Content -->
-    <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+    <div class="flex-1 overflow-auto p-4 md:p-6 flex flex-col gap-4">
       <!-- Add buttons for contact info -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <span class="text-xs font-medium text-gray-500">Add:</span>
         <button (click)="addBitFromView('email')" class="text-xs text-blue-600 hover:text-blue-800 hover:underline">Email</button>
         <button (click)="addBitFromView('phone')" class="text-xs text-blue-600 hover:text-blue-800 hover:underline">Phone</button>
@@ -256,9 +261,9 @@
       </div>
 
       @for (bit of sortedBits(); track trackById($index, bit); let first = $first; let last = $last) {
-        <div class="bit-row flex items-center gap-2 -mx-2 px-2 py-1 rounded transition-colors hover:bg-gray-50 group">
+        <div class="bit-row flex items-center gap-2 md:-mx-2 md:px-2 py-1 rounded transition-colors hover:bg-gray-50 group">
           <!-- Action buttons (visible on hover) -->
-          <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div class="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
             <!-- Move up/down -->
             <div class="flex flex-col">
               <button
@@ -298,66 +303,66 @@
 
           <!-- Bit content (clickable) -->
           <div
-            class="flex-1 cursor-pointer"
+            class="flex-1 min-w-0 cursor-pointer"
             (click)="openBitDialog(bit)"
             (keydown.enter)="openBitDialog(bit)"
             tabindex="0"
             role="button"
           >
             @if (isEmail(bit)) {
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 min-w-0 flex-wrap">
                 @if (bit.isPrimary) {
-                  <span class="text-yellow-500 text-sm">★</span>
+                  <span class="text-yellow-500 text-sm shrink-0">★</span>
                 }
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Email</span>
-                <span class="text-sm text-blue-600">{{ bit.email }}</span>
+                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0">Email</span>
+                <span class="text-sm text-blue-600 truncate">{{ bit.email }}</span>
                 @if (bit.label) {
-                  <span class="text-xs text-gray-400">({{ bit.label }})</span>
+                  <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
                 }
               </div>
             }
 
             @if (isPhone(bit)) {
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 min-w-0 flex-wrap">
                 @if (bit.isPrimary) {
-                  <span class="text-yellow-500 text-sm">★</span>
+                  <span class="text-yellow-500 text-sm shrink-0">★</span>
                 }
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Phone</span>
+                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0">Phone</span>
                 <span class="text-sm text-gray-900">{{ bit.number }}</span>
                 @if (bit.label) {
-                  <span class="text-xs text-gray-400">({{ bit.label }})</span>
+                  <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
                 }
               </div>
             }
 
             @if (isAddress(bit)) {
-              <div class="flex items-start gap-2">
+              <div class="flex items-start gap-2 min-w-0 flex-wrap">
                 @if (bit.isPrimary) {
-                  <span class="text-yellow-500 text-sm">★</span>
+                  <span class="text-yellow-500 text-sm shrink-0">★</span>
                 }
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Address</span>
+                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0">Address</span>
                 <div class="text-sm text-gray-900 whitespace-pre-line">{{ formatAddress(bit) }}</div>
                 @if (bit.label) {
-                  <span class="text-xs text-gray-400">({{ bit.label }})</span>
+                  <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
                 }
               </div>
             }
 
             @if (isUrl(bit)) {
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 min-w-0 flex-wrap">
                 @if (bit.isPrimary) {
-                  <span class="text-yellow-500 text-sm">★</span>
+                  <span class="text-yellow-500 text-sm shrink-0">★</span>
                 }
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">Link</span>
-                <span class="text-sm text-blue-600">{{ bit.url }}</span>
+                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded shrink-0">Link</span>
+                <span class="text-sm text-blue-600 truncate min-w-0">{{ bit.url }}</span>
                 @if (bit.label) {
-                  <span class="text-xs text-gray-400">({{ bit.label }})</span>
+                  <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
                 }
                 @if (bit.username) {
-                  <span class="text-xs text-gray-400">@{{ bit.username }}</span>
+                  <span class="text-xs text-gray-400 shrink-0">@{{ bit.username }}</span>
                 }
                 @if (bit.hasPassword) {
-                  <span class="text-xs text-gray-400" title="Has password">🔒</span>
+                  <span class="text-xs text-gray-400 shrink-0" title="Has password">🔒</span>
                 }
               </div>
             }
@@ -377,7 +382,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+    <div class="hidden md:block px-4 md:px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
       Hover for actions | Click to edit
     </div>
   }

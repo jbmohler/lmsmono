@@ -39,6 +39,7 @@ export class ContactsComponent {
 
   searchQuery = signal('');
   selectedContactId = signal<string | null>(null);
+  mobileShowDetail = signal(false);
 
   // Full contact data for the selected contact (loaded on demand)
   selectedContact = signal<Persona | null>(null);
@@ -125,10 +126,14 @@ export class ContactsComponent {
   }
 
   async selectContactById(id: string): Promise<void> {
-    if (this.selectedContactId() === id) return;
+    if (this.selectedContactId() === id) {
+      this.mobileShowDetail.set(true);
+      return;
+    }
 
     this.selectedContactId.set(id);
     this.selectedContact.set(null);
+    this.mobileShowDetail.set(true);
 
     try {
       const contact = await this.contactsService.getById(id);
@@ -159,6 +164,7 @@ export class ContactsComponent {
     // Deselect current and show new contact form
     this.selectedContactId.set(null);
     this.selectedContact.set(newPersona);
+    this.mobileShowDetail.set(true);
   }
 
   async onContactSaved(contact: Persona): Promise<void> {
