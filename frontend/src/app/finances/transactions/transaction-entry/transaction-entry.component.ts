@@ -1,9 +1,12 @@
 import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender, inject, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { KeyValuePipe } from '@angular/common';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, filter, switchMap, tap } from 'rxjs/operators';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { AccountService } from '../../services/account.service';
 import { TransactionService } from '../../services/transaction.service';
-import { SplitInput } from '../../models/transaction.model';
+import { SplitInput, TemplateSearchResult } from '../../models/transaction.model';
 
 interface TransactionLine {
   id: number;
@@ -32,8 +35,25 @@ export class TransactionEntryComponent {
   dialogSave = output<void>();
 
   dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
+  quickFillInput = viewChild<ElementRef<HTMLInputElement>>('quickFillInput');
   dateInput = viewChild<ElementRef<HTMLInputElement>>('dateInput');
   lineInputs = viewChildren<ElementRef<HTMLInputElement | HTMLSelectElement>>('lineInput');
+
+  // Quick-fill template search
+  private quickFillQuery$ = new Subject<string>();
+  quickFillQuery = signal('');
+  quickFillLoading = signal(false);
+  private quickFillResponse = toSignal(
+    this.quickFillQuery$.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      filter((q) => q.length >= 2),
+      tap(() => this.quickFillLoading.set(true)),
+      switchMap((q) => this.transactionService.searchTemplate(q)),
+      tap(() => this.quickFillLoading.set(false))
+    )
+  );
+  quickFillResult = computed(() => this.quickFillResponse()?.data ?? null);
 
   // Edit mode flag
   isEditMode = computed(() => !!this.transactionId());
@@ -94,8 +114,60 @@ export class TransactionEntryComponent {
         this.date.set(initial);
       }
       this.dialog()?.nativeElement.showModal();
-      this.dateInput()?.nativeElement.focus();
+      // Focus quick-fill for new transactions, date for edit mode
+      if (this.transactionId()) {
+        this.dateInput()?.nativeElement.focus();
+      } else {
+        this.quickFillInput()?.nativeElement.focus();
+      }
     });
+  }
+
+  onQuickFillInput(value: string): void {
+    this.quickFillQuery.set(value);
+    this.quickFillQuery$.next(value);
+  }
+
+  onQuickFillKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      const result = this.quickFillResult();
+      if (result) {
+        event.preventDefault();
+        this.applyTemplate(result);
+        this.dateInput()?.nativeElement.focus();
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.clearQuickFill();
+    }
+  }
+
+  applyTemplate(result: TemplateSearchResult): void {
+    // Set payee and memo
+    this.payee.set(result.payee || '');
+    this.memo.set(result.memo || '');
+
+    // Replace all lines with template splits
+    const newLines: TransactionLine[] = result.splits.map((split) => ({
+      id: this.nextLineId++,
+      accountId: split.account.id,
+      debit: split.debit,
+      credit: split.credit,
+    }));
+
+    // Ensure at least 2 lines
+    while (newLines.length < 2) {
+      newLines.push({ id: this.nextLineId++, accountId: '', debit: null, credit: null });
+    }
+
+    this.lines.set(newLines);
+    this.clearQuickFill();
+  }
+
+  clearQuickFill(): void {
+    this.quickFillQuery.set('');
+    this.quickFillQuery$.next('');
   }
 
   private loadTransaction(id: string): void {

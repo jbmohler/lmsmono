@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -8,6 +9,44 @@ from litestar.params import Parameter
 
 import core.db as db
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse, make_ref
+
+
+# Regex pattern for dollar amounts: optional $, digits (with optional commas), optional decimal
+# Matches: 2500, 2,500, 2500.00, $1,234.56, etc.
+AMOUNT_PATTERN = re.compile(r"\$?((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)")
+
+
+def parse_template_query(query: str) -> tuple[str, float | None]:
+    """
+    Parse a template search query to extract search terms and optional amount.
+
+    Examples:
+        "office depot 125.50" -> ("office depot", 125.50)
+        "rent payment" -> ("rent payment", None)
+        "$1,234.56 utilities" -> ("utilities", 1234.56)
+
+    Returns:
+        Tuple of (search_terms, amount_or_none)
+    """
+    if not query:
+        return "", None
+
+    # Find all amounts in the query
+    amounts = AMOUNT_PATTERN.findall(query)
+
+    # Remove amounts from the search string
+    search = AMOUNT_PATTERN.sub("", query).strip()
+    # Clean up extra whitespace
+    search = " ".join(search.split())
+
+    # Use the last amount found (most likely to be the intended amount)
+    amount = None
+    if amounts:
+        # Remove commas and convert to float
+        amount_str = amounts[-1].replace(",", "")
+        amount = float(amount_str)
+
+    return search, amount
 
 
 TRANSACTION_COLUMNS = [
@@ -375,3 +414,128 @@ class TransactionsController(Controller):
         )
         if count == 0:
             raise HTTPException(status_code=404, detail="Transaction not found")
+
+    @get("/template-search")
+    async def template_search(
+        self,
+        conn: psycopg.AsyncConnection,
+        q: str = Parameter(default=""),
+    ) -> SingleRowResponse:
+        """
+        Search historical transactions for a template match.
+
+        Query can include optional dollar amount (e.g., "office depot 125.50").
+        Returns the best matching transaction template with splits, scaled to
+        the specified amount if provided.
+        """
+        search, amount = parse_template_query(q)
+
+        if not search:
+            return SingleRowResponse(columns=[], data=None)
+
+        # Search transactions from last 2 years, score by match quality and frequency
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                """
+                WITH candidates AS (
+                    SELECT
+                        t.tid,
+                        t.payee,
+                        t.memo,
+                        t.trandate,
+                        -- Scoring: exact match > prefix > contains
+                        CASE
+                            WHEN LOWER(t.payee) = LOWER(%(search)s) THEN 100
+                            WHEN LOWER(t.payee) LIKE LOWER(%(prefix)s) THEN 80
+                            WHEN LOWER(t.payee) LIKE LOWER(%(contains)s) THEN 50
+                            ELSE 0
+                        END AS payee_score,
+                        CASE
+                            WHEN LOWER(t.memo) LIKE LOWER(%(contains)s) THEN 30
+                            ELSE 0
+                        END AS memo_score
+                    FROM hacc.transactions t
+                    WHERE t.trandate >= CURRENT_DATE - INTERVAL '2 years'
+                      AND (
+                          t.payee ILIKE %(contains)s
+                          OR t.memo ILIKE %(contains)s
+                      )
+                ),
+                grouped AS (
+                    SELECT
+                        payee,
+                        memo,
+                        COUNT(*) AS frequency,
+                        MAX(trandate) AS last_used,
+                        MAX(payee_score) AS payee_score,
+                        MAX(memo_score) AS memo_score,
+                        -- Get the most recent transaction ID for this pattern
+                        (SELECT tid FROM candidates c2
+                         WHERE c2.payee IS NOT DISTINCT FROM candidates.payee
+                           AND c2.memo IS NOT DISTINCT FROM candidates.memo
+                         ORDER BY c2.trandate DESC
+                         LIMIT 1) AS latest_tid
+                    FROM candidates
+                    GROUP BY payee, memo
+                ),
+                scored AS (
+                    SELECT
+                        payee,
+                        memo,
+                        frequency,
+                        last_used,
+                        latest_tid,
+                        -- Total score: match quality + frequency bonus + recency bonus
+                        payee_score + memo_score
+                            + (LN(frequency + 1) * 15)
+                            + (CASE
+                                WHEN last_used >= CURRENT_DATE - INTERVAL '30 days' THEN 20
+                                WHEN last_used >= CURRENT_DATE - INTERVAL '90 days' THEN 10
+                                WHEN last_used >= CURRENT_DATE - INTERVAL '180 days' THEN 5
+                                ELSE 0
+                            END) AS total_score
+                    FROM grouped
+                )
+                SELECT payee, memo, frequency, latest_tid
+                FROM scored
+                ORDER BY total_score DESC
+                LIMIT 1
+                """,
+                {
+                    "search": search,
+                    "prefix": f"{search}%",
+                    "contains": f"%{search}%",
+                },
+            )
+            row = await cur.fetchone()
+
+        if not row:
+            return SingleRowResponse(columns=[], data=None)
+
+        # Get splits from the most recent matching transaction
+        splits = await get_transaction_splits(conn, row["latest_tid"])
+
+        # Scale amounts if a target amount was specified
+        if amount is not None and splits:
+            # Calculate current total (use absolute sum of all amounts)
+            current_total = sum(
+                abs(s["debit"] or 0) + abs(s["credit"] or 0) for s in splits
+            ) / 2  # Divide by 2 since debits=credits
+
+            if current_total > 0:
+                scale_factor = amount / current_total
+                for split in splits:
+                    if split["debit"] is not None:
+                        split["debit"] = round(split["debit"] * scale_factor, 2)
+                    if split["credit"] is not None:
+                        split["credit"] = round(split["credit"] * scale_factor, 2)
+
+        return SingleRowResponse(
+            columns=[],
+            data={
+                "payee": row["payee"],
+                "memo": row["memo"],
+                "frequency": row["frequency"],
+                "splits": splits,
+            },
+        )

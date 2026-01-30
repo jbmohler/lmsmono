@@ -6,6 +6,7 @@ import { debounceTime, startWith, switchMap } from 'rxjs/operators';
 import { ApiService } from '../../core/api/api.service';
 import { ColumnMeta } from '../../core/api/api.types';
 import {
+  TemplateSearchResult,
   Transaction,
   TransactionCreate,
   TransactionDetail,
@@ -90,5 +91,13 @@ export class TransactionService {
   /** Delete a transaction */
   delete(id: string) {
     return this.api.delete(`/api/transactions/${id}`);
+  }
+
+  /** Search for a transaction template to auto-fill new transactions */
+  searchTemplate(query: string) {
+    return this.api.getOne<TemplateSearchResult | null>(
+      `/api/transactions/template-search`,
+      { q: query }
+    );
   }
 }

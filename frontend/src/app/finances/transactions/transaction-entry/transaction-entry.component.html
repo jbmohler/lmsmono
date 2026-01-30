@@ -32,6 +32,38 @@
         <span class="text-gray-500">Loading transaction...</span>
       </div>
     } @else {
+    <!-- Quick-fill search (only for new transactions) -->
+    @if (!isEditMode()) {
+      <div class="input-compact">
+        <label for="quick-fill" class="label-compact">Quick-fill</label>
+        <input
+          #quickFillInput
+          id="quick-fill"
+          type="text"
+          [value]="quickFillQuery()"
+          (input)="onQuickFillInput($any($event.target).value)"
+          (keydown)="onQuickFillKeydown($event)"
+          placeholder="Type payee name or amount (e.g., 'rent 1500')"
+          class="w-full"
+          autocomplete="off"
+        />
+        @if (quickFillLoading()) {
+          <p class="text-xs text-gray-500 mt-1">Searching...</p>
+        } @else if (quickFillResult(); as result) {
+          <p class="text-xs text-gray-600 mt-1">
+            <span class="font-medium">{{ result.payee || 'No payee' }}</span>
+            @if (result.memo) {
+              <span class="text-gray-400"> - {{ result.memo }}</span>
+            }
+            <span class="text-gray-400"> ({{ result.frequency }}x used)</span>
+            <span class="hidden md:inline text-gray-400"> — Press Enter or Tab to apply</span>
+          </p>
+        } @else if (quickFillQuery().length >= 2) {
+          <p class="text-xs text-gray-400 mt-1">No matching transactions found</p>
+        }
+      </div>
+    }
+
     <!-- Header fields -->
     <div class="flex flex-col gap-3 input-compact">
       <!-- Row 1: Date, Reference, Payee -->

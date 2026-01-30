@@ -16,7 +16,7 @@ class SingleRowResponse:
     """Response containing a single row with column metadata."""
 
     columns: list[ColumnMeta]
-    data: dict[str, Any]
+    data: dict[str, Any] | None
 
 
 @dataclass

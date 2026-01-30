@@ -13,8 +13,21 @@ export class ApiService {
   private http = inject(HttpClient);
 
   /** GET single row */
-  getOne<T>(url: string): Observable<SingleRowResponse<T>> {
-    return this.http.get<SingleRowResponse<T>>(url).pipe(catchError(this.handleError));
+  getOne<T>(
+    url: string,
+    params?: Record<string, string | number | boolean | undefined>
+  ): Observable<SingleRowResponse<T>> {
+    let httpParams = new HttpParams();
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== '') {
+          httpParams = httpParams.set(key, String(value));
+        }
+      }
+    }
+    return this.http
+      .get<SingleRowResponse<T>>(url, { params: httpParams })
+      .pipe(catchError(this.handleError));
   }
 
   /** GET multiple rows with optional query params */

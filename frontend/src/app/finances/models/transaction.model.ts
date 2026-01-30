@@ -58,3 +58,11 @@ export interface TransactionFilters {
   from?: string;
   to?: string;
 }
+
+/** Template search result for quick-fill feature */
+export interface TemplateSearchResult {
+  payee: string | null;
+  memo: string | null;
+  frequency: number;
+  splits: TransactionSplit[];
+}
