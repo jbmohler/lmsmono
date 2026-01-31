@@ -63,4 +63,17 @@ export const routes: Routes = [
     path: 'diagnostics',
     loadComponent: () => import('./diagnostics/diagnostics.component').then(m => m.DiagnosticsComponent),
   },
+
+  // Admin section
+  {
+    path: 'admin',
+    children: [
+      { path: '', redirectTo: 'roles', pathMatch: 'full' },
+      {
+        path: 'roles',
+        loadComponent: () =>
+          import('./admin/roles/roles.component').then(m => m.RolesComponent),
+      },
+    ],
+  },
 ];
