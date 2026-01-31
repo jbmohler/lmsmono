@@ -14,6 +14,7 @@ from api.journals import JournalsController
 from api.transactions import TransactionsController
 from api.contacts import ContactsController
 from api.roles import CapabilitiesController, RolesController
+from api.users import UsersController
 
 
 config: AppConfig | None = None
@@ -51,6 +52,7 @@ app = Litestar(
         ContactsController,
         CapabilitiesController,
         RolesController,
+        UsersController,
     ],
     dependencies={
         "conn": Provide(provide_connection),

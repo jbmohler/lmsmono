@@ -36,10 +36,10 @@ export class RolesComponent {
   selectedRole = signal<Role | null>(null);
   roleCapabilities = signal<RoleCapability[]>([]);
 
-  // Edit state
+  // Edit mode state
+  editMode = signal(false);
   editRoleName = signal('');
   editSort = signal<number>(0);
-  hasChanges = signal(false);
 
   // Loading and error state
   loading = signal(false);
@@ -74,18 +74,20 @@ export class RolesComponent {
       return;
     }
 
-    // Ctrl+S - save
+    // Ctrl+S - save (only in edit mode)
     if (event.ctrlKey && event.key === 's') {
       event.preventDefault();
-      if (this.selectedRole() && this.hasChanges()) {
+      if (this.editMode()) {
         this.saveRole();
       }
       return;
     }
 
-    // Escape - clear selection on mobile
+    // Escape - cancel edit or close mobile detail
     if (event.key === 'Escape') {
-      if (this.mobileShowDetail()) {
+      if (this.editMode()) {
+        this.cancelEdit();
+      } else if (this.mobileShowDetail()) {
         this.mobileShowDetail.set(false);
       }
       return;
@@ -145,7 +147,7 @@ export class RolesComponent {
     this.selectedRoleId.set(id);
     this.selectedRole.set(null);
     this.roleCapabilities.set([]);
-    this.hasChanges.set(false);
+    this.editMode.set(false);
     this.mobileShowDetail.set(true);
     this.loading.set(true);
     this.error.set(null);
@@ -158,15 +160,31 @@ export class RolesComponent {
 
       if (this.selectedRoleId() === id) {
         this.selectedRole.set(roleResponse.data);
-        this.editRoleName.set(roleResponse.data.role_name);
-        this.editSort.set(roleResponse.data.sort);
         this.roleCapabilities.set(capsResponse.data);
+        this.resetEditFields(roleResponse.data);
       }
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to load role');
     } finally {
       this.loading.set(false);
     }
+  }
+
+  resetEditFields(role: Role): void {
+    this.editRoleName.set(role.role_name);
+    this.editSort.set(role.sort);
+  }
+
+  enterEditMode(): void {
+    this.editMode.set(true);
+  }
+
+  cancelEdit(): void {
+    const role = this.selectedRole();
+    if (role) {
+      this.resetEditFields(role);
+    }
+    this.editMode.set(false);
   }
 
   async createNewRole(): Promise<void> {
@@ -178,22 +196,13 @@ export class RolesComponent {
         this.roleService.create({ role_name: 'New Role' })
       );
       this.roleService.refreshRoles();
-      this.selectRoleById(response.data.id);
+      await this.selectRoleById(response.data.id);
+      this.editMode.set(true);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to create role');
     } finally {
       this.saving.set(false);
     }
-  }
-
-  onRoleNameChange(value: string): void {
-    this.editRoleName.set(value);
-    this.hasChanges.set(true);
-  }
-
-  onSortChange(value: number): void {
-    this.editSort.set(value);
-    this.hasChanges.set(true);
   }
 
   async saveRole(): Promise<void> {
@@ -211,11 +220,12 @@ export class RolesComponent {
         })
       );
       this.roleService.refreshRoles();
-      this.hasChanges.set(false);
 
       // Reload role
       const response = await firstValueFrom(this.roleService.getById(role.id));
       this.selectedRole.set(response.data);
+      this.resetEditFields(response.data);
+      this.editMode.set(false);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to save role');
     } finally {
@@ -240,6 +250,7 @@ export class RolesComponent {
       this.selectedRoleId.set(null);
       this.selectedRole.set(null);
       this.roleCapabilities.set([]);
+      this.editMode.set(false);
       this.mobileShowDetail.set(false);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to delete role');
@@ -250,7 +261,7 @@ export class RolesComponent {
 
   async toggleCapability(capabilityId: string, currentPermitted: boolean): Promise<void> {
     const role = this.selectedRole();
-    if (!role) return;
+    if (!role || !this.editMode()) return;
 
     this.saving.set(true);
     this.error.set(null);

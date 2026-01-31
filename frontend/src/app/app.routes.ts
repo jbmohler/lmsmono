@@ -67,8 +67,15 @@ export const routes: Routes = [
   // Admin section
   {
     path: 'admin',
+    loadComponent: () =>
+      import('./admin/admin-layout.component').then(m => m.AdminLayoutComponent),
     children: [
-      { path: '', redirectTo: 'roles', pathMatch: 'full' },
+      { path: '', redirectTo: 'users', pathMatch: 'full' },
+      {
+        path: 'users',
+        loadComponent: () =>
+          import('./admin/users/users.component').then(m => m.UsersComponent),
+      },
       {
         path: 'roles',
         loadComponent: () =>

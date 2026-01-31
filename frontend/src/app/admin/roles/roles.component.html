@@ -81,36 +81,36 @@
             </svg>
           </button>
 
-          <div class="flex-1 flex flex-col gap-2">
-            <input
-              type="text"
-              [ngModel]="editRoleName()"
-              (ngModelChange)="onRoleNameChange($event)"
-              class="text-lg font-semibold"
-              placeholder="Role name"
-            />
-            <div class="flex items-center gap-4">
-              <label class="flex items-center gap-2 text-sm text-gray-600">
-                <span>Sort:</span>
-                <input
-                  type="number"
-                  [ngModel]="editSort()"
-                  (ngModelChange)="onSortChange($event)"
-                  class="w-20"
-                />
-              </label>
-            </div>
+          <div class="flex-1">
+            @if (editMode()) {
+              <input
+                type="text"
+                [ngModel]="editRoleName()"
+                (ngModelChange)="editRoleName.set($event)"
+                class="text-lg font-semibold w-full"
+                placeholder="Role name"
+              />
+            } @else {
+              <h2 class="text-lg font-semibold text-gray-900">{{ role.role_name }}</h2>
+            }
           </div>
 
           <div class="flex items-center gap-2">
-            @if (hasChanges()) {
+            @if (editMode()) {
               <button
-                (click)="saveRole()"
-                class="btn btn-primary"
+                (click)="cancelEdit()"
+                class="btn btn-secondary"
                 [disabled]="saving()"
-                title="Save (Ctrl+S)"
               >
-                Save
+                Cancel
+              </button>
+            } @else {
+              <button
+                (click)="enterEditMode()"
+                class="btn btn-secondary"
+                [disabled]="saving()"
+              >
+                Edit
               </button>
             }
             <button
@@ -127,31 +127,88 @@
         </div>
       </div>
 
-      <!-- Capabilities -->
+      <!-- Detail Content -->
       <div class="flex-1 min-h-0 overflow-y-auto p-4">
-        <h2 class="text-sm font-semibold text-gray-700 mb-3">Capabilities</h2>
+        <div class="flex flex-col gap-4">
+          <!-- Role Info Card -->
+          <div class="card p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Role Information</h3>
 
-        <div class="flex flex-col gap-3">
-          @for (entry of capabilitiesByResource() | keyvalue; track entry.key) {
-            <div class="card p-3">
-              <h3 class="text-sm font-medium text-gray-900 mb-2">
-                {{ getResourceDisplayName(entry.key) }}
-              </h3>
-              <div class="flex flex-col gap-1">
-                @for (cap of entry.value; track cap.id) {
-                  <label class="flex items-center gap-2 cursor-pointer py-0.5">
-                    <input
-                      type="checkbox"
-                      [checked]="isCapabilityPermitted(cap.id)"
-                      (change)="toggleCapability(cap.id, isCapabilityPermitted(cap.id))"
-                      [disabled]="saving()"
-                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
-                    />
-                    <span class="text-sm text-gray-900">{{ getActionDisplayName(cap.cap_name) }}</span>
-                    <span class="text-xs text-gray-500 ml-1">— {{ cap.description }}</span>
-                  </label>
+            <div class="flex flex-col gap-3">
+              <!-- Sort Order -->
+              <div>
+                <label class="block text-sm font-medium text-gray-600 mb-1">Sort Order</label>
+                @if (editMode()) {
+                  <input
+                    type="number"
+                    [ngModel]="editSort()"
+                    (ngModelChange)="editSort.set($event)"
+                    class="w-24"
+                  />
+                } @else {
+                  <div class="text-sm text-gray-900">{{ role.sort }}</div>
                 }
               </div>
+            </div>
+          </div>
+
+          <!-- Capabilities -->
+          <div class="card p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Capabilities</h3>
+
+            <div class="flex flex-col gap-3">
+              @for (entry of capabilitiesByResource() | keyvalue; track entry.key) {
+                <div class="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                  <h4 class="text-sm font-medium text-gray-900 mb-2">
+                    {{ getResourceDisplayName(entry.key) }}
+                  </h4>
+                  <div class="flex flex-col gap-1">
+                    @for (cap of entry.value; track cap.id) {
+                      <label
+                        class="flex items-center gap-2 py-0.5"
+                        [class.cursor-pointer]="editMode()"
+                        [class.opacity-60]="!editMode() && !isCapabilityPermitted(cap.id)"
+                      >
+                        @if (editMode()) {
+                          <input
+                            type="checkbox"
+                            [checked]="isCapabilityPermitted(cap.id)"
+                            (change)="toggleCapability(cap.id, isCapabilityPermitted(cap.id))"
+                            [disabled]="saving()"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+                          />
+                        } @else {
+                          @if (isCapabilityPermitted(cap.id)) {
+                            <svg class="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                          } @else {
+                            <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          }
+                        }
+                        <span class="text-sm text-gray-900">{{ getActionDisplayName(cap.cap_name) }}</span>
+                        <span class="text-xs text-gray-500 ml-1">— {{ cap.description }}</span>
+                      </label>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Save Button (edit mode) -->
+          @if (editMode()) {
+            <div class="flex justify-end">
+              <button
+                (click)="saveRole()"
+                class="btn btn-primary"
+                [disabled]="saving()"
+                title="Save (Ctrl+S)"
+              >
+                Save Changes
+              </button>
             </div>
           }
         </div>
