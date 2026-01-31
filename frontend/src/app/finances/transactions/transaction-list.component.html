@@ -1,94 +1,99 @@
-<div class="p-4 md:p-6 flex flex-col gap-4 md:gap-6">
-  <!-- Header with filter -->
-  <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-semibold text-gray-900">Transactions</h1>
-    <button (click)="openEntryDialog()" class="btn btn-primary flex items-center gap-1">
-      <span class="hidden md:inline">New Transaction</span>
-      <span class="md:hidden">New</span>
-      <span class="hidden md:inline text-blue-200 text-xs">(Ctrl+Shift+N)</span>
-    </button>
-  </div>
+<div class="page-container">
+  <!-- Fixed header -->
+  <div class="page-header">
+    <!-- Header with filter -->
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-semibold text-gray-900">Transactions</h1>
+      <button (click)="openEntryDialog()" class="btn btn-primary flex items-center gap-1">
+        <span class="hidden md:inline">New Transaction</span>
+        <span class="md:hidden">New</span>
+        <span class="hidden md:inline text-blue-200 text-xs">(Ctrl+Shift+N)</span>
+      </button>
+    </div>
 
-  <!-- Filter bar -->
-  <div class="card p-4">
-    <div class="flex flex-col md:flex-row md:items-center gap-4">
-      <div class="flex-1">
-        <label for="search" class="sr-only">Search transactions</label>
-        <input
-          #searchInput
-          id="search"
-          type="text"
-          [(ngModel)]="searchQuery"
-          (ngModelChange)="onSearchChange()"
-          placeholder="Search transactions..."
-        />
-      </div>
-      <div class="flex items-center gap-4 flex-wrap">
-        <div>
-          <label for="dateFrom" class="sr-only">From date</label>
+    <!-- Filter bar -->
+    <div class="card p-4">
+      <div class="flex flex-col md:flex-row md:items-center gap-4">
+        <div class="flex-1">
+          <label for="search" class="sr-only">Search transactions</label>
           <input
-            id="dateFrom"
-            type="date"
-            [(ngModel)]="dateFrom"
-            (ngModelChange)="onDateFromChange()"
-            class="w-auto"
+            #searchInput
+            id="search"
+            type="text"
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchChange()"
+            placeholder="Search transactions..."
           />
         </div>
-        <div>
-          <label for="dateTo" class="sr-only">To date</label>
-          <input
-            id="dateTo"
-            type="date"
-            [(ngModel)]="dateTo"
-            (ngModelChange)="onDateToChange()"
-            class="w-auto"
-          />
+        <div class="flex items-center gap-4 flex-wrap">
+          <div>
+            <label for="dateFrom" class="sr-only">From date</label>
+            <input
+              id="dateFrom"
+              type="date"
+              [(ngModel)]="dateFrom"
+              (ngModelChange)="onDateFromChange()"
+              class="w-auto"
+            />
+          </div>
+          <div>
+            <label for="dateTo" class="sr-only">To date</label>
+            <input
+              id="dateTo"
+              type="date"
+              [(ngModel)]="dateTo"
+              (ngModelChange)="onDateToChange()"
+              class="w-auto"
+            />
+          </div>
+          <button (click)="clearFilters()" class="btn btn-secondary">
+            Clear
+          </button>
         </div>
-        <button (click)="clearFilters()" class="btn btn-secondary">
-          Clear
-        </button>
       </div>
     </div>
   </div>
 
-  <!-- Transaction table -->
-  <div class="card overflow-x-auto">
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th class="hidden md:table-cell">Reference</th>
-          <th>Payee</th>
-          <th class="hidden md:table-cell">Memo</th>
-        </tr>
-      </thead>
-      <tbody>
-        @if (transactions().length === 0) {
+  <!-- Scrollable content -->
+  <div class="page-content">
+    <div class="card overflow-x-auto">
+      <table>
+        <thead>
           <tr>
-            <td colspan="4" class="text-center py-12">
-              <p class="text-sm">No transactions found.</p>
-            </td>
+            <th>Date</th>
+            <th class="hidden md:table-cell">Reference</th>
+            <th>Payee</th>
+            <th class="hidden md:table-cell">Memo</th>
           </tr>
-        } @else {
-          @for (txn of transactions(); track txn.id) {
-            <tr class="row-clickable" (click)="onRowClick(txn.id)">
-              <td class="cell-primary whitespace-nowrap">
-                {{ txn.trandate | date:'mediumDate' }}
-              </td>
-              <td class="hidden md:table-cell whitespace-nowrap">
-                {{ txn.tranref || '-' }}
-              </td>
-              <td class="cell-primary whitespace-nowrap">
-                {{ txn.payee || '-' }}
-              </td>
-              <td class="hidden md:table-cell max-w-md truncate">
-                {{ txn.memo || '-' }}
+        </thead>
+        <tbody>
+          @if (transactions().length === 0) {
+            <tr>
+              <td colspan="4" class="text-center py-12">
+                <p class="text-sm">No transactions found.</p>
               </td>
             </tr>
+          } @else {
+            @for (txn of transactions(); track txn.id) {
+              <tr class="row-clickable" (click)="onRowClick(txn.id)">
+                <td class="cell-primary whitespace-nowrap">
+                  {{ txn.trandate | date:'mediumDate' }}
+                </td>
+                <td class="hidden md:table-cell whitespace-nowrap">
+                  {{ txn.tranref || '-' }}
+                </td>
+                <td class="cell-primary whitespace-nowrap">
+                  {{ txn.payee || '-' }}
+                </td>
+                <td class="hidden md:table-cell max-w-md truncate">
+                  {{ txn.memo || '-' }}
+                </td>
+              </tr>
+            }
           }
-        }
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

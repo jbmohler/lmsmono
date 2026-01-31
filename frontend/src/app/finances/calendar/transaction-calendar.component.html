@@ -1,30 +1,35 @@
-<div class="p-6 flex flex-col gap-6">
-  <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-semibold text-gray-900">Transaction Calendar</h1>
-    <div class="flex items-center gap-2">
-      <button
-        (click)="previousMonth()"
-        class="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-        aria-label="Previous month"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      <span class="text-lg font-medium text-gray-700 min-w-40 text-center">{{ monthName() }}</span>
-      <button
-        (click)="nextMonth()"
-        class="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
-        aria-label="Next month"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+<div class="page-container">
+  <!-- Fixed header -->
+  <div class="page-header">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-semibold text-gray-900">Transaction Calendar</h1>
+      <div class="flex items-center gap-2">
+        <button
+          (click)="previousMonth()"
+          class="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+          aria-label="Previous month"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <span class="text-lg font-medium text-gray-700 min-w-40 text-center">{{ monthName() }}</span>
+        <button
+          (click)="nextMonth()"
+          class="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+          aria-label="Next month"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 
-  <div class="card">
+  <!-- Scrollable content -->
+  <div class="page-content">
+    <div class="card">
     <div class="grid grid-cols-7 border-b border-gray-200">
       @for (day of weekDays; track trackByDay($index, day)) {
         <div class="px-4 py-3 text-center text-sm font-medium text-gray-500 border-r border-gray-200 last:border-r-0">
@@ -55,6 +60,7 @@
           </div>
         </div>
       }
+    </div>
     </div>
   </div>
 </div>

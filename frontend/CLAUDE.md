@@ -207,6 +207,25 @@ Common UI patterns are defined in `src/styles.css` using `@apply`. Use these cla
 - `.icon-btn-group` - horizontal flex container for icon buttons
 - `.icon-btn-vertical` - vertical flex container (for up/down pairs)
 
+**Page Layout:**
+- `.page-container` - full-height flex column container for pages
+- `.page-header` - fixed header that doesn't scroll (gray background, responsive padding)
+- `.page-content` - scrollable content area with `overflow-y-auto`
+
+```html
+<!-- Page layout pattern - header stays fixed, content scrolls -->
+<div class="page-container">
+  <div class="page-header">
+    <h1>Page Title</h1>
+    <!-- Optional filter bar, nav controls, etc. -->
+  </div>
+  <div class="page-content">
+    <!-- Scrollable content here -->
+    <div class="card">...</div>
+  </div>
+</div>
+```
+
 ```html
 <!-- Example usage -->
 <div class="card p-4">
