@@ -3,9 +3,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
 
-import { ApiService } from '../../core/api/api.service';
-import { ColumnMeta } from '../../core/api/api.types';
-import { AccountType } from '../models/account.model';
+import { ApiService } from '@core/api/api.service';
+import { ColumnMeta } from '@core/api/api.types';
+import { AccountType } from '@finances/models/account.model';
 
 /**
  * Service for account type operations.

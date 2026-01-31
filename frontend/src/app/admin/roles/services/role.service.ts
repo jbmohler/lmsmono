@@ -3,8 +3,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
 
-import { ApiService } from '../../../core/api/api.service';
-import { ColumnMeta } from '../../../core/api/api.types';
+import { ApiService } from '@core/api/api.service';
+import { ColumnMeta } from '@core/api/api.types';
 import {
   Capability,
   Role,
@@ -12,7 +12,7 @@ import {
   RoleCapabilityUpdate,
   RoleCreate,
   RoleUpdate,
-} from '../../models/role.model';
+} from '@admin/models/role.model';
 
 /**
  * Service for role and capability operations with reactive state.

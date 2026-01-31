@@ -4,9 +4,9 @@ import { KeyValuePipe } from '@angular/common';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, filter, switchMap, tap } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { AccountService } from '../../services/account.service';
-import { TransactionService } from '../../services/transaction.service';
-import { SplitInput, TemplateSearchResult } from '../../models/transaction.model';
+import { AccountService } from '@finances/services/account.service';
+import { TransactionService } from '@finances/services/transaction.service';
+import { SplitInput, TemplateSearchResult } from '@finances/models/transaction.model';
 
 interface TransactionLine {
   id: number;

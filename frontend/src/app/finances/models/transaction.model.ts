@@ -1,4 +1,4 @@
-import { ItemRef } from '../../core/api/api.types';
+import { ItemRef } from '@core/api/api.types';
 
 /**
  * Transaction domain models matching backend /api/transactions endpoints.

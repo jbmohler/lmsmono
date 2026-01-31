@@ -1,4 +1,4 @@
-import { ItemRef } from '../../core/api/api.types';
+import { ItemRef } from '@core/api/api.types';
 
 /**
  * Account domain models matching backend /api/accounts and /api/account-types endpoints.

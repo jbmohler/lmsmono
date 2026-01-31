@@ -3,8 +3,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, Subject, combineLatest } from 'rxjs';
 import { debounceTime, startWith, switchMap } from 'rxjs/operators';
 
-import { ApiService } from '../../core/api/api.service';
-import { ColumnMeta } from '../../core/api/api.types';
+import { ApiService } from '@core/api/api.service';
+import { ColumnMeta } from '@core/api/api.types';
 import {
   TemplateSearchResult,
   Transaction,
@@ -12,7 +12,7 @@ import {
   TransactionDetail,
   TransactionFilters,
   TransactionUpdate,
-} from '../models/transaction.model';
+} from '@finances/models/transaction.model';
 
 const SEARCH_DEBOUNCE_MS = 300;
 

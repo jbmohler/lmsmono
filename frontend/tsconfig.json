@@ -1,6 +1,15 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@core/*": ["src/app/core/*"],
+      "@finances/*": ["src/app/finances/*"],
+      "@admin/*": ["src/app/admin/*"],
+      "@contacts/*": ["src/app/contacts/*"],
+      "@reports/*": ["src/app/reports/*"],
+      "@shared/*": ["src/app/shared/*"]
+    },
     "outDir": "./dist/out-tsc",
     "strict": true,
     "noImplicitOverride": true,

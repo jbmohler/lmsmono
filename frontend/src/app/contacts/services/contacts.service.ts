@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, of } from 'rxjs';
 import { startWith, switchMap, catchError, tap } from 'rxjs/operators';
 
-import { ApiService } from '../../core/api/api.service';
+import { ApiService } from '@core/api/api.service';
 import {
   Persona,
   ContactBit,
@@ -11,7 +11,7 @@ import {
   ContactPhone,
   ContactAddress,
   ContactUrl,
-} from '../contacts.model';
+} from '@contacts/contacts.model';
 
 /**
  * API response types (snake_case from backend)

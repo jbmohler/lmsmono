@@ -3,9 +3,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
 
-import { ApiService } from '../../core/api/api.service';
-import { ColumnMeta } from '../../core/api/api.types';
-import { Journal, JournalCreate, JournalUpdate } from '../models/journal.model';
+import { ApiService } from '@core/api/api.service';
+import { ColumnMeta } from '@core/api/api.types';
+import { Journal, JournalCreate, JournalUpdate } from '@finances/models/journal.model';
 
 /**
  * Service for journal CRUD operations with reactive state.
