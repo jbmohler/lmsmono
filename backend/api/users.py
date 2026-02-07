@@ -6,6 +6,7 @@ from litestar import Controller, delete, get, post, put
 from litestar.exceptions import HTTPException
 
 import core.db as db
+from core.password import hash_password
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
@@ -44,6 +45,11 @@ class UserUpdate:
 class UserRoleUpdate:
     role_id: str
     assigned: bool
+
+
+@dataclass
+class PasswordUpdate:
+    password: str
 
 
 async def _get_user_by_id(
@@ -283,3 +289,24 @@ class UsersController(Controller):
         ]
 
         return MultiRowResponse(columns=USER_ROLE_COLUMNS, data=role_data)
+
+    @put("/{user_id:uuid}/password", status_code=204)
+    async def set_password(
+        self,
+        conn: psycopg.AsyncConnection,
+        user_id: UUID,
+        data: PasswordUpdate,
+    ) -> None:
+        """Set or update a user's password."""
+        if not data.password:
+            raise HTTPException(status_code=400, detail="Password cannot be empty")
+
+        pwhash = hash_password(data.password)
+
+        count = await db.execute(
+            conn,
+            "UPDATE users SET pwhash = %(pwhash)s WHERE id = %(id)s",
+            {"id": user_id, "pwhash": pwhash},
+        )
+        if count == 0:
+            raise HTTPException(status_code=404, detail="User not found")

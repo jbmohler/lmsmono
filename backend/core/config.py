@@ -26,9 +26,17 @@ class EncryptionConfig:
 
 
 @dataclass
+class SessionConfig:
+    secret_key: str = ""
+    expire_minutes: int = 1440  # 24 hours
+    secure_cookie: bool = False  # Set True in production
+
+
+@dataclass
 class AppConfig:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     encryption: EncryptionConfig = field(default_factory=EncryptionConfig)
+    session: SessionConfig = field(default_factory=SessionConfig)
 
     @classmethod
     def load(cls) -> "AppConfig":
@@ -40,9 +48,11 @@ class AppConfig:
                 data = json.load(f)
             db_data = data.get("database", {})
             enc_data = data.get("encryption", {})
+            session_data = data.get("session", {})
             return cls(
                 database=DatabaseConfig(**db_data),
                 encryption=EncryptionConfig(**enc_data),
+                session=SessionConfig(**session_data),
             )
 
         print(f"Warning: Config file not found at {config_path}")

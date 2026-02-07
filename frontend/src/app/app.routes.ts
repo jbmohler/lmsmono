@@ -1,11 +1,19 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'finances/transactions', pathMatch: 'full' },
 
+  // Login (public route)
+  {
+    path: 'login',
+    loadComponent: () => import('./auth/login.component').then(m => m.LoginComponent),
+  },
+
   // Finances section
   {
     path: 'finances',
+    canActivate: [authGuard],
     loadComponent: () => import('./finances/finances-layout.component').then(m => m.FinancesLayoutComponent),
     children: [
       { path: '', redirectTo: 'transactions', pathMatch: 'full' },
@@ -45,28 +53,33 @@ export const routes: Routes = [
   // Contacts section
   {
     path: 'contacts',
+    canActivate: [authGuard],
     loadComponent: () => import('./contacts/contacts.component').then(m => m.ContactsComponent),
   },
 
   // Reports section
   {
     path: 'reports',
+    canActivate: [authGuard],
     loadComponent: () => import('./reports/reports.component').then(m => m.ReportsComponent),
   },
   {
     path: 'reports/:reportType',
+    canActivate: [authGuard],
     loadComponent: () => import('./reports/report-viewer.component').then(m => m.ReportViewerComponent),
   },
 
   // Diagnostics (dev tool)
   {
     path: 'diagnostics',
+    canActivate: [authGuard],
     loadComponent: () => import('./diagnostics/diagnostics.component').then(m => m.DiagnosticsComponent),
   },
 
   // Admin section
   {
     path: 'admin',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./admin/admin-layout.component').then(m => m.AdminLayoutComponent),
     children: [

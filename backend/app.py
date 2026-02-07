@@ -7,6 +7,7 @@ from litestar.di import Provide
 from core.config import AppConfig
 from core.crypto import init_crypto
 from core.db import init_pool, close_pool, provide_connection
+from api.auth import AuthController
 from api.health import HealthController, PingController
 from api.eventlog import EventLogController
 from api.accounts import AccountTypesController, AccountsController
@@ -15,6 +16,7 @@ from api.transactions import TransactionsController
 from api.contacts import ContactsController
 from api.roles import CapabilitiesController, RolesController
 from api.users import UsersController
+from core.middleware import SessionMiddleware
 
 
 config: AppConfig | None = None
@@ -42,6 +44,7 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
 
 app = Litestar(
     route_handlers=[
+        AuthController,
         HealthController,
         PingController,
         EventLogController,
@@ -57,5 +60,6 @@ app = Litestar(
     dependencies={
         "conn": Provide(provide_connection),
     },
+    middleware=[SessionMiddleware],
     lifespan=[lifespan],
 )

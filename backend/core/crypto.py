@@ -1,6 +1,6 @@
 """Encryption utilities for the password vault using Fernet symmetric encryption."""
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet
 
 
 _fernet: Fernet | None = None

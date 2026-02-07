@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService } from './core/auth/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -10,8 +11,26 @@ import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/rou
     '(window:keydown)': 'handleKeydown($event)',
   },
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   private router = inject(Router);
+  private auth = inject(AuthService);
+
+  initialized = signal(false);
+  isLoggedIn = this.auth.isLoggedIn;
+  user = this.auth.user;
+
+  ngOnInit(): void {
+    this.auth.checkSession().subscribe({
+      next: () => this.initialized.set(true),
+      error: () => this.initialized.set(true),
+    });
+  }
+
+  logout(): void {
+    this.auth.logout().subscribe(() => {
+      this.router.navigate(['/login']);
+    });
+  }
 
   handleKeydown(event: KeyboardEvent): void {
     if (event.ctrlKey && event.shiftKey) {

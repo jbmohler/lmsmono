@@ -1,5 +1,7 @@
 """Seed data for users table with sample users."""
 
+from core.password import hash_password
+
 # Dev user ID - must match TEST_OWNER_ID in api/contacts.py
 DEV_USER_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -37,32 +39,42 @@ SAMPLE_USERS = [
 
 
 async def seed_users(conn) -> None:
-    """Insert sample users with role assignments."""
+    """Insert sample users with role assignments and passwords."""
     async with conn.cursor() as cur:
         for user in SAMPLE_USERS:
+            username = user["username"]
+            # Password is <username>123
+            pwhash = hash_password(f"{username}123")
+
             # Check if user already exists
             await cur.execute(
                 "SELECT id FROM users WHERE id = %(id)s",
                 {"id": user["id"]},
             )
             if await cur.fetchone():
-                print(f"User already exists: {user['username']}")
+                # Update password for existing user
+                await cur.execute(
+                    "UPDATE users SET pwhash = %(pwhash)s WHERE id = %(id)s",
+                    {"id": user["id"], "pwhash": pwhash},
+                )
+                print(f"Updated password for: {username}")
                 user_id = user["id"]
             else:
-                # Insert user (no password - auth not implemented yet)
+                # Insert user with password
                 await cur.execute(
                     """
-                    INSERT INTO users (id, username, full_name, descr)
-                    VALUES (%(id)s, %(username)s, %(full_name)s, %(descr)s)
+                    INSERT INTO users (id, username, full_name, descr, pwhash)
+                    VALUES (%(id)s, %(username)s, %(full_name)s, %(descr)s, %(pwhash)s)
                     """,
                     {
                         "id": user["id"],
-                        "username": user["username"],
+                        "username": username,
                         "full_name": user["full_name"],
                         "descr": user["descr"],
+                        "pwhash": pwhash,
                     },
                 )
-                print(f"Created user: {user['username']} (id: {user['id']})")
+                print(f"Created user: {username} (password: {username}123)")
                 user_id = user["id"]
 
             # Assign roles to user

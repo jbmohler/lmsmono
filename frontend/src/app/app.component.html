@@ -1,10 +1,27 @@
+@if (!initialized()) {
+  <div class="h-screen flex items-center justify-center bg-gray-100">
+    <div class="text-gray-500">Loading...</div>
+  </div>
+} @else if (!isLoggedIn()) {
+  <router-outlet />
+} @else {
 <div class="h-screen w-full grid grid-rows-[auto_1fr_auto] bg-gray-100 overflow-x-hidden">
   <!-- Header -->
   <header class="bg-slate-800 min-w-0">
     <div class="max-w-7xl mx-auto px-4 min-w-0">
-      <!-- Top bar with logo -->
-      <div class="flex items-center h-12">
+      <!-- Top bar with logo and user menu -->
+      <div class="flex items-center justify-between h-12">
         <a routerLink="/" class="text-lg font-semibold text-white tracking-tight">LMS</a>
+        <div class="flex items-center gap-4">
+          <span class="text-sm text-slate-300">{{ user()?.username }}</span>
+          <button
+            type="button"
+            (click)="logout()"
+            class="text-sm text-slate-400 hover:text-white"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
     <!-- Tab bar -->
@@ -62,3 +79,4 @@
     </div>
   </footer>
 </div>
+}
