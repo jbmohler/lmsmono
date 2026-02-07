@@ -7,9 +7,12 @@ import { LoginRequest, LoginResponse, User } from './auth.types';
 export class AuthService {
   private http = inject(HttpClient);
   private currentUser = signal<User | null>(null);
+  private _initialized = signal(false);
 
   readonly user = this.currentUser.asReadonly();
   readonly isLoggedIn = computed(() => this.currentUser() !== null);
+  readonly initialized = this._initialized.asReadonly();
+  readonly capabilities = computed(() => new Set(this.currentUser()?.capabilities ?? []));
 
   login(username: string, password: string): Observable<User> {
     const request: LoginRequest = { username, password };
@@ -28,12 +31,25 @@ export class AuthService {
   checkSession(): Observable<User | null> {
     return this.http.get<LoginResponse>('/api/auth/me').pipe(
       map(response => this.mapResponseToUser(response)),
-      tap(user => this.currentUser.set(user)),
+      tap(user => {
+        this.currentUser.set(user);
+        this._initialized.set(true);
+      }),
       catchError(() => {
         this.currentUser.set(null);
+        this._initialized.set(true);
         return of(null);
       })
     );
+  }
+
+  /**
+   * Check capability imperatively (for use in code, not templates).
+   * For templates, create a computed signal in your component:
+   *   canWrite = computed(() => this.auth.capabilities().has('contacts:write'));
+   */
+  hasCapability(capability: string): boolean {
+    return this.capabilities().has(capability);
   }
 
   private mapResponseToUser(response: LoginResponse): User {

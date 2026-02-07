@@ -8,6 +8,7 @@ from litestar.exceptions import HTTPException
 from litestar.params import Parameter
 
 import core.db as db
+from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse, make_ref
 
 
@@ -209,7 +210,7 @@ class TransactionsController(Controller):
     path = "/api/transactions"
     tags = ["transactions"]
 
-    @get()
+    @get(guards=[require_capability("transactions:read")])
     async def list_transactions(
         self,
         conn: psycopg.AsyncConnection,
@@ -264,7 +265,7 @@ class TransactionsController(Controller):
             columns=TRANSACTION_COLUMNS,
         )
 
-    @get("/{transaction_id:uuid}")
+    @get("/{transaction_id:uuid}", guards=[require_capability("transactions:read")])
     async def get_transaction(
         self,
         conn: psycopg.AsyncConnection,
@@ -273,7 +274,7 @@ class TransactionsController(Controller):
         """Get a single transaction with its splits."""
         return await _get_transaction_by_id(conn, transaction_id)
 
-    @post(status_code=201)
+    @post(status_code=201, guards=[require_capability("transactions:write")])
     async def create_transaction(
         self,
         conn: psycopg.AsyncConnection,
@@ -320,7 +321,7 @@ class TransactionsController(Controller):
 
         return await _get_transaction_by_id(conn, transaction_id)
 
-    @put("/{transaction_id:uuid}")
+    @put("/{transaction_id:uuid}", guards=[require_capability("transactions:write")])
     async def update_transaction(
         self,
         conn: psycopg.AsyncConnection,
@@ -393,7 +394,7 @@ class TransactionsController(Controller):
 
         return await _get_transaction_by_id(conn, transaction_id)
 
-    @delete("/{transaction_id:uuid}", status_code=204)
+    @delete("/{transaction_id:uuid}", status_code=204, guards=[require_capability("transactions:write")])
     async def delete_transaction(
         self,
         conn: psycopg.AsyncConnection,
@@ -415,7 +416,7 @@ class TransactionsController(Controller):
         if count == 0:
             raise HTTPException(status_code=404, detail="Transaction not found")
 
-    @get("/template-search")
+    @get("/template-search", guards=[require_capability("transactions:read")])
     async def template_search(
         self,
         conn: psycopg.AsyncConnection,

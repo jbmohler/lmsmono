@@ -10,6 +10,7 @@ from litestar.exceptions import HTTPException
 from litestar.params import Parameter
 
 import core.crypto as crypto
+from core.guards import require_capability
 import core.db as db
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
@@ -507,7 +508,7 @@ class ContactsController(Controller):
     path = "/api/contacts"
     tags = ["contacts"]
 
-    @get()
+    @get(guards=[require_capability("contacts:read")])
     async def list_contacts(
         self,
         conn: psycopg.AsyncConnection,
@@ -560,7 +561,7 @@ class ContactsController(Controller):
                 data=[dict(row) for row in rows],
             )
 
-    @get("/{contact_id:uuid}")
+    @get("/{contact_id:uuid}", guards=[require_capability("contacts:read")])
     async def get_contact(
         self,
         conn: psycopg.AsyncConnection,
@@ -569,7 +570,7 @@ class ContactsController(Controller):
         """Get a single contact with all contact info."""
         return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
 
-    @post(status_code=201)
+    @post(status_code=201, guards=[require_capability("contacts:write")])
     async def create_contact(
         self,
         conn: psycopg.AsyncConnection,
@@ -655,7 +656,7 @@ class ContactsController(Controller):
 
         return await _get_persona_by_id(conn, persona_id, TEST_OWNER_ID)
 
-    @put("/{contact_id:uuid}")
+    @put("/{contact_id:uuid}", guards=[require_capability("contacts:write")])
     async def update_contact(
         self,
         conn: psycopg.AsyncConnection,
@@ -709,7 +710,7 @@ class ContactsController(Controller):
 
         return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
 
-    @delete("/{contact_id:uuid}", status_code=204)
+    @delete("/{contact_id:uuid}", status_code=204, guards=[require_capability("contacts:write")])
     async def delete_contact(
         self,
         conn: psycopg.AsyncConnection,
@@ -774,7 +775,7 @@ class ContactsController(Controller):
     # Contact Bits Endpoints
     # -------------------------------------------------------------------------
 
-    @post("/{contact_id:uuid}/bits", status_code=201)
+    @post("/{contact_id:uuid}/bits", status_code=201, guards=[require_capability("contacts:write")])
     async def create_bit(
         self,
         conn: psycopg.AsyncConnection,
@@ -786,7 +787,7 @@ class ContactsController(Controller):
         await _insert_bit(conn, contact_id, data)
         return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
 
-    @put("/{contact_id:uuid}/bits/{bit_id:uuid}")
+    @put("/{contact_id:uuid}/bits/{bit_id:uuid}", guards=[require_capability("contacts:write")])
     async def update_bit(
         self,
         conn: psycopg.AsyncConnection,
@@ -821,7 +822,7 @@ class ContactsController(Controller):
 
         return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
 
-    @delete("/{contact_id:uuid}/bits/{bit_id:uuid}", status_code=204)
+    @delete("/{contact_id:uuid}/bits/{bit_id:uuid}", status_code=204, guards=[require_capability("contacts:write")])
     async def delete_bit(
         self,
         conn: psycopg.AsyncConnection,
@@ -848,7 +849,7 @@ class ContactsController(Controller):
                 status_code=404, detail="Contact bit not found for this contact"
             )
 
-    @post("/{contact_id:uuid}/bits/reorder")
+    @post("/{contact_id:uuid}/bits/reorder", guards=[require_capability("contacts:write")])
     async def reorder_bits(
         self,
         conn: psycopg.AsyncConnection,
@@ -888,7 +889,7 @@ class ContactsController(Controller):
 
         return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
 
-    @get("/{contact_id:uuid}/bits/{bit_id:uuid}")
+    @get("/{contact_id:uuid}/bits/{bit_id:uuid}", guards=[require_capability("contacts:read")])
     async def get_bit(
         self,
         conn: psycopg.AsyncConnection,
@@ -971,7 +972,7 @@ class ContactsController(Controller):
 
         return SingleRowResponse(columns=bit_columns, data=bit)
 
-    @get("/{contact_id:uuid}/bits/{bit_id:uuid}/password")
+    @get("/{contact_id:uuid}/bits/{bit_id:uuid}/password", guards=[require_capability("contacts:passwords")])
     async def get_password(
         self,
         conn: psycopg.AsyncConnection,

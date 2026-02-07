@@ -6,6 +6,7 @@ from litestar import Controller, delete, get, post, put
 from litestar.exceptions import HTTPException
 
 import core.db as db
+from core.guards import require_capability
 from core.password import hash_password
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
@@ -72,7 +73,7 @@ class UsersController(Controller):
     path = "/api/users"
     tags = ["users"]
 
-    @get()
+    @get(guards=[require_capability("admin:users")])
     async def list_users(
         self,
         conn: psycopg.AsyncConnection,
@@ -88,7 +89,7 @@ class UsersController(Controller):
             columns=USER_COLUMNS,
         )
 
-    @get("/{user_id:uuid}")
+    @get("/{user_id:uuid}", guards=[require_capability("admin:users")])
     async def get_user(
         self,
         conn: psycopg.AsyncConnection,
@@ -97,7 +98,7 @@ class UsersController(Controller):
         """Get a single user by ID."""
         return await _get_user_by_id(conn, user_id)
 
-    @post(status_code=201)
+    @post(status_code=201, guards=[require_capability("admin:users")])
     async def create_user(
         self,
         conn: psycopg.AsyncConnection,
@@ -121,7 +122,7 @@ class UsersController(Controller):
             raise HTTPException(status_code=500, detail="Failed to create user")
         return SingleRowResponse(columns=USER_COLUMNS, data=result)
 
-    @put("/{user_id:uuid}")
+    @put("/{user_id:uuid}", guards=[require_capability("admin:users")])
     async def update_user(
         self,
         conn: psycopg.AsyncConnection,
@@ -162,7 +163,7 @@ class UsersController(Controller):
             raise HTTPException(status_code=404, detail="User not found")
         return SingleRowResponse(columns=USER_COLUMNS, data=row)
 
-    @delete("/{user_id:uuid}", status_code=204)
+    @delete("/{user_id:uuid}", status_code=204, guards=[require_capability("admin:users")])
     async def delete_user(
         self,
         conn: psycopg.AsyncConnection,
@@ -177,7 +178,7 @@ class UsersController(Controller):
         if count == 0:
             raise HTTPException(status_code=404, detail="User not found")
 
-    @get("/{user_id:uuid}/roles")
+    @get("/{user_id:uuid}/roles", guards=[require_capability("admin:users")])
     async def get_user_roles(
         self,
         conn: psycopg.AsyncConnection,
@@ -221,7 +222,7 @@ class UsersController(Controller):
 
         return MultiRowResponse(columns=USER_ROLE_COLUMNS, data=data)
 
-    @put("/{user_id:uuid}/roles")
+    @put("/{user_id:uuid}/roles", guards=[require_capability("admin:users")])
     async def update_user_roles(
         self,
         conn: psycopg.AsyncConnection,
@@ -290,7 +291,7 @@ class UsersController(Controller):
 
         return MultiRowResponse(columns=USER_ROLE_COLUMNS, data=role_data)
 
-    @put("/{user_id:uuid}/password", status_code=204)
+    @put("/{user_id:uuid}/password", status_code=204, guards=[require_capability("admin:users")])
     async def set_password(
         self,
         conn: psycopg.AsyncConnection,

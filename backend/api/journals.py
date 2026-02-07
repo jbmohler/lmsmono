@@ -6,6 +6,7 @@ from litestar import Controller, delete, get, post, put
 from litestar.exceptions import HTTPException
 
 import core.db as db
+from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
@@ -48,7 +49,7 @@ class JournalsController(Controller):
     path = "/api/journals"
     tags = ["journals"]
 
-    @get()
+    @get(guards=[require_capability("journals:read")])
     async def list_journals(
         self,
         conn: psycopg.AsyncConnection,
@@ -64,7 +65,7 @@ class JournalsController(Controller):
             columns=JOURNAL_COLUMNS,
         )
 
-    @get("/{journal_id:uuid}")
+    @get("/{journal_id:uuid}", guards=[require_capability("journals:read")])
     async def get_journal(
         self,
         conn: psycopg.AsyncConnection,
@@ -73,7 +74,7 @@ class JournalsController(Controller):
         """Get a single journal by ID."""
         return await _get_journal_by_id(conn, journal_id)
 
-    @post(status_code=201)
+    @post(status_code=201, guards=[require_capability("journals:write")])
     async def create_journal(
         self,
         conn: psycopg.AsyncConnection,
@@ -93,7 +94,7 @@ class JournalsController(Controller):
             raise HTTPException(status_code=500, detail="Failed to create journal")
         return SingleRowResponse(columns=JOURNAL_COLUMNS, data=row)
 
-    @put("/{journal_id:uuid}")
+    @put("/{journal_id:uuid}", guards=[require_capability("journals:write")])
     async def update_journal(
         self,
         conn: psycopg.AsyncConnection,
@@ -129,7 +130,7 @@ class JournalsController(Controller):
             raise HTTPException(status_code=404, detail="Journal not found")
         return SingleRowResponse(columns=JOURNAL_COLUMNS, data=row)
 
-    @delete("/{journal_id:uuid}", status_code=204)
+    @delete("/{journal_id:uuid}", status_code=204, guards=[require_capability("journals:write")])
     async def delete_journal(
         self,
         conn: psycopg.AsyncConnection,

@@ -7,6 +7,7 @@ from litestar.exceptions import HTTPException
 from litestar.params import Parameter
 
 import core.db as db
+from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse, make_ref
 
 
@@ -109,7 +110,7 @@ class AccountTypesController(Controller):
     path = "/api/account-types"
     tags = ["accounts"]
 
-    @get()
+    @get(guards=[require_capability("accounts:read")])
     async def list_account_types(
         self,
         conn: psycopg.AsyncConnection,
@@ -130,7 +131,7 @@ class AccountsController(Controller):
     path = "/api/accounts"
     tags = ["accounts"]
 
-    @get()
+    @get(guards=[require_capability("accounts:read")])
     async def list_accounts(
         self,
         conn: psycopg.AsyncConnection,
@@ -157,7 +158,7 @@ class AccountsController(Controller):
             data = [transform_account_row(dict(row)) for row in rows]
             return MultiRowResponse(columns=ACCOUNT_COLUMNS, data=data)
 
-    @get("/{account_id:uuid}")
+    @get("/{account_id:uuid}", guards=[require_capability("accounts:read")])
     async def get_account(
         self,
         conn: psycopg.AsyncConnection,
@@ -166,7 +167,7 @@ class AccountsController(Controller):
         """Get a single account by ID."""
         return await _get_account_by_id(conn, account_id)
 
-    @get("/{account_id:uuid}/transactions")
+    @get("/{account_id:uuid}/transactions", guards=[require_capability("transactions:read")])
     async def get_account_transactions(
         self,
         conn: psycopg.AsyncConnection,
@@ -208,7 +209,7 @@ class AccountsController(Controller):
                 })
             return MultiRowResponse(columns=ACCOUNT_TRANSACTION_COLUMNS, data=data)
 
-    @post(status_code=201)
+    @post(status_code=201, guards=[require_capability("accounts:write")])
     async def create_account(
         self,
         conn: psycopg.AsyncConnection,
@@ -233,7 +234,7 @@ class AccountsController(Controller):
             raise HTTPException(status_code=500, detail="Failed to create account")
         return await _get_account_by_id(conn, row["id"])
 
-    @put("/{account_id:uuid}")
+    @put("/{account_id:uuid}", guards=[require_capability("accounts:write")])
     async def update_account(
         self,
         conn: psycopg.AsyncConnection,
@@ -266,7 +267,7 @@ class AccountsController(Controller):
             raise HTTPException(status_code=404, detail="Account not found")
         return await _get_account_by_id(conn, account_id)
 
-    @delete("/{account_id:uuid}", status_code=204)
+    @delete("/{account_id:uuid}", status_code=204, guards=[require_capability("accounts:write")])
     async def delete_account(
         self,
         conn: psycopg.AsyncConnection,

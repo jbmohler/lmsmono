@@ -17,6 +17,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           router.navigate(['/login']);
         }
       }
+      // 403 errors are handled by individual components - they show the error
+      // but don't redirect since the user is still authenticated
       return throwError(() => error);
     })
   );

@@ -6,6 +6,7 @@ from litestar import Controller, delete, get, post, put
 from litestar.exceptions import HTTPException
 
 import core.db as db
+from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
@@ -68,7 +69,7 @@ class CapabilitiesController(Controller):
     path = "/api/capabilities"
     tags = ["capabilities"]
 
-    @get()
+    @get(guards=[require_capability("admin:roles")])
     async def list_capabilities(
         self,
         conn: psycopg.AsyncConnection,
@@ -89,7 +90,7 @@ class RolesController(Controller):
     path = "/api/roles"
     tags = ["roles"]
 
-    @get()
+    @get(guards=[require_capability("admin:roles")])
     async def list_roles(
         self,
         conn: psycopg.AsyncConnection,
@@ -105,7 +106,7 @@ class RolesController(Controller):
             columns=ROLE_COLUMNS,
         )
 
-    @get("/{role_id:uuid}")
+    @get("/{role_id:uuid}", guards=[require_capability("admin:roles")])
     async def get_role(
         self,
         conn: psycopg.AsyncConnection,
@@ -114,7 +115,7 @@ class RolesController(Controller):
         """Get a single role by ID."""
         return await _get_role_by_id(conn, role_id)
 
-    @post(status_code=201)
+    @post(status_code=201, guards=[require_capability("admin:roles")])
     async def create_role(
         self,
         conn: psycopg.AsyncConnection,
@@ -142,7 +143,7 @@ class RolesController(Controller):
             raise HTTPException(status_code=500, detail="Failed to create role")
         return SingleRowResponse(columns=ROLE_COLUMNS, data=result)
 
-    @put("/{role_id:uuid}")
+    @put("/{role_id:uuid}", guards=[require_capability("admin:roles")])
     async def update_role(
         self,
         conn: psycopg.AsyncConnection,
@@ -176,7 +177,7 @@ class RolesController(Controller):
             raise HTTPException(status_code=404, detail="Role not found")
         return SingleRowResponse(columns=ROLE_COLUMNS, data=row)
 
-    @delete("/{role_id:uuid}", status_code=204)
+    @delete("/{role_id:uuid}", status_code=204, guards=[require_capability("admin:roles")])
     async def delete_role(
         self,
         conn: psycopg.AsyncConnection,
@@ -198,7 +199,7 @@ class RolesController(Controller):
         if count == 0:
             raise HTTPException(status_code=404, detail="Role not found")
 
-    @get("/{role_id:uuid}/capabilities")
+    @get("/{role_id:uuid}/capabilities", guards=[require_capability("admin:roles")])
     async def get_role_capabilities(
         self,
         conn: psycopg.AsyncConnection,
@@ -242,7 +243,7 @@ class RolesController(Controller):
 
         return MultiRowResponse(columns=ROLE_CAPABILITY_COLUMNS, data=data)
 
-    @put("/{role_id:uuid}/capabilities")
+    @put("/{role_id:uuid}/capabilities", guards=[require_capability("admin:roles")])
     async def update_role_capabilities(
         self,
         conn: psycopg.AsyncConnection,

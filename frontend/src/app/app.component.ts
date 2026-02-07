@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from './core/auth/auth.service';
 
@@ -11,20 +11,18 @@ import { AuthService } from './core/auth/auth.service';
     '(window:keydown)': 'handleKeydown($event)',
   },
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   private router = inject(Router);
   private auth = inject(AuthService);
 
-  initialized = signal(false);
   isLoggedIn = this.auth.isLoggedIn;
   user = this.auth.user;
 
-  ngOnInit(): void {
-    this.auth.checkSession().subscribe({
-      next: () => this.initialized.set(true),
-      error: () => this.initialized.set(true),
-    });
-  }
+  // Show Admin tab if user has either admin capability
+  showAdmin = computed(() => {
+    const caps = this.auth.capabilities();
+    return caps.has('admin:users') || caps.has('admin:roles');
+  });
 
   logout(): void {
     this.auth.logout().subscribe(() => {
