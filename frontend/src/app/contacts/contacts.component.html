@@ -79,6 +79,7 @@
         (back)="mobileShowDetail.set(false)"
         [contact]="contact"
         (contactSaved)="onContactSaved($event)"
+        (contactRefresh)="refreshSelectedContact()"
         (bitAdded)="onBitAdded($event)"
         (bitUpdated)="onBitUpdated($event)"
         (bitDeleted)="onBitDeleted($event)"

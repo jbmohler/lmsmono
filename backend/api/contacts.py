@@ -6,10 +6,11 @@ from uuid import UUID
 import psycopg
 import psycopg.rows
 from litestar import Controller, delete, get, post, put
-from litestar.exceptions import HTTPException
+from litestar.exceptions import HTTPException, PermissionDeniedException
 from litestar.params import Parameter
 
 import core.crypto as crypto
+from core.auth import AuthenticatedUser
 from core.guards import require_capability
 import core.db as db
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
@@ -44,6 +45,7 @@ PERSONA_LIST_COLUMNS = [
     ColumnMeta(key="organization", label="Organization", type="string"),
     ColumnMeta(key="primary_email", label="Email", type="string"),
     ColumnMeta(key="primary_phone", label="Phone", type="string"),
+    ColumnMeta(key="is_owner", label="Owner", type="boolean"),
 ]
 
 # Column definitions for persona detail (full view with bits)
@@ -59,6 +61,8 @@ PERSONA_DETAIL_COLUMNS = [
     ColumnMeta(key="anniversary", label="Anniversary", type="date"),
     ColumnMeta(key="entity_name", label="Display Name", type="string"),
     ColumnMeta(key="bits", label="Contact Info", type="array"),
+    ColumnMeta(key="owner_id", label="Owner ID", type="uuid"),
+    ColumnMeta(key="is_owner", label="Owner", type="boolean"),
 ]
 
 
@@ -157,11 +161,6 @@ class BitReorderRequest:
     items: list[BitReorderItem]
 
 
-# TODO: Replace with session-based authentication
-# For now, use a test owner ID for development
-TEST_OWNER_ID = "00000000-0000-0000-0000-000000000001"
-
-
 async def _get_bits_for_persona(
     conn: psycopg.AsyncConnection, persona_id: UUID
 ) -> list[dict]:
@@ -214,9 +213,12 @@ async def _get_bits_for_persona(
 
 
 async def _get_persona_by_id(
-    conn: psycopg.AsyncConnection, persona_id: UUID, owner_id: str
+    conn: psycopg.AsyncConnection, persona_id: UUID, user_id: str
 ) -> SingleRowResponse:
-    """Get a single persona with all its bits."""
+    """Get a single persona with all its bits.
+
+    The user must have access via persona_shares.
+    """
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
             """
@@ -230,12 +232,15 @@ async def _get_persona_by_id(
                 p.memo,
                 p.birthday,
                 p.anniversary,
-                pc.entity_name
+                pc.entity_name,
+                p.owner_id,
+                p.owner_id = %(user_id)s AS is_owner
             FROM contacts.personas p
             JOIN contacts.personas_calc pc ON pc.id = p.id
-            WHERE p.id = %(id)s AND p.owner_id = %(owner_id)s
+            JOIN contacts.persona_shares ps ON ps.persona_id = p.id
+            WHERE p.id = %(id)s AND ps.user_id = %(user_id)s
             """,
-            {"id": persona_id, "owner_id": owner_id},
+            {"id": persona_id, "user_id": user_id},
         )
         row = await cur.fetchone()
         if not row:
@@ -247,21 +252,43 @@ async def _get_persona_by_id(
         return SingleRowResponse(columns=PERSONA_DETAIL_COLUMNS, data=data)
 
 
-async def _verify_persona_ownership(
-    conn: psycopg.AsyncConnection, persona_id: UUID, owner_id: str
-) -> None:
-    """Verify that a persona exists and belongs to the owner."""
-    async with conn.cursor() as cur:
+async def _verify_persona_access(
+    conn: psycopg.AsyncConnection, persona_id: UUID, user_id: str, require_owner: bool = False
+) -> bool:
+    """Check if user can access persona.
+
+    Args:
+        conn: Database connection
+        persona_id: The persona UUID
+        user_id: The user UUID
+        require_owner: If True, raise 403 if user is not owner
+
+    Returns:
+        True if user is the owner, False if just shared
+
+    Raises:
+        HTTPException 404 if no access
+        PermissionDeniedException if require_owner and not owner
+    """
+    async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
             """
-            SELECT id FROM contacts.personas
-            WHERE id = %(id)s AND owner_id = %(owner_id)s
+            SELECT
+                p.owner_id = %(user_id)s AS is_owner
+            FROM contacts.personas p
+            JOIN contacts.persona_shares ps ON ps.persona_id = p.id
+            WHERE p.id = %(id)s AND ps.user_id = %(user_id)s
             """,
-            {"id": persona_id, "owner_id": owner_id},
+            {"id": persona_id, "user_id": user_id},
         )
         row = await cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Contact not found")
+
+        is_owner = row["is_owner"]
+        if require_owner and not is_owner:
+            raise PermissionDeniedException(detail="Only the owner can modify this contact")
+        return is_owner
 
 
 async def _get_bit_type(conn: psycopg.AsyncConnection, bit_id: UUID) -> str | None:
@@ -504,6 +531,49 @@ async def _update_bit(
     )
 
 
+# Column definitions for persona shares
+PERSONA_SHARE_COLUMNS = [
+    ColumnMeta(key="user", label="User", type="ref"),
+    ColumnMeta(key="is_owner", label="Owner", type="boolean"),
+]
+
+
+async def _get_persona_shares(
+    conn: psycopg.AsyncConnection, persona_id: UUID
+) -> MultiRowResponse:
+    """Get list of users who have access to a persona."""
+    async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        await cur.execute(
+            """
+            SELECT
+                u.id AS user_id,
+                u.username,
+                u.full_name,
+                p.owner_id = u.id AS is_owner
+            FROM contacts.persona_shares ps
+            JOIN users u ON u.id = ps.user_id
+            JOIN contacts.personas p ON p.id = ps.persona_id
+            WHERE ps.persona_id = %(persona_id)s
+            ORDER BY
+                p.owner_id = u.id DESC,
+                u.full_name,
+                u.username
+            """,
+            {"persona_id": persona_id},
+        )
+        rows = await cur.fetchall()
+
+    data = [
+        {
+            "user": {"id": str(row["user_id"]), "name": row["full_name"] or row["username"]},
+            "is_owner": row["is_owner"],
+        }
+        for row in rows
+    ]
+
+    return MultiRowResponse(columns=PERSONA_SHARE_COLUMNS, data=data)
+
+
 class ContactsController(Controller):
     path = "/api/contacts"
     tags = ["contacts"]
@@ -512,11 +582,12 @@ class ContactsController(Controller):
     async def list_contacts(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         search: str | None = Parameter(default=None, description="Search query"),
         limit: int = Parameter(default=50, le=500, ge=1),
         offset: int = Parameter(default=0, ge=0),
     ) -> MultiRowResponse:
-        """List all contacts with optional search."""
+        """List all contacts accessible to the current user."""
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
                 """
@@ -536,11 +607,13 @@ class ContactsController(Controller):
                         FROM contacts.phone_numbers
                         WHERE persona_id = p.id AND is_primary = true
                         LIMIT 1
-                    ) AS primary_phone
+                    ) AS primary_phone,
+                    p.owner_id = %(user_id)s AS is_owner
                 FROM contacts.personas p
                 JOIN contacts.personas_calc pc ON pc.id = p.id
+                JOIN contacts.persona_shares ps ON ps.persona_id = p.id
                 WHERE
-                    p.owner_id = %(owner_id)s
+                    ps.user_id = %(user_id)s
                     AND (
                         %(search)s::text IS NULL
                         OR pc.fts_search @@ websearch_to_tsquery('english', %(search)s)
@@ -549,7 +622,7 @@ class ContactsController(Controller):
                 LIMIT %(limit)s OFFSET %(offset)s
                 """,
                 {
-                    "owner_id": TEST_OWNER_ID,
+                    "user_id": current_user.id,
                     "search": search,
                     "limit": limit,
                     "offset": offset,
@@ -565,15 +638,17 @@ class ContactsController(Controller):
     async def get_contact(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
     ) -> SingleRowResponse:
         """Get a single contact with all contact info."""
-        return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
+        return await _get_persona_by_id(conn, contact_id, current_user.id)
 
     @post(status_code=201, guards=[require_capability("contacts:write")])
     async def create_contact(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         data: PersonaCreate,
     ) -> SingleRowResponse:
         """Create a new contact."""
@@ -630,7 +705,7 @@ class ContactsController(Controller):
                         "memo": data.memo,
                         "birthday": data.birthday,
                         "anniversary": data.anniversary,
-                        "owner_id": TEST_OWNER_ID,
+                        "owner_id": current_user.id,
                     },
                 )
                 row = await cur.fetchone()
@@ -646,7 +721,7 @@ class ContactsController(Controller):
                     INSERT INTO contacts.persona_shares (persona_id, user_id)
                     VALUES (%(persona_id)s, %(user_id)s)
                     """,
-                    {"persona_id": persona_id, "user_id": TEST_OWNER_ID},
+                    {"persona_id": persona_id, "user_id": current_user.id},
                 )
 
                 await cur.execute("COMMIT")
@@ -654,19 +729,22 @@ class ContactsController(Controller):
                 await cur.execute("ROLLBACK")
                 raise
 
-        return await _get_persona_by_id(conn, persona_id, TEST_OWNER_ID)
+        return await _get_persona_by_id(conn, persona_id, current_user.id)
 
     @put("/{contact_id:uuid}", guards=[require_capability("contacts:write")])
     async def update_contact(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
         data: PersonaUpdate,
     ) -> SingleRowResponse:
-        """Update an existing contact."""
+        """Update an existing contact. Only the owner can update."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
+
         # Build dynamic update query
         updates = []
-        params: dict = {"id": contact_id, "owner_id": TEST_OWNER_ID}
+        params: dict = {"id": contact_id}
 
         if data.is_corporate is not None:
             updates.append("corporate_entity = %(is_corporate)s")
@@ -694,41 +772,29 @@ class ContactsController(Controller):
             params["anniversary"] = data.anniversary
 
         if not updates:
-            return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
+            return await _get_persona_by_id(conn, contact_id, current_user.id)
 
-        count = await db.execute(
+        await db.execute(
             conn,
             f"""
             UPDATE contacts.personas
             SET {", ".join(updates)}
-            WHERE id = %(id)s AND owner_id = %(owner_id)s
+            WHERE id = %(id)s
             """,
             params,
         )
-        if count == 0:
-            raise HTTPException(status_code=404, detail="Contact not found")
 
-        return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
+        return await _get_persona_by_id(conn, contact_id, current_user.id)
 
     @delete("/{contact_id:uuid}", status_code=204, guards=[require_capability("contacts:write")])
     async def delete_contact(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
     ) -> None:
-        """Delete a contact and all associated bits."""
-        # Check if contact exists and belongs to owner
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT id FROM contacts.personas
-                WHERE id = %(id)s AND owner_id = %(owner_id)s
-                """,
-                {"id": contact_id, "owner_id": TEST_OWNER_ID},
-            )
-            row = await cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail="Contact not found")
+        """Delete a contact and all associated bits. Only the owner can delete."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
 
         # Delete persona_shares first (due to FK constraint)
         await db.execute(
@@ -760,16 +826,11 @@ class ContactsController(Controller):
         )
 
         # Delete the persona
-        count = await db.execute(
+        await db.execute(
             conn,
-            """
-            DELETE FROM contacts.personas
-            WHERE id = %(id)s AND owner_id = %(owner_id)s
-            """,
-            {"id": contact_id, "owner_id": TEST_OWNER_ID},
+            "DELETE FROM contacts.personas WHERE id = %(id)s",
+            {"id": contact_id},
         )
-        if count == 0:
-            raise HTTPException(status_code=404, detail="Contact not found")
 
     # -------------------------------------------------------------------------
     # Contact Bits Endpoints
@@ -779,24 +840,26 @@ class ContactsController(Controller):
     async def create_bit(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
         data: BitCreate,
     ) -> SingleRowResponse:
-        """Add a new contact bit (email, phone, address, or URL)."""
-        await _verify_persona_ownership(conn, contact_id, TEST_OWNER_ID)
+        """Add a new contact bit (email, phone, address, or URL). Owner only."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
         await _insert_bit(conn, contact_id, data)
-        return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
+        return await _get_persona_by_id(conn, contact_id, current_user.id)
 
     @put("/{contact_id:uuid}/bits/{bit_id:uuid}", guards=[require_capability("contacts:write")])
     async def update_bit(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
         bit_id: UUID,
-    data: BitUpdate,
+        data: BitUpdate,
     ) -> SingleRowResponse:
-        """Update an existing contact bit."""
-        await _verify_persona_ownership(conn, contact_id, TEST_OWNER_ID)
+        """Update an existing contact bit. Owner only."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
 
         # Determine which table the bit is in
         bit_type = await _get_bit_type(conn, bit_id)
@@ -820,17 +883,18 @@ class ContactsController(Controller):
         if count == 0:
             raise HTTPException(status_code=404, detail="Contact bit not found")
 
-        return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
+        return await _get_persona_by_id(conn, contact_id, current_user.id)
 
     @delete("/{contact_id:uuid}/bits/{bit_id:uuid}", status_code=204, guards=[require_capability("contacts:write")])
     async def delete_bit(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
         bit_id: UUID,
     ) -> None:
-        """Remove a contact bit."""
-        await _verify_persona_ownership(conn, contact_id, TEST_OWNER_ID)
+        """Remove a contact bit. Owner only."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
 
         # Determine which table the bit is in
         bit_type = await _get_bit_type(conn, bit_id)
@@ -853,11 +917,12 @@ class ContactsController(Controller):
     async def reorder_bits(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
         data: BitReorderRequest,
     ) -> SingleRowResponse:
-        """Bulk update bit sequences for reordering."""
-        await _verify_persona_ownership(conn, contact_id, TEST_OWNER_ID)
+        """Bulk update bit sequences for reordering. Owner only."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
 
         for item in data.items:
             bit_id = UUID(item.id)
@@ -887,17 +952,18 @@ class ContactsController(Controller):
                     detail=f"Contact bit not found for this contact: {item.id}",
                 )
 
-        return await _get_persona_by_id(conn, contact_id, TEST_OWNER_ID)
+        return await _get_persona_by_id(conn, contact_id, current_user.id)
 
     @get("/{contact_id:uuid}/bits/{bit_id:uuid}", guards=[require_capability("contacts:read")])
     async def get_bit(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
         bit_id: UUID,
     ) -> SingleRowResponse:
         """Get a single contact bit by ID."""
-        await _verify_persona_ownership(conn, contact_id, TEST_OWNER_ID)
+        await _verify_persona_access(conn, contact_id, current_user.id)
 
         # Determine which table the bit is in
         bit_type = await _get_bit_type(conn, bit_id)
@@ -976,6 +1042,7 @@ class ContactsController(Controller):
     async def get_password(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         contact_id: UUID,
         bit_id: UUID,
     ) -> SingleRowResponse:
@@ -984,7 +1051,7 @@ class ContactsController(Controller):
         Only URL bits can have passwords. Returns 404 if the bit doesn't exist,
         isn't a URL bit, or has no password set.
         """
-        await _verify_persona_ownership(conn, contact_id, TEST_OWNER_ID)
+        await _verify_persona_access(conn, contact_id, current_user.id)
 
         # Only URL bits have passwords
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
@@ -1016,3 +1083,136 @@ class ContactsController(Controller):
             columns=[ColumnMeta(key="password", label="Password", type="string")],
             data={"password": password},
         )
+
+    # -------------------------------------------------------------------------
+    # Sharing Endpoints
+    # -------------------------------------------------------------------------
+
+    @get("/{contact_id:uuid}/shares", guards=[require_capability("contacts:read")])
+    async def list_shares(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+        contact_id: UUID,
+    ) -> MultiRowResponse:
+        """List all users who have access to this contact."""
+        await _verify_persona_access(conn, contact_id, current_user.id)
+        return await _get_persona_shares(conn, contact_id)
+
+    @post("/{contact_id:uuid}/shares", status_code=201, guards=[require_capability("contacts:write")])
+    async def add_share(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+        contact_id: UUID,
+        data: dict,
+    ) -> MultiRowResponse:
+        """Share a contact with another user. Owner only."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
+
+        user_id = data.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+
+        # Verify target user exists
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT id FROM users WHERE id = %(user_id)s AND NOT inactive",
+                {"user_id": user_id},
+            )
+            if not await cur.fetchone():
+                raise HTTPException(status_code=404, detail="User not found")
+
+        # Add share (ignore if already shared)
+        await db.execute(
+            conn,
+            """
+            INSERT INTO contacts.persona_shares (persona_id, user_id)
+            VALUES (%(persona_id)s, %(user_id)s)
+            ON CONFLICT (persona_id, user_id) DO NOTHING
+            """,
+            {"persona_id": contact_id, "user_id": user_id},
+        )
+
+        return await _get_persona_shares(conn, contact_id)
+
+    @delete("/{contact_id:uuid}/shares/{user_id:uuid}", status_code=204, guards=[require_capability("contacts:write")])
+    async def remove_share(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+        contact_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        """Remove a user's access to a contact. Owner only."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
+
+        # Cannot remove owner's share
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT owner_id FROM contacts.personas WHERE id = %(id)s",
+                {"id": contact_id},
+            )
+            row = await cur.fetchone()
+            if row and str(row[0]) == str(user_id):
+                raise HTTPException(
+                    status_code=400, detail="Cannot remove owner's access"
+                )
+
+        count = await db.execute(
+            conn,
+            """
+            DELETE FROM contacts.persona_shares
+            WHERE persona_id = %(persona_id)s AND user_id = %(user_id)s
+            """,
+            {"persona_id": contact_id, "user_id": user_id},
+        )
+        if count == 0:
+            raise HTTPException(status_code=404, detail="Share not found")
+
+    @post("/{contact_id:uuid}/transfer-ownership", guards=[require_capability("contacts:write")])
+    async def transfer_ownership(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+        contact_id: UUID,
+        data: dict,
+    ) -> SingleRowResponse:
+        """Transfer ownership to another user. Current owner becomes shared user."""
+        await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
+
+        new_owner_id = data.get("new_owner_id")
+        if not new_owner_id:
+            raise HTTPException(status_code=400, detail="new_owner_id is required")
+
+        if str(new_owner_id) == current_user.id:
+            raise HTTPException(status_code=400, detail="Already the owner")
+
+        # Verify new owner exists
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT id FROM users WHERE id = %(user_id)s AND NOT inactive",
+                {"user_id": new_owner_id},
+            )
+            if not await cur.fetchone():
+                raise HTTPException(status_code=404, detail="User not found")
+
+        # Ensure new owner is in shares
+        await db.execute(
+            conn,
+            """
+            INSERT INTO contacts.persona_shares (persona_id, user_id)
+            VALUES (%(persona_id)s, %(user_id)s)
+            ON CONFLICT (persona_id, user_id) DO NOTHING
+            """,
+            {"persona_id": contact_id, "user_id": new_owner_id},
+        )
+
+        # Transfer ownership
+        await db.execute(
+            conn,
+            "UPDATE contacts.personas SET owner_id = %(new_owner_id)s WHERE id = %(id)s",
+            {"id": contact_id, "new_owner_id": new_owner_id},
+        )
+
+        return await _get_persona_by_id(conn, contact_id, current_user.id)

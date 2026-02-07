@@ -6,6 +6,7 @@ from litestar.di import Provide
 
 from core.config import AppConfig
 from core.crypto import init_crypto
+from core.auth import provide_current_user
 from core.db import init_pool, close_pool, provide_connection
 from api.auth import AuthController
 from api.health import HealthController, PingController
@@ -59,6 +60,7 @@ app = Litestar(
     ],
     dependencies={
         "conn": Provide(provide_connection),
+        "current_user": Provide(provide_current_user),
     },
     middleware=[SessionMiddleware],
     lifespan=[lifespan],

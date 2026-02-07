@@ -1,0 +1,115 @@
+<div class="sharing-panel">
+  <!-- Toggle header -->
+  <button
+    (click)="toggle()"
+    class="w-full flex items-center justify-between py-2 text-left gap-2"
+  >
+    <div class="flex items-center gap-2 min-w-0 flex-1">
+      <span class="text-xs font-medium text-gray-500 uppercase tracking-wider shrink-0">Sharing</span>
+      @if (loaded() && !loading()) {
+        <span class="text-xs text-gray-400 truncate">
+          @if (owner(); as o) {
+            <span class="text-gray-600">{{ o.user.name }}</span>
+            @if (shareSummary()) {
+              <span class="text-gray-400"> · shared with {{ shareSummary() }}</span>
+            }
+          }
+        </span>
+      } @else if (loading()) {
+        <span class="text-xs text-gray-400">...</span>
+      }
+    </div>
+    <svg
+      class="w-4 h-4 text-gray-400 transition-transform shrink-0"
+      [class.rotate-180]="expanded()"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  @if (expanded()) {
+    <div class="pt-2 flex flex-col gap-3">
+      <!-- Owner info -->
+      @if (owner(); as ownerShare) {
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-gray-500">Owner:</span>
+          <span class="font-medium text-gray-700">{{ ownerShare.user.name }}</span>
+        </div>
+      }
+
+      <!-- Shared users list -->
+      @if (sharedUsers().length > 0) {
+        <div class="flex flex-col gap-2">
+          <span class="text-xs text-gray-500">Shared with:</span>
+          @for (share of sharedUsers(); track share.user.id) {
+            <div class="flex items-center justify-between gap-2 py-1">
+              <span class="text-sm text-gray-700">{{ share.user.name }}</span>
+              @if (isOwner()) {
+                <div class="flex items-center gap-1">
+                  <button
+                    (click)="transferOwnership(share.user.id)"
+                    class="text-xs text-blue-600 hover:text-blue-800"
+                    title="Make this user the owner"
+                    [disabled]="loading()"
+                  >
+                    Give
+                  </button>
+                  <button
+                    (click)="removeShare(share.user.id)"
+                    class="text-xs text-red-600 hover:text-red-800"
+                    title="Remove access"
+                    [disabled]="loading()"
+                  >
+                    Remove
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Add share (owner only) -->
+      @if (isOwner()) {
+        <div class="pt-2 border-t border-gray-100">
+          <div class="relative">
+            <input
+              type="text"
+              [ngModel]="searchQuery()"
+              (ngModelChange)="searchQuery.set($event)"
+              (input)="onSearchInput()"
+              placeholder="Search users to share with..."
+              class="w-full text-sm"
+              [disabled]="loading()"
+            />
+            @if (searching()) {
+              <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">...</span>
+            }
+          </div>
+
+          @if (searchResults().length > 0) {
+            <div class="mt-1 border border-gray-200 rounded-md bg-white shadow-sm max-h-40 overflow-y-auto">
+              @for (user of searchResults(); track user.id) {
+                <button
+                  (click)="addShare(user)"
+                  class="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between"
+                  [disabled]="loading()"
+                >
+                  <span>{{ user.fullName }}</span>
+                  <span class="text-xs text-gray-400">{{ user.username }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="text-xs text-gray-400 italic">
+          You have read-only access to this contact.
+        </p>
+      }
+    </div>
+  }
+</div>

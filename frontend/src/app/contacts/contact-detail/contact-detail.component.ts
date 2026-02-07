@@ -9,13 +9,14 @@ import {
   ContactUrl,
 } from '../contacts.model';
 import { BitEditDialogComponent, BitEditResult } from '../bit-edit-dialog/bit-edit-dialog.component';
+import { SharingPanelComponent } from '../sharing-panel/sharing-panel.component';
 import { ContactsService } from '../services/contacts.service';
 
 @Component({
   selector: 'app-contact-detail',
   templateUrl: './contact-detail.component.html',
   styleUrl: './contact-detail.component.scss',
-  imports: [FormsModule, BitEditDialogComponent],
+  imports: [FormsModule, BitEditDialogComponent, SharingPanelComponent],
   host: {
     '(keydown)': 'handleKeydown($event)',
   },
@@ -26,6 +27,7 @@ export class ContactDetailComponent {
   contact = input.required<Persona>();
   back = output<void>();
   contactSaved = output<Persona>();
+  contactRefresh = output<void>();
   bitUpdated = output<{ bitId: string; changes: Partial<ContactBit>; password?: string; clearPassword?: boolean }>();
   bitAdded = output<{ bit: ContactBit; password?: string }>();
   bitDeleted = output<{ bitId: string }>();
@@ -404,5 +406,10 @@ export class ContactDetailComponent {
     } catch {
       // Error is handled by service
     }
+  }
+
+  /** Refresh contact data (called after sharing changes) */
+  refreshContact(): void {
+    this.contactRefresh.emit();
   }
 }

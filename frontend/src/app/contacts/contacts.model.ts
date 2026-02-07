@@ -49,4 +49,21 @@ export interface Persona {
   anniversary: string | null;
   isCorporate: boolean;
   bits: ContactBit[];
+  ownerId?: string;
+  isOwner?: boolean;
+}
+
+export interface PersonaListItem {
+  id: string;
+  entityName: string;
+  isCorporate: boolean;
+  organization: string;
+  primaryEmail: string;
+  primaryPhone: string;
+  isOwner: boolean;
+}
+
+export interface PersonaShare {
+  user: { id: string; name: string };
+  isOwner: boolean;
 }

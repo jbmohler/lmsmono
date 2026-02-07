@@ -10,17 +10,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ContactDetailComponent } from './contact-detail/contact-detail.component';
 import { ContactsService } from './services/contacts.service';
-import { ContactBit, Persona } from './contacts.model';
-
-/** List item from API (minimal data for sidebar) */
-interface ContactListItem {
-  id: string;
-  entityName: string;
-  isCorporate: boolean;
-  organization: string;
-  primaryEmail: string;
-  primaryPhone: string;
-}
+import { ContactBit, Persona, PersonaListItem } from './contacts.model';
 
 @Component({
   selector: 'app-contacts',
@@ -120,7 +110,7 @@ export class ContactsComponent {
     this.selectContactById(list[newIndex].id);
   }
 
-  selectContact(contact: ContactListItem): void {
+  selectContact(contact: PersonaListItem): void {
     this.selectContactById(contact.id);
   }
 
@@ -320,18 +310,31 @@ export class ContactsComponent {
   }
 
   // Display helpers for list items
-  getDisplayName(contact: ContactListItem): string {
+  getDisplayName(contact: PersonaListItem): string {
     return contact.entityName;
   }
 
-  getSubtitle(contact: ContactListItem): string {
+  getSubtitle(contact: PersonaListItem): string {
     if (contact.isCorporate) {
       return 'Company';
     }
     return contact.organization || '';
   }
 
-  trackById(_index: number, contact: ContactListItem): string {
+  trackById(_index: number, contact: PersonaListItem): string {
     return contact.id;
+  }
+
+  /** Refresh the currently selected contact */
+  async refreshSelectedContact(): Promise<void> {
+    const contactId = this.selectedContactId();
+    if (!contactId) return;
+
+    try {
+      const contact = await this.contactsService.getById(contactId);
+      this.selectedContact.set(contact);
+    } catch {
+      // Error is handled by service
+    }
   }
 }

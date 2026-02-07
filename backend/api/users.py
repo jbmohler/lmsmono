@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from uuid import UUID
 
 import psycopg
+import psycopg.rows
 from litestar import Controller, delete, get, post, put
 from litestar.exceptions import HTTPException
+from litestar.params import Parameter
 
 import core.db as db
 from core.guards import require_capability
@@ -72,6 +74,41 @@ async def _get_user_by_id(
 class UsersController(Controller):
     path = "/api/users"
     tags = ["users"]
+
+    @get("/search", guards=[require_capability("contacts:write")])
+    async def search_users(
+        self,
+        conn: psycopg.AsyncConnection,
+        q: str = Parameter(description="Search query", min_length=1),
+    ) -> MultiRowResponse:
+        """Search for users by username or full name.
+
+        Used for contact sharing. Requires contacts:write capability.
+        """
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT id, username, full_name
+                FROM users
+                WHERE
+                    NOT inactive
+                    AND (
+                        username ILIKE %(pattern)s
+                        OR full_name ILIKE %(pattern)s
+                    )
+                ORDER BY full_name, username
+                LIMIT 10
+                """,
+                {"pattern": f"%{q}%"},
+            )
+            rows = await cur.fetchall()
+
+        columns = [
+            ColumnMeta(key="id", label="ID", type="uuid"),
+            ColumnMeta(key="username", label="Username", type="string"),
+            ColumnMeta(key="full_name", label="Full Name", type="string"),
+        ]
+        return MultiRowResponse(columns=columns, data=[dict(row) for row in rows])
 
     @get(guards=[require_capability("admin:users")])
     async def list_users(

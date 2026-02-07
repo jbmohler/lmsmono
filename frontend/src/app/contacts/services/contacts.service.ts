@@ -1,11 +1,14 @@
 import { Injectable, inject, computed, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { Subject, of } from 'rxjs';
-import { startWith, switchMap, catchError, tap } from 'rxjs/operators';
+import { toSignal, toObservable } from '@angular/core/rxjs-interop';
+import { Subject, of, combineLatest } from 'rxjs';
+import { startWith, switchMap, catchError, tap, filter } from 'rxjs/operators';
 
 import { ApiService } from '@core/api/api.service';
+import { AuthService } from '@core/auth/auth.service';
 import {
   Persona,
+  PersonaListItem,
+  PersonaShare,
   ContactBit,
   ContactEmail,
   ContactPhone,
@@ -28,6 +31,8 @@ interface ApiPersona {
   anniversary: string | null;
   entity_name: string;
   bits?: ApiBit[];
+  owner_id?: string;
+  is_owner?: boolean;
 }
 
 interface ApiPersonaListItem {
@@ -37,6 +42,12 @@ interface ApiPersonaListItem {
   organization: string | null;
   primary_email: string | null;
   primary_phone: string | null;
+  is_owner: boolean;
+}
+
+interface ApiPersonaShare {
+  user: { id: string; name: string };
+  is_owner: boolean;
 }
 
 interface ApiBit {
@@ -197,6 +208,8 @@ function transformPersona(api: ApiPersona): Persona {
     birthday: api.birthday,
     anniversary: api.anniversary,
     bits: (api.bits ?? []).map(transformBit),
+    ownerId: api.owner_id,
+    isOwner: api.is_owner,
   };
 }
 
@@ -308,10 +321,12 @@ function toBitUpdate(
 
 /**
  * Service for contact operations with reactive state.
+ * Automatically resets when the authenticated user changes.
  */
 @Injectable({ providedIn: 'root' })
 export class ContactsService {
   private api = inject(ApiService);
+  private auth = inject(AuthService);
 
   // Loading and error state
   loading = signal(false);
@@ -320,9 +335,16 @@ export class ContactsService {
   // Contact list with refresh trigger
   private refreshList$ = new Subject<void>();
 
+  // Convert auth user to observable for combining with refresh trigger
+  private user$ = toObservable(this.auth.user);
+
   private contactsResponse = toSignal(
-    this.refreshList$.pipe(
-      startWith(undefined),
+    combineLatest([
+      this.user$,
+      this.refreshList$.pipe(startWith(undefined)),
+    ]).pipe(
+      // Only load if user is logged in
+      filter(([user]) => user !== null),
       tap(() => {
         this.loading.set(true);
         this.error.set(null);
@@ -341,7 +363,10 @@ export class ContactsService {
   );
 
   /** All contacts (list view - minimal data) */
-  contactsList = computed(() => {
+  contactsList = computed<PersonaListItem[]>(() => {
+    // Return empty if not logged in
+    if (!this.auth.user()) return [];
+
     const response = this.contactsResponse();
     if (!response) return [];
     return response.data.map(item => ({
@@ -351,6 +376,7 @@ export class ContactsService {
       organization: item.organization ?? '',
       primaryEmail: item.primary_email ?? '',
       primaryPhone: item.primary_phone ?? '',
+      isOwner: item.is_owner,
     }));
   });
 
@@ -549,6 +575,77 @@ export class ContactsService {
     } catch (err: unknown) {
       this.loading.set(false);
       const message = err instanceof Error ? err.message : 'Failed to reorder contact info';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Sharing Methods
+  // -------------------------------------------------------------------------
+
+  /** Get list of users with access to this contact */
+  async getShares(contactId: string): Promise<PersonaShare[]> {
+    try {
+      const response = await this.api
+        .getMany<ApiPersonaShare>(`/api/contacts/${contactId}/shares`)
+        .toPromise();
+      return (response?.data ?? []).map(s => ({
+        user: s.user,
+        isOwner: s.is_owner,
+      }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load shares';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  /** Share a contact with another user */
+  async addShare(contactId: string, userId: string): Promise<PersonaShare[]> {
+    try {
+      const response = await this.api
+        .create<ApiPersonaShare, { user_id: string }>(`/api/contacts/${contactId}/shares`, {
+          user_id: userId,
+        })
+        .toPromise();
+      // Response is a MultiRowResponse with updated shares list
+      const shares = (response as unknown as { data: ApiPersonaShare[] })?.data ?? [];
+      return shares.map(s => ({
+        user: s.user,
+        isOwner: s.is_owner,
+      }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to share contact';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  /** Remove a user's access to a contact */
+  async removeShare(contactId: string, userId: string): Promise<void> {
+    try {
+      await this.api.delete(`/api/contacts/${contactId}/shares/${userId}`).toPromise();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to remove share';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  /** Transfer ownership to another user */
+  async transferOwnership(contactId: string, newOwnerId: string): Promise<Persona> {
+    try {
+      const response = await this.api
+        .create<ApiPersona, { new_owner_id: string }>(
+          `/api/contacts/${contactId}/transfer-ownership`,
+          { new_owner_id: newOwnerId }
+        )
+        .toPromise();
+      this.refreshContacts();
+      return transformPersona(response!.data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to transfer ownership';
       this.error.set(message);
       throw err;
     }
