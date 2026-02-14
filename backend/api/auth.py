@@ -10,6 +10,34 @@ from litestar.exceptions import NotAuthorizedException
 
 from core.auth import AuthenticatedUser
 from core.password import verify_password
+from core.queries_admin import sql_select_user_capabilities
+
+
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_user_by_username() -> str:
+    """Get user by username for login."""
+    return """
+        SELECT id, username, full_name, pwhash, inactive
+        FROM users
+        WHERE username = %(username)s
+    """
+
+
+def sql_insert_session() -> str:
+    """Create a new session."""
+    return """
+        INSERT INTO sessions (id, userid, issued, expires)
+        VALUES (%(id)s, %(userid)s, %(issued)s, %(expires)s)
+    """
+
+
+def sql_update_session_inactive() -> str:
+    """Invalidate a session on logout."""
+    return "UPDATE sessions SET inactive = true WHERE id = %(id)s"
 
 
 @dataclass
@@ -50,11 +78,7 @@ class AuthController(Controller):
         # Look up user by username
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                SELECT id, username, full_name, pwhash, inactive
-                FROM users
-                WHERE username = %(username)s
-                """,
+                sql_select_user_by_username(),
                 {"username": data.username},
             )
             row = await cur.fetchone()
@@ -83,10 +107,7 @@ class AuthController(Controller):
 
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                INSERT INTO sessions (id, userid, issued, expires)
-                VALUES (%(id)s, %(userid)s, %(issued)s, %(expires)s)
-                """,
+                sql_insert_session(),
                 {
                     "id": session_id,
                     "userid": user_id,
@@ -128,7 +149,7 @@ class AuthController(Controller):
         if session_id:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "UPDATE sessions SET inactive = true WHERE id = %(id)s",
+                    sql_update_session_inactive(),
                     {"id": session_id},
                 )
 
@@ -162,13 +183,7 @@ class AuthController(Controller):
         """Get all capabilities for a user through their roles."""
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                SELECT DISTINCT c.cap_name
-                FROM capabilities c
-                JOIN rolecapabilities rc ON rc.capabilityid = c.id
-                JOIN userroles ur ON ur.roleid = rc.roleid
-                WHERE ur.userid = %(user_id)s
-                """,
+                sql_select_user_capabilities(),
                 {"user_id": user_id},
             )
             rows = await cur.fetchall()

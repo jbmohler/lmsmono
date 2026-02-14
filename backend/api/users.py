@@ -13,6 +13,115 @@ from core.password import hash_password
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_users_search() -> str:
+    """Search for users by username or full name."""
+    return """
+        SELECT id, username, full_name
+        FROM users
+        WHERE
+            NOT inactive
+            AND (
+                username ILIKE %(pattern)s
+                OR full_name ILIKE %(pattern)s
+            )
+        ORDER BY full_name, username
+        LIMIT 10
+    """
+
+
+def sql_select_users() -> str:
+    """List all users."""
+    return """
+        SELECT id, username, full_name, descr, inactive
+        FROM users
+        ORDER BY inactive, username
+    """
+
+
+def sql_select_user_by_id() -> str:
+    """Get a single user by ID."""
+    return """
+        SELECT id, username, full_name, descr, inactive
+        FROM users
+        WHERE id = %(id)s
+    """
+
+
+def sql_select_user_exists() -> str:
+    """Check if a user exists."""
+    return "SELECT id FROM users WHERE id = %(id)s"
+
+
+def sql_select_user_roles() -> str:
+    """Get all roles with assigned status for a user."""
+    return """
+        SELECT
+            r.id,
+            r.role_name,
+            CASE WHEN ur.userid IS NOT NULL THEN true ELSE false END AS assigned
+        FROM roles r
+        LEFT JOIN userroles ur
+            ON ur.roleid = r.id
+            AND ur.userid = %(user_id)s
+        ORDER BY r.sort, r.role_name
+    """
+
+
+def sql_insert_user() -> str:
+    """Create a new user."""
+    return """
+        INSERT INTO users (username, full_name, descr)
+        VALUES (%(username)s, %(full_name)s, %(descr)s)
+        RETURNING id, username, full_name, descr, inactive
+    """
+
+
+def sql_insert_user_role() -> str:
+    """Add a role to a user (idempotent)."""
+    return """
+        INSERT INTO userroles (userid, roleid)
+        VALUES (%(user_id)s, %(role_id)s)
+        ON CONFLICT (userid, roleid) DO NOTHING
+    """
+
+
+def sql_update_user(fields: set[str]) -> str:
+    """Update user fields dynamically."""
+    valid_fields = {"username", "full_name", "descr", "inactive"}
+    updates = [f"{f} = %({f})s" for f in fields if f in valid_fields]
+    if not updates:
+        raise ValueError("No valid fields to update")
+    return f"""
+        UPDATE users
+        SET {", ".join(updates)}
+        WHERE id = %(id)s
+        RETURNING id, username, full_name, descr, inactive
+    """
+
+
+def sql_update_user_password() -> str:
+    """Update a user's password hash."""
+    return "UPDATE users SET pwhash = %(pwhash)s WHERE id = %(id)s"
+
+
+def sql_update_user_inactive() -> str:
+    """Soft-delete a user by setting inactive=true."""
+    return "UPDATE users SET inactive = true WHERE id = %(id)s"
+
+
+def sql_delete_user_role() -> str:
+    """Remove a role from a user."""
+    return """
+        DELETE FROM userroles
+        WHERE userid = %(user_id)s AND roleid = %(role_id)s
+    """
+
+
 # User columns
 USER_COLUMNS = [
     ColumnMeta(key="id", label="ID", type="uuid"),
@@ -61,11 +170,7 @@ async def _get_user_by_id(
     """Get a single user by ID."""
     return await db.select_one(
         conn,
-        """
-        SELECT id, username, full_name, descr, inactive
-        FROM users
-        WHERE id = %(id)s
-        """,
+        sql_select_user_by_id(),
         {"id": user_id},
         columns=USER_COLUMNS,
     )
@@ -87,18 +192,7 @@ class UsersController(Controller):
         """
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                """
-                SELECT id, username, full_name
-                FROM users
-                WHERE
-                    NOT inactive
-                    AND (
-                        username ILIKE %(pattern)s
-                        OR full_name ILIKE %(pattern)s
-                    )
-                ORDER BY full_name, username
-                LIMIT 10
-                """,
+                sql_select_users_search(),
                 {"pattern": f"%{q}%"},
             )
             rows = await cur.fetchall()
@@ -118,11 +212,7 @@ class UsersController(Controller):
         """List all users."""
         return await db.select_many(
             conn,
-            """
-            SELECT id, username, full_name, descr, inactive
-            FROM users
-            ORDER BY inactive, username
-            """,
+            sql_select_users(),
             columns=USER_COLUMNS,
         )
 
@@ -144,11 +234,7 @@ class UsersController(Controller):
         """Create a new user."""
         result = await db.execute_returning(
             conn,
-            """
-            INSERT INTO users (username, full_name, descr)
-            VALUES (%(username)s, %(full_name)s, %(descr)s)
-            RETURNING id, username, full_name, descr, inactive
-            """,
+            sql_insert_user(),
             {
                 "username": data.username,
                 "full_name": data.full_name,
@@ -167,33 +253,28 @@ class UsersController(Controller):
         data: UserUpdate,
     ) -> SingleRowResponse:
         """Update an existing user."""
-        updates = []
+        fields: set[str] = set()
         params: dict[str, str | bool | UUID | None] = {"id": user_id}
 
         if data.username is not None:
-            updates.append("username = %(username)s")
+            fields.add("username")
             params["username"] = data.username
         if data.full_name is not None:
-            updates.append("full_name = %(full_name)s")
+            fields.add("full_name")
             params["full_name"] = data.full_name
         if data.descr is not None:
-            updates.append("descr = %(descr)s")
+            fields.add("descr")
             params["descr"] = data.descr
         if data.inactive is not None:
-            updates.append("inactive = %(inactive)s")
+            fields.add("inactive")
             params["inactive"] = data.inactive
 
-        if not updates:
+        if not fields:
             return await _get_user_by_id(conn, user_id)
 
         row = await db.execute_returning(
             conn,
-            f"""
-            UPDATE users
-            SET {", ".join(updates)}
-            WHERE id = %(id)s
-            RETURNING id, username, full_name, descr, inactive
-            """,
+            sql_update_user(fields),
             params,
         )
         if not row:
@@ -209,7 +290,7 @@ class UsersController(Controller):
         """Soft-delete a user by setting inactive=true."""
         count = await db.execute(
             conn,
-            "UPDATE users SET inactive = true WHERE id = %(id)s",
+            sql_update_user_inactive(),
             {"id": user_id},
         )
         if count == 0:
@@ -225,7 +306,7 @@ class UsersController(Controller):
         # First verify user exists
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT id FROM users WHERE id = %(id)s",
+                sql_select_user_exists(),
                 {"id": user_id},
             )
             if not await cur.fetchone():
@@ -234,17 +315,7 @@ class UsersController(Controller):
         # Get all roles with assigned flag for this user
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                SELECT
-                    r.id,
-                    r.role_name,
-                    CASE WHEN ur.userid IS NOT NULL THEN true ELSE false END AS assigned
-                FROM roles r
-                LEFT JOIN userroles ur
-                    ON ur.roleid = r.id
-                    AND ur.userid = %(user_id)s
-                ORDER BY r.sort, r.role_name
-                """,
+                sql_select_user_roles(),
                 {"user_id": user_id},
             )
             rows = await cur.fetchall()
@@ -270,7 +341,7 @@ class UsersController(Controller):
         # Verify user exists
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT id FROM users WHERE id = %(id)s",
+                sql_select_user_exists(),
                 {"id": user_id},
             )
             if not await cur.fetchone():
@@ -283,37 +354,20 @@ class UsersController(Controller):
                 if update.assigned:
                     # Add mapping if not exists
                     await cur.execute(
-                        """
-                        INSERT INTO userroles (userid, roleid)
-                        VALUES (%(user_id)s, %(role_id)s)
-                        ON CONFLICT (userid, roleid) DO NOTHING
-                        """,
+                        sql_insert_user_role(),
                         {"user_id": user_id, "role_id": role_id},
                     )
                 else:
                     # Remove mapping
                     await cur.execute(
-                        """
-                        DELETE FROM userroles
-                        WHERE userid = %(user_id)s AND roleid = %(role_id)s
-                        """,
+                        sql_delete_user_role(),
                         {"user_id": user_id, "role_id": role_id},
                     )
 
         # Return updated state - fetch roles with assigned status
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                SELECT
-                    r.id,
-                    r.role_name,
-                    CASE WHEN ur.userid IS NOT NULL THEN true ELSE false END AS assigned
-                FROM roles r
-                LEFT JOIN userroles ur
-                    ON ur.roleid = r.id
-                    AND ur.userid = %(user_id)s
-                ORDER BY r.sort, r.role_name
-                """,
+                sql_select_user_roles(),
                 {"user_id": user_id},
             )
             role_rows = await cur.fetchall()
@@ -343,7 +397,7 @@ class UsersController(Controller):
 
         count = await db.execute(
             conn,
-            "UPDATE users SET pwhash = %(pwhash)s WHERE id = %(id)s",
+            sql_update_user_password(),
             {"id": user_id, "pwhash": pwhash},
         )
         if count == 0:

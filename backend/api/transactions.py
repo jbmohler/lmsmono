@@ -12,6 +12,191 @@ from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse, make_ref
 
 
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_transactions(
+    filter_query: bool = False,
+    filter_account: bool = False,
+    filter_from_date: bool = False,
+    filter_to_date: bool = False,
+) -> str:
+    """List transactions with optional filters."""
+    conditions = []
+    if filter_query:
+        conditions.append(
+            "(t.payee ILIKE %(q)s OR t.memo ILIKE %(q)s OR t.tranref ILIKE %(q)s)"
+        )
+    if filter_account:
+        conditions.append(
+            "EXISTS (SELECT 1 FROM hacc.splits s WHERE s.stid = t.tid AND s.account_id = %(account_id)s)"
+        )
+    if filter_from_date:
+        conditions.append("t.trandate >= %(from_date)s")
+    if filter_to_date:
+        conditions.append("t.trandate <= %(to_date)s")
+
+    where_sql = " AND ".join(conditions) if conditions else "TRUE"
+
+    return f"""
+        SELECT
+            t.tid AS id,
+            t.trandate,
+            t.tranref,
+            t.payee,
+            t.memo
+        FROM hacc.transactions t
+        WHERE {where_sql}
+        ORDER BY t.trandate DESC, t.tid DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+    """
+
+
+def sql_select_transaction_by_id() -> str:
+    """Get a single transaction by ID."""
+    return """
+        SELECT
+            t.tid AS id,
+            t.trandate,
+            t.tranref,
+            t.payee,
+            t.memo
+        FROM hacc.transactions t
+        WHERE t.tid = %(id)s
+    """
+
+
+def sql_select_transaction_exists() -> str:
+    """Check if a transaction exists."""
+    return "SELECT 1 FROM hacc.transactions WHERE tid = %(id)s"
+
+
+def sql_select_transaction_splits() -> str:
+    """Get splits for a transaction with account refs."""
+    return """
+        SELECT
+            s.sid AS id,
+            a.id AS account_id,
+            a.acc_name AS account_name,
+            s.sum
+        FROM hacc.splits s
+        JOIN hacc.accounts a ON s.account_id = a.id
+        WHERE s.stid = %(transaction_id)s
+        ORDER BY s.sid
+    """
+
+
+def sql_select_transaction_templates() -> str:
+    """Search historical transactions for template matches with scoring."""
+    return """
+        WITH candidates AS (
+            SELECT
+                t.tid,
+                t.payee,
+                t.memo,
+                t.trandate,
+                -- Scoring: exact match > prefix > contains
+                CASE
+                    WHEN LOWER(t.payee) = LOWER(%(search)s) THEN 100
+                    WHEN LOWER(t.payee) LIKE LOWER(%(prefix)s) THEN 80
+                    WHEN LOWER(t.payee) LIKE LOWER(%(contains)s) THEN 50
+                    ELSE 0
+                END AS payee_score,
+                CASE
+                    WHEN LOWER(t.memo) LIKE LOWER(%(contains)s) THEN 30
+                    ELSE 0
+                END AS memo_score
+            FROM hacc.transactions t
+            WHERE t.trandate >= CURRENT_DATE - INTERVAL '2 years'
+              AND (
+                  t.payee ILIKE %(contains)s
+                  OR t.memo ILIKE %(contains)s
+              )
+        ),
+        grouped AS (
+            SELECT
+                payee,
+                memo,
+                COUNT(*) AS frequency,
+                MAX(trandate) AS last_used,
+                MAX(payee_score) AS payee_score,
+                MAX(memo_score) AS memo_score,
+                -- Get the most recent transaction ID for this pattern
+                (SELECT tid FROM candidates c2
+                 WHERE c2.payee IS NOT DISTINCT FROM candidates.payee
+                   AND c2.memo IS NOT DISTINCT FROM candidates.memo
+                 ORDER BY c2.trandate DESC
+                 LIMIT 1) AS latest_tid
+            FROM candidates
+            GROUP BY payee, memo
+        ),
+        scored AS (
+            SELECT
+                payee,
+                memo,
+                frequency,
+                last_used,
+                latest_tid,
+                -- Total score: match quality + frequency bonus + recency bonus
+                payee_score + memo_score
+                    + (LN(frequency + 1) * 15)
+                    + (CASE
+                        WHEN last_used >= CURRENT_DATE - INTERVAL '30 days' THEN 20
+                        WHEN last_used >= CURRENT_DATE - INTERVAL '90 days' THEN 10
+                        WHEN last_used >= CURRENT_DATE - INTERVAL '180 days' THEN 5
+                        ELSE 0
+                    END) AS total_score
+            FROM grouped
+        )
+        SELECT payee, memo, frequency, latest_tid
+        FROM scored
+        ORDER BY total_score DESC
+        LIMIT 1
+    """
+
+
+def sql_insert_transaction() -> str:
+    """Create a new transaction."""
+    return """
+        INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
+        VALUES (%(trandate)s, %(tranref)s, %(payee)s, %(memo)s)
+        RETURNING tid
+    """
+
+
+def sql_insert_split() -> str:
+    """Insert a single split."""
+    return """
+        INSERT INTO hacc.splits (stid, account_id, sum)
+        VALUES (%(stid)s, %(account_id)s, %(sum)s)
+    """
+
+
+def sql_update_transaction(fields: set[str]) -> str:
+    """Update transaction fields dynamically."""
+    valid_fields = {"trandate", "tranref", "payee", "memo"}
+    updates = [f"{f} = %({f})s" for f in fields if f in valid_fields]
+    if not updates:
+        raise ValueError("No valid fields to update")
+    return f"""
+        UPDATE hacc.transactions
+        SET {", ".join(updates)}
+        WHERE tid = %(id)s
+    """
+
+
+def sql_delete_transaction_splits() -> str:
+    """Delete all splits for a transaction."""
+    return "DELETE FROM hacc.splits WHERE stid = %(id)s"
+
+
+def sql_delete_transaction() -> str:
+    """Delete a transaction by ID."""
+    return "DELETE FROM hacc.transactions WHERE tid = %(id)s"
+
+
 # Regex pattern for dollar amounts: optional $, digits (with optional commas), optional decimal
 # Matches: 2500, 2,500, 2500.00, $1,234.56, etc.
 AMOUNT_PATTERN = re.compile(r"\$?((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)")
@@ -151,17 +336,7 @@ async def get_transaction_splits(
     """Get splits for a transaction with account refs."""
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
-            """
-            SELECT
-                s.sid AS id,
-                a.id AS account_id,
-                a.acc_name AS account_name,
-                s.sum
-            FROM hacc.splits s
-            JOIN hacc.accounts a ON s.account_id = a.id
-            WHERE s.stid = %(transaction_id)s
-            ORDER BY s.sid
-            """,
+            sql_select_transaction_splits(),
             {"transaction_id": transaction_id},
         )
         rows = await cur.fetchall()
@@ -183,16 +358,7 @@ async def _get_transaction_by_id(
     """Get a single transaction with its splits (shared logic)."""
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
-            """
-            SELECT
-                t.tid AS id,
-                t.trandate,
-                t.tranref,
-                t.payee,
-                t.memo
-            FROM hacc.transactions t
-            WHERE t.tid = %(id)s
-            """,
+            sql_select_transaction_by_id(),
             {"id": transaction_id},
         )
         row = await cur.fetchone()
@@ -222,45 +388,25 @@ class TransactionsController(Controller):
         to_date: str | None = Parameter(default=None, query="to"),
     ) -> MultiRowResponse:
         """List transactions with optional filters."""
-        where_clauses = []
         params: dict = {"limit": limit, "offset": offset}
 
         if q:
-            where_clauses.append(
-                "(t.payee ILIKE %(q)s OR t.memo ILIKE %(q)s OR t.tranref ILIKE %(q)s)"
-            )
             params["q"] = f"%{q}%"
-
         if account_id:
-            where_clauses.append(
-                "EXISTS (SELECT 1 FROM hacc.splits s WHERE s.stid = t.tid AND s.account_id = %(account_id)s)"
-            )
             params["account_id"] = account_id
-
         if from_date:
-            where_clauses.append("t.trandate >= %(from_date)s")
             params["from_date"] = from_date
-
         if to_date:
-            where_clauses.append("t.trandate <= %(to_date)s")
             params["to_date"] = to_date
-
-        where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
         return await db.select_many(
             conn,
-            f"""
-            SELECT
-                t.tid AS id,
-                t.trandate,
-                t.tranref,
-                t.payee,
-                t.memo
-            FROM hacc.transactions t
-            WHERE {where_sql}
-            ORDER BY t.trandate DESC, t.tid DESC
-            LIMIT %(limit)s OFFSET %(offset)s
-            """,
+            sql_select_transactions(
+                filter_query=bool(q),
+                filter_account=bool(account_id),
+                filter_from_date=bool(from_date),
+                filter_to_date=bool(to_date),
+            ),
             params,
             columns=TRANSACTION_COLUMNS,
         )
@@ -286,11 +432,7 @@ class TransactionsController(Controller):
         # Insert transaction
         row = await db.execute_returning(
             conn,
-            """
-            INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-            VALUES (%(trandate)s, %(tranref)s, %(payee)s, %(memo)s)
-            RETURNING tid
-            """,
+            sql_insert_transaction(),
             {
                 "trandate": data.trandate,
                 "tranref": data.tranref,
@@ -308,10 +450,7 @@ class TransactionsController(Controller):
             for split in data.splits:
                 sum_value = debit_credit_to_sum(split.debit, split.credit)
                 await cur.execute(
-                    """
-                    INSERT INTO hacc.splits (stid, account_id, sum)
-                    VALUES (%(stid)s, %(account_id)s, %(sum)s)
-                    """,
+                    sql_insert_split(),
                     {
                         "stid": transaction_id,
                         "account_id": split.account_id,
@@ -332,36 +471,32 @@ class TransactionsController(Controller):
         # Verify transaction exists
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT 1 FROM hacc.transactions WHERE tid = %(id)s",
+                sql_select_transaction_exists(),
                 {"id": transaction_id},
             )
             if not await cur.fetchone():
                 raise HTTPException(status_code=404, detail="Transaction not found")
 
         # Update transaction fields if provided
-        updates = []
+        fields: set[str] = set()
         params: dict = {"id": transaction_id}
         if data.trandate is not None:
-            updates.append("trandate = %(trandate)s")
+            fields.add("trandate")
             params["trandate"] = data.trandate
         if data.tranref is not None:
-            updates.append("tranref = %(tranref)s")
+            fields.add("tranref")
             params["tranref"] = data.tranref
         if data.payee is not None:
-            updates.append("payee = %(payee)s")
+            fields.add("payee")
             params["payee"] = data.payee
         if data.memo is not None:
-            updates.append("memo = %(memo)s")
+            fields.add("memo")
             params["memo"] = data.memo
 
-        if updates:
+        if fields:
             await db.execute(
                 conn,
-                f"""
-                UPDATE hacc.transactions
-                SET {", ".join(updates)}
-                WHERE tid = %(id)s
-                """,
+                sql_update_transaction(fields),
                 params,
             )
 
@@ -372,7 +507,7 @@ class TransactionsController(Controller):
             # Delete existing splits
             await db.execute(
                 conn,
-                "DELETE FROM hacc.splits WHERE stid = %(id)s",
+                sql_delete_transaction_splits(),
                 {"id": transaction_id},
             )
 
@@ -381,10 +516,7 @@ class TransactionsController(Controller):
                 for split in data.splits:
                     sum_value = debit_credit_to_sum(split.debit, split.credit)
                     await cur.execute(
-                        """
-                        INSERT INTO hacc.splits (stid, account_id, sum)
-                        VALUES (%(stid)s, %(account_id)s, %(sum)s)
-                        """,
+                        sql_insert_split(),
                         {
                             "stid": transaction_id,
                             "account_id": split.account_id,
@@ -404,13 +536,13 @@ class TransactionsController(Controller):
         # Delete splits first (FK constraint)
         await db.execute(
             conn,
-            "DELETE FROM hacc.splits WHERE stid = %(id)s",
+            sql_delete_transaction_splits(),
             {"id": transaction_id},
         )
 
         count = await db.execute(
             conn,
-            "DELETE FROM hacc.transactions WHERE tid = %(id)s",
+            sql_delete_transaction(),
             {"id": transaction_id},
         )
         if count == 0:
@@ -437,71 +569,7 @@ class TransactionsController(Controller):
         # Search transactions from last 2 years, score by match quality and frequency
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                """
-                WITH candidates AS (
-                    SELECT
-                        t.tid,
-                        t.payee,
-                        t.memo,
-                        t.trandate,
-                        -- Scoring: exact match > prefix > contains
-                        CASE
-                            WHEN LOWER(t.payee) = LOWER(%(search)s) THEN 100
-                            WHEN LOWER(t.payee) LIKE LOWER(%(prefix)s) THEN 80
-                            WHEN LOWER(t.payee) LIKE LOWER(%(contains)s) THEN 50
-                            ELSE 0
-                        END AS payee_score,
-                        CASE
-                            WHEN LOWER(t.memo) LIKE LOWER(%(contains)s) THEN 30
-                            ELSE 0
-                        END AS memo_score
-                    FROM hacc.transactions t
-                    WHERE t.trandate >= CURRENT_DATE - INTERVAL '2 years'
-                      AND (
-                          t.payee ILIKE %(contains)s
-                          OR t.memo ILIKE %(contains)s
-                      )
-                ),
-                grouped AS (
-                    SELECT
-                        payee,
-                        memo,
-                        COUNT(*) AS frequency,
-                        MAX(trandate) AS last_used,
-                        MAX(payee_score) AS payee_score,
-                        MAX(memo_score) AS memo_score,
-                        -- Get the most recent transaction ID for this pattern
-                        (SELECT tid FROM candidates c2
-                         WHERE c2.payee IS NOT DISTINCT FROM candidates.payee
-                           AND c2.memo IS NOT DISTINCT FROM candidates.memo
-                         ORDER BY c2.trandate DESC
-                         LIMIT 1) AS latest_tid
-                    FROM candidates
-                    GROUP BY payee, memo
-                ),
-                scored AS (
-                    SELECT
-                        payee,
-                        memo,
-                        frequency,
-                        last_used,
-                        latest_tid,
-                        -- Total score: match quality + frequency bonus + recency bonus
-                        payee_score + memo_score
-                            + (LN(frequency + 1) * 15)
-                            + (CASE
-                                WHEN last_used >= CURRENT_DATE - INTERVAL '30 days' THEN 20
-                                WHEN last_used >= CURRENT_DATE - INTERVAL '90 days' THEN 10
-                                WHEN last_used >= CURRENT_DATE - INTERVAL '180 days' THEN 5
-                                ELSE 0
-                            END) AS total_score
-                    FROM grouped
-                )
-                SELECT payee, memo, frequency, latest_tid
-                FROM scored
-                ORDER BY total_score DESC
-                LIMIT 1
-                """,
+                sql_select_transaction_templates(),
                 {
                     "search": search,
                     "prefix": f"{search}%",

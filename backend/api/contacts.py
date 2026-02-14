@@ -16,6 +16,323 @@ import core.db as db
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_personas(filter_search: bool = False) -> str:
+    """List all contacts accessible to the current user."""
+    search_condition = """
+        AND (
+            %(search)s::text IS NULL
+            OR pc.fts_search @@ websearch_to_tsquery('english', %(search)s)
+        )
+    """ if filter_search else ""
+
+    return f"""
+        SELECT
+            p.id,
+            pc.entity_name,
+            p.corporate_entity AS is_corporate,
+            p.organization,
+            (
+                SELECT email
+                FROM contacts.email_addresses
+                WHERE persona_id = p.id AND is_primary = true
+                LIMIT 1
+            ) AS primary_email,
+            (
+                SELECT number
+                FROM contacts.phone_numbers
+                WHERE persona_id = p.id AND is_primary = true
+                LIMIT 1
+            ) AS primary_phone,
+            p.owner_id = %(user_id)s AS is_owner
+        FROM contacts.personas p
+        JOIN contacts.personas_calc pc ON pc.id = p.id
+        JOIN contacts.persona_shares ps ON ps.persona_id = p.id
+        WHERE
+            ps.user_id = %(user_id)s
+            {search_condition}
+        ORDER BY pc.entity_name
+        LIMIT %(limit)s OFFSET %(offset)s
+    """
+
+
+def sql_select_persona_by_id() -> str:
+    """Get a single persona with calculated fields (access controlled)."""
+    return """
+        SELECT
+            p.id,
+            p.corporate_entity AS is_corporate,
+            p.l_name AS last_name,
+            p.f_name AS first_name,
+            p.title,
+            p.organization,
+            p.memo,
+            p.birthday,
+            p.anniversary,
+            pc.entity_name,
+            p.owner_id,
+            p.owner_id = %(user_id)s AS is_owner
+        FROM contacts.personas p
+        JOIN contacts.personas_calc pc ON pc.id = p.id
+        JOIN contacts.persona_shares ps ON ps.persona_id = p.id
+        WHERE p.id = %(id)s AND ps.user_id = %(user_id)s
+    """
+
+
+def sql_select_persona_bits() -> str:
+    """Fetch all contact bits for a persona."""
+    return """
+        SELECT
+            id,
+            bit_type,
+            name,
+            memo,
+            is_primary,
+            bit_sequence,
+            bit_data
+        FROM contacts.bits
+        WHERE persona_id = %(persona_id)s
+        ORDER BY bit_type, bit_sequence, name
+    """
+
+
+def sql_select_persona_access() -> str:
+    """Check if user can access persona (returns is_owner flag)."""
+    return """
+        SELECT
+            p.owner_id = %(user_id)s AS is_owner
+        FROM contacts.personas p
+        JOIN contacts.persona_shares ps ON ps.persona_id = p.id
+        WHERE p.id = %(id)s AND ps.user_id = %(user_id)s
+    """
+
+
+def sql_select_persona_shares() -> str:
+    """Get list of users who have access to a persona."""
+    return """
+        SELECT
+            u.id AS user_id,
+            u.username,
+            u.full_name,
+            p.owner_id = u.id AS is_owner
+        FROM contacts.persona_shares ps
+        JOIN users u ON u.id = ps.user_id
+        JOIN contacts.personas p ON p.id = ps.persona_id
+        WHERE ps.persona_id = %(persona_id)s
+        ORDER BY
+            p.owner_id = u.id DESC,
+            u.full_name,
+            u.username
+    """
+
+
+def sql_select_bit_from_table(table: str) -> str:
+    """Check if a bit exists in a specific table."""
+    return f"SELECT id FROM {table} WHERE id = %(id)s"
+
+
+def sql_select_bit_persona_id(table: str) -> str:
+    """Get persona_id for a bit in a specific table."""
+    return f"SELECT persona_id FROM {table} WHERE id = %(id)s"
+
+
+def sql_select_bit_by_id() -> str:
+    """Get a single bit from the unified view."""
+    return """
+        SELECT
+            id,
+            bit_type,
+            name,
+            memo,
+            is_primary,
+            bit_sequence,
+            bit_data
+        FROM contacts.bits
+        WHERE id = %(bit_id)s AND persona_id = %(persona_id)s
+    """
+
+
+def sql_select_url_password() -> str:
+    """Get encrypted password for a URL bit."""
+    return """
+        SELECT password_enc
+        FROM contacts.urls
+        WHERE id = %(bit_id)s AND persona_id = %(persona_id)s
+    """
+
+
+def sql_select_user_exists_active() -> str:
+    """Check if a user exists and is active."""
+    return "SELECT id FROM users WHERE id = %(user_id)s AND NOT inactive"
+
+
+def sql_select_persona_owner() -> str:
+    """Get owner_id for a persona."""
+    return "SELECT owner_id FROM contacts.personas WHERE id = %(id)s"
+
+
+def sql_insert_persona() -> str:
+    """Create a new persona."""
+    return """
+        INSERT INTO contacts.personas (
+            corporate_entity, l_name, f_name, title,
+            organization, memo, birthday, anniversary, owner_id
+        )
+        VALUES (
+            %(is_corporate)s, %(last_name)s, %(first_name)s, %(title)s,
+            %(organization)s, %(memo)s, %(birthday)s, %(anniversary)s,
+            %(owner_id)s
+        )
+        RETURNING id
+    """
+
+
+def sql_insert_persona_share() -> str:
+    """Add a share for a persona (idempotent)."""
+    return """
+        INSERT INTO contacts.persona_shares (persona_id, user_id)
+        VALUES (%(persona_id)s, %(user_id)s)
+        ON CONFLICT (persona_id, user_id) DO NOTHING
+    """
+
+
+def sql_insert_email() -> str:
+    """Insert an email address bit."""
+    return """
+        INSERT INTO contacts.email_addresses
+            (persona_id, email, name, memo, is_primary, bit_sequence)
+        VALUES
+            (%(persona_id)s, %(email)s, %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
+        RETURNING id
+    """
+
+
+def sql_insert_phone() -> str:
+    """Insert a phone number bit."""
+    return """
+        INSERT INTO contacts.phone_numbers
+            (persona_id, number, name, memo, is_primary, bit_sequence)
+        VALUES
+            (%(persona_id)s, %(number)s, %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
+        RETURNING id
+    """
+
+
+def sql_insert_address() -> str:
+    """Insert a street address bit."""
+    return """
+        INSERT INTO contacts.street_addresses
+            (persona_id, address1, address2, city, state, zip, country,
+             name, memo, is_primary, bit_sequence)
+        VALUES
+            (%(persona_id)s, %(address1)s, %(address2)s, %(city)s, %(state)s,
+             %(zip)s, %(country)s, %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
+        RETURNING id
+    """
+
+
+def sql_insert_url() -> str:
+    """Insert a URL bit."""
+    return """
+        INSERT INTO contacts.urls
+            (persona_id, url, username, password_enc, pw_reset_dt, pw_next_reset_dt,
+             name, memo, is_primary, bit_sequence)
+        VALUES
+            (%(persona_id)s, %(url)s, %(username)s, %(password_enc)s,
+             %(pw_reset_dt)s, %(pw_next_reset_dt)s,
+             %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
+        RETURNING id
+    """
+
+
+def sql_update_persona(fields: set[str]) -> str:
+    """Update persona fields dynamically."""
+    field_map = {
+        "is_corporate": "corporate_entity",
+        "last_name": "l_name",
+        "first_name": "f_name",
+        "title": "title",
+        "organization": "organization",
+        "memo": "memo",
+        "birthday": "birthday",
+        "anniversary": "anniversary",
+    }
+    updates = [f"{field_map[f]} = %({f})s" for f in fields if f in field_map]
+    if not updates:
+        raise ValueError("No valid fields to update")
+    return f"""
+        UPDATE contacts.personas
+        SET {", ".join(updates)}
+        WHERE id = %(id)s
+    """
+
+
+def sql_update_persona_owner() -> str:
+    """Transfer ownership of a persona."""
+    return "UPDATE contacts.personas SET owner_id = %(new_owner_id)s WHERE id = %(id)s"
+
+
+def sql_update_bit(table: str, updates: list[str]) -> str:
+    """Update bit fields dynamically."""
+    return f"UPDATE {table} SET {', '.join(updates)} WHERE id = %(id)s"
+
+
+def sql_update_bit_sequence(table: str) -> str:
+    """Update bit sequence for reordering."""
+    return f"""
+        UPDATE {table}
+        SET bit_sequence = %(bit_sequence)s
+        WHERE id = %(id)s AND persona_id = %(persona_id)s
+    """
+
+
+def sql_delete_persona_shares() -> str:
+    """Delete all shares for a persona."""
+    return "DELETE FROM contacts.persona_shares WHERE persona_id = %(id)s"
+
+
+def sql_delete_email_addresses() -> str:
+    """Delete all email addresses for a persona."""
+    return "DELETE FROM contacts.email_addresses WHERE persona_id = %(id)s"
+
+
+def sql_delete_phone_numbers() -> str:
+    """Delete all phone numbers for a persona."""
+    return "DELETE FROM contacts.phone_numbers WHERE persona_id = %(id)s"
+
+
+def sql_delete_street_addresses() -> str:
+    """Delete all street addresses for a persona."""
+    return "DELETE FROM contacts.street_addresses WHERE persona_id = %(id)s"
+
+
+def sql_delete_urls() -> str:
+    """Delete all URLs for a persona."""
+    return "DELETE FROM contacts.urls WHERE persona_id = %(id)s"
+
+
+def sql_delete_persona() -> str:
+    """Delete a persona."""
+    return "DELETE FROM contacts.personas WHERE id = %(id)s"
+
+
+def sql_delete_persona_share() -> str:
+    """Remove a specific share."""
+    return """
+        DELETE FROM contacts.persona_shares
+        WHERE persona_id = %(persona_id)s AND user_id = %(user_id)s
+    """
+
+
+def sql_delete_bit(table: str) -> str:
+    """Delete a bit from a specific table."""
+    return f"DELETE FROM {table} WHERE id = %(id)s AND persona_id = %(persona_id)s"
+
+
 # Valid bit types
 BitType = Literal["email", "phone", "address", "url"]
 BIT_TYPES: set[str] = {"email", "phone", "address", "url"}
@@ -167,19 +484,7 @@ async def _get_bits_for_persona(
     """Fetch all contact bits for a persona."""
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
-            """
-            SELECT
-                id,
-                bit_type,
-                name,
-                memo,
-                is_primary,
-                bit_sequence,
-                bit_data
-            FROM contacts.bits
-            WHERE persona_id = %(persona_id)s
-            ORDER BY bit_type, bit_sequence, name
-            """,
+            sql_select_persona_bits(),
             {"persona_id": persona_id},
         )
         rows = await cur.fetchall()
@@ -221,25 +526,7 @@ async def _get_persona_by_id(
     """
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
-            """
-            SELECT
-                p.id,
-                p.corporate_entity AS is_corporate,
-                p.l_name AS last_name,
-                p.f_name AS first_name,
-                p.title,
-                p.organization,
-                p.memo,
-                p.birthday,
-                p.anniversary,
-                pc.entity_name,
-                p.owner_id,
-                p.owner_id = %(user_id)s AS is_owner
-            FROM contacts.personas p
-            JOIN contacts.personas_calc pc ON pc.id = p.id
-            JOIN contacts.persona_shares ps ON ps.persona_id = p.id
-            WHERE p.id = %(id)s AND ps.user_id = %(user_id)s
-            """,
+            sql_select_persona_by_id(),
             {"id": persona_id, "user_id": user_id},
         )
         row = await cur.fetchone()
@@ -272,13 +559,7 @@ async def _verify_persona_access(
     """
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
-            """
-            SELECT
-                p.owner_id = %(user_id)s AS is_owner
-            FROM contacts.personas p
-            JOIN contacts.persona_shares ps ON ps.persona_id = p.id
-            WHERE p.id = %(id)s AND ps.user_id = %(user_id)s
-            """,
+            sql_select_persona_access(),
             {"id": persona_id, "user_id": user_id},
         )
         row = await cur.fetchone()
@@ -296,7 +577,7 @@ async def _get_bit_type(conn: psycopg.AsyncConnection, bit_id: UUID) -> str | No
     async with conn.cursor() as cur:
         for bit_type, table in BIT_TYPE_TABLES.items():
             await cur.execute(
-                f"SELECT id FROM {table} WHERE id = %(id)s",
+                sql_select_bit_from_table(table),
                 {"id": bit_id},
             )
             if await cur.fetchone():
@@ -323,13 +604,7 @@ async def _insert_bit(
                     status_code=400, detail="email field required for email bit"
                 )
             await cur.execute(
-                """
-                INSERT INTO contacts.email_addresses
-                    (persona_id, email, name, memo, is_primary, bit_sequence)
-                VALUES
-                    (%(persona_id)s, %(email)s, %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
-                RETURNING id
-                """,
+                sql_insert_email(),
                 {
                     "persona_id": persona_id,
                     "email": data.email,
@@ -346,13 +621,7 @@ async def _insert_bit(
                     status_code=400, detail="number field required for phone bit"
                 )
             await cur.execute(
-                """
-                INSERT INTO contacts.phone_numbers
-                    (persona_id, number, name, memo, is_primary, bit_sequence)
-                VALUES
-                    (%(persona_id)s, %(number)s, %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
-                RETURNING id
-                """,
+                sql_insert_phone(),
                 {
                     "persona_id": persona_id,
                     "number": data.number,
@@ -365,15 +634,7 @@ async def _insert_bit(
 
         elif data.bit_type == "address":
             await cur.execute(
-                """
-                INSERT INTO contacts.street_addresses
-                    (persona_id, address1, address2, city, state, zip, country,
-                     name, memo, is_primary, bit_sequence)
-                VALUES
-                    (%(persona_id)s, %(address1)s, %(address2)s, %(city)s, %(state)s,
-                     %(zip)s, %(country)s, %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
-                RETURNING id
-                """,
+                sql_insert_address(),
                 {
                     "persona_id": persona_id,
                     "address1": data.address1,
@@ -405,16 +666,7 @@ async def _insert_bit(
                 password_enc = crypto.encrypt_password(data.password)
 
             await cur.execute(
-                """
-                INSERT INTO contacts.urls
-                    (persona_id, url, username, password_enc, pw_reset_dt, pw_next_reset_dt,
-                     name, memo, is_primary, bit_sequence)
-                VALUES
-                    (%(persona_id)s, %(url)s, %(username)s, %(password_enc)s,
-                     %(pw_reset_dt)s, %(pw_next_reset_dt)s,
-                     %(name)s, %(memo)s, %(is_primary)s, %(bit_sequence)s)
-                RETURNING id
-                """,
+                sql_insert_url(),
                 {
                     "persona_id": persona_id,
                     "url": data.url,
@@ -526,7 +778,7 @@ async def _update_bit(
 
     return await db.execute(
         conn,
-        f"UPDATE {table} SET {', '.join(updates)} WHERE id = %(id)s",
+        sql_update_bit(table, updates),
         params,
     )
 
@@ -544,21 +796,7 @@ async def _get_persona_shares(
     """Get list of users who have access to a persona."""
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
-            """
-            SELECT
-                u.id AS user_id,
-                u.username,
-                u.full_name,
-                p.owner_id = u.id AS is_owner
-            FROM contacts.persona_shares ps
-            JOIN users u ON u.id = ps.user_id
-            JOIN contacts.personas p ON p.id = ps.persona_id
-            WHERE ps.persona_id = %(persona_id)s
-            ORDER BY
-                p.owner_id = u.id DESC,
-                u.full_name,
-                u.username
-            """,
+            sql_select_persona_shares(),
             {"persona_id": persona_id},
         )
         rows = await cur.fetchall()
@@ -590,37 +828,7 @@ class ContactsController(Controller):
         """List all contacts accessible to the current user."""
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                """
-                SELECT
-                    p.id,
-                    pc.entity_name,
-                    p.corporate_entity AS is_corporate,
-                    p.organization,
-                    (
-                        SELECT email
-                        FROM contacts.email_addresses
-                        WHERE persona_id = p.id AND is_primary = true
-                        LIMIT 1
-                    ) AS primary_email,
-                    (
-                        SELECT number
-                        FROM contacts.phone_numbers
-                        WHERE persona_id = p.id AND is_primary = true
-                        LIMIT 1
-                    ) AS primary_phone,
-                    p.owner_id = %(user_id)s AS is_owner
-                FROM contacts.personas p
-                JOIN contacts.personas_calc pc ON pc.id = p.id
-                JOIN contacts.persona_shares ps ON ps.persona_id = p.id
-                WHERE
-                    ps.user_id = %(user_id)s
-                    AND (
-                        %(search)s::text IS NULL
-                        OR pc.fts_search @@ websearch_to_tsquery('english', %(search)s)
-                    )
-                ORDER BY pc.entity_name
-                LIMIT %(limit)s OFFSET %(offset)s
-                """,
+                sql_select_personas(filter_search=True),
                 {
                     "user_id": current_user.id,
                     "search": search,
@@ -684,18 +892,7 @@ class ContactsController(Controller):
             try:
                 # Insert persona
                 await cur.execute(
-                    """
-                    INSERT INTO contacts.personas (
-                        corporate_entity, l_name, f_name, title,
-                        organization, memo, birthday, anniversary, owner_id
-                    )
-                    VALUES (
-                        %(is_corporate)s, %(last_name)s, %(first_name)s, %(title)s,
-                        %(organization)s, %(memo)s, %(birthday)s, %(anniversary)s,
-                        %(owner_id)s
-                    )
-                    RETURNING id
-                    """,
+                    sql_insert_persona(),
                     {
                         "is_corporate": data.is_corporate,
                         "last_name": data.last_name,
@@ -717,10 +914,7 @@ class ContactsController(Controller):
 
                 # Insert into persona_shares for the owner
                 await cur.execute(
-                    """
-                    INSERT INTO contacts.persona_shares (persona_id, user_id)
-                    VALUES (%(persona_id)s, %(user_id)s)
-                    """,
+                    sql_insert_persona_share(),
                     {"persona_id": persona_id, "user_id": current_user.id},
                 )
 
@@ -743,44 +937,40 @@ class ContactsController(Controller):
         await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
 
         # Build dynamic update query
-        updates = []
+        fields: set[str] = set()
         params: dict = {"id": contact_id}
 
         if data.is_corporate is not None:
-            updates.append("corporate_entity = %(is_corporate)s")
+            fields.add("is_corporate")
             params["is_corporate"] = data.is_corporate
         if data.last_name is not None:
-            updates.append("l_name = %(last_name)s")
+            fields.add("last_name")
             params["last_name"] = data.last_name
         if data.first_name is not None:
-            updates.append("f_name = %(first_name)s")
+            fields.add("first_name")
             params["first_name"] = data.first_name
         if data.title is not None:
-            updates.append("title = %(title)s")
+            fields.add("title")
             params["title"] = data.title
         if data.organization is not None:
-            updates.append("organization = %(organization)s")
+            fields.add("organization")
             params["organization"] = data.organization
         if data.memo is not None:
-            updates.append("memo = %(memo)s")
+            fields.add("memo")
             params["memo"] = data.memo
         if data.birthday is not None:
-            updates.append("birthday = %(birthday)s")
+            fields.add("birthday")
             params["birthday"] = data.birthday
         if data.anniversary is not None:
-            updates.append("anniversary = %(anniversary)s")
+            fields.add("anniversary")
             params["anniversary"] = data.anniversary
 
-        if not updates:
+        if not fields:
             return await _get_persona_by_id(conn, contact_id, current_user.id)
 
         await db.execute(
             conn,
-            f"""
-            UPDATE contacts.personas
-            SET {", ".join(updates)}
-            WHERE id = %(id)s
-            """,
+            sql_update_persona(fields),
             params,
         )
 
@@ -797,40 +987,16 @@ class ContactsController(Controller):
         await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
 
         # Delete persona_shares first (due to FK constraint)
-        await db.execute(
-            conn,
-            "DELETE FROM contacts.persona_shares WHERE persona_id = %(id)s",
-            {"id": contact_id},
-        )
+        await db.execute(conn, sql_delete_persona_shares(), {"id": contact_id})
 
         # Delete all bits (they have ON DELETE CASCADE, but let's be explicit)
-        await db.execute(
-            conn,
-            "DELETE FROM contacts.email_addresses WHERE persona_id = %(id)s",
-            {"id": contact_id},
-        )
-        await db.execute(
-            conn,
-            "DELETE FROM contacts.phone_numbers WHERE persona_id = %(id)s",
-            {"id": contact_id},
-        )
-        await db.execute(
-            conn,
-            "DELETE FROM contacts.street_addresses WHERE persona_id = %(id)s",
-            {"id": contact_id},
-        )
-        await db.execute(
-            conn,
-            "DELETE FROM contacts.urls WHERE persona_id = %(id)s",
-            {"id": contact_id},
-        )
+        await db.execute(conn, sql_delete_email_addresses(), {"id": contact_id})
+        await db.execute(conn, sql_delete_phone_numbers(), {"id": contact_id})
+        await db.execute(conn, sql_delete_street_addresses(), {"id": contact_id})
+        await db.execute(conn, sql_delete_urls(), {"id": contact_id})
 
         # Delete the persona
-        await db.execute(
-            conn,
-            "DELETE FROM contacts.personas WHERE id = %(id)s",
-            {"id": contact_id},
-        )
+        await db.execute(conn, sql_delete_persona(), {"id": contact_id})
 
     # -------------------------------------------------------------------------
     # Contact Bits Endpoints
@@ -870,7 +1036,7 @@ class ContactsController(Controller):
         table = BIT_TYPE_TABLES[bit_type]
         async with conn.cursor() as cur:
             await cur.execute(
-                f"SELECT persona_id FROM {table} WHERE id = %(id)s",
+                sql_select_bit_persona_id(table),
                 {"id": bit_id},
             )
             row = await cur.fetchone()
@@ -905,7 +1071,7 @@ class ContactsController(Controller):
         table = BIT_TYPE_TABLES[bit_type]
         count = await db.execute(
             conn,
-            f"DELETE FROM {table} WHERE id = %(id)s AND persona_id = %(persona_id)s",
+            sql_delete_bit(table),
             {"id": bit_id, "persona_id": contact_id},
         )
         if count == 0:
@@ -935,11 +1101,7 @@ class ContactsController(Controller):
             table = BIT_TYPE_TABLES[bit_type]
             count = await db.execute(
                 conn,
-                f"""
-                UPDATE {table}
-                SET bit_sequence = %(bit_sequence)s
-                WHERE id = %(id)s AND persona_id = %(persona_id)s
-                """,
+                sql_update_bit_sequence(table),
                 {
                     "id": bit_id,
                     "bit_sequence": item.bit_sequence,
@@ -974,7 +1136,7 @@ class ContactsController(Controller):
         table = BIT_TYPE_TABLES[bit_type]
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                f"SELECT persona_id FROM {table} WHERE id = %(id)s",
+                sql_select_bit_persona_id(table),
                 {"id": bit_id},
             )
             row = await cur.fetchone()
@@ -986,18 +1148,7 @@ class ContactsController(Controller):
         # Fetch the bit from the unified view
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                """
-                SELECT
-                    id,
-                    bit_type,
-                    name,
-                    memo,
-                    is_primary,
-                    bit_sequence,
-                    bit_data
-                FROM contacts.bits
-                WHERE id = %(bit_id)s AND persona_id = %(persona_id)s
-                """,
+                sql_select_bit_by_id(),
                 {"bit_id": bit_id, "persona_id": contact_id},
             )
             row = await cur.fetchone()
@@ -1056,11 +1207,7 @@ class ContactsController(Controller):
         # Only URL bits have passwords
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                """
-                SELECT password_enc
-                FROM contacts.urls
-                WHERE id = %(bit_id)s AND persona_id = %(persona_id)s
-                """,
+                sql_select_url_password(),
                 {"bit_id": bit_id, "persona_id": contact_id},
             )
             row = await cur.fetchone()
@@ -1117,7 +1264,7 @@ class ContactsController(Controller):
         # Verify target user exists
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT id FROM users WHERE id = %(user_id)s AND NOT inactive",
+                sql_select_user_exists_active(),
                 {"user_id": user_id},
             )
             if not await cur.fetchone():
@@ -1126,11 +1273,7 @@ class ContactsController(Controller):
         # Add share (ignore if already shared)
         await db.execute(
             conn,
-            """
-            INSERT INTO contacts.persona_shares (persona_id, user_id)
-            VALUES (%(persona_id)s, %(user_id)s)
-            ON CONFLICT (persona_id, user_id) DO NOTHING
-            """,
+            sql_insert_persona_share(),
             {"persona_id": contact_id, "user_id": user_id},
         )
 
@@ -1150,7 +1293,7 @@ class ContactsController(Controller):
         # Cannot remove owner's share
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT owner_id FROM contacts.personas WHERE id = %(id)s",
+                sql_select_persona_owner(),
                 {"id": contact_id},
             )
             row = await cur.fetchone()
@@ -1161,10 +1304,7 @@ class ContactsController(Controller):
 
         count = await db.execute(
             conn,
-            """
-            DELETE FROM contacts.persona_shares
-            WHERE persona_id = %(persona_id)s AND user_id = %(user_id)s
-            """,
+            sql_delete_persona_share(),
             {"persona_id": contact_id, "user_id": user_id},
         )
         if count == 0:
@@ -1191,7 +1331,7 @@ class ContactsController(Controller):
         # Verify new owner exists
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT id FROM users WHERE id = %(user_id)s AND NOT inactive",
+                sql_select_user_exists_active(),
                 {"user_id": new_owner_id},
             )
             if not await cur.fetchone():
@@ -1200,18 +1340,14 @@ class ContactsController(Controller):
         # Ensure new owner is in shares
         await db.execute(
             conn,
-            """
-            INSERT INTO contacts.persona_shares (persona_id, user_id)
-            VALUES (%(persona_id)s, %(user_id)s)
-            ON CONFLICT (persona_id, user_id) DO NOTHING
-            """,
+            sql_insert_persona_share(),
             {"persona_id": contact_id, "user_id": new_owner_id},
         )
 
         # Transfer ownership
         await db.execute(
             conn,
-            "UPDATE contacts.personas SET owner_id = %(new_owner_id)s WHERE id = %(id)s",
+            sql_update_persona_owner(),
             {"id": contact_id, "new_owner_id": new_owner_id},
         )
 

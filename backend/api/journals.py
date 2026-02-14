@@ -10,6 +10,65 @@ from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_journals() -> str:
+    """List all journals."""
+    return """
+        SELECT id, jrn_name, description
+        FROM hacc.journals
+        ORDER BY jrn_name
+    """
+
+
+def sql_select_journal_by_id() -> str:
+    """Get a single journal by ID."""
+    return """
+        SELECT id, jrn_name, description
+        FROM hacc.journals
+        WHERE id = %(id)s
+    """
+
+
+def sql_select_journal_accounts_count() -> str:
+    """Count accounts using a journal (for delete check)."""
+    return """
+        SELECT COUNT(*) FROM hacc.accounts
+        WHERE journal_id = %(id)s
+    """
+
+
+def sql_insert_journal() -> str:
+    """Create a new journal."""
+    return """
+        INSERT INTO hacc.journals (jrn_name, description)
+        VALUES (%(jrn_name)s, %(description)s)
+        RETURNING id, jrn_name, description
+    """
+
+
+def sql_update_journal(fields: set[str]) -> str:
+    """Update journal fields dynamically."""
+    valid_fields = {"jrn_name", "description"}
+    updates = [f"{f} = %({f})s" for f in fields if f in valid_fields]
+    if not updates:
+        raise ValueError("No valid fields to update")
+    return f"""
+        UPDATE hacc.journals
+        SET {", ".join(updates)}
+        WHERE id = %(id)s
+        RETURNING id, jrn_name, description
+    """
+
+
+def sql_delete_journal() -> str:
+    """Delete a journal by ID."""
+    return "DELETE FROM hacc.journals WHERE id = %(id)s"
+
+
 JOURNAL_COLUMNS = [
     ColumnMeta(key="id", label="ID", type="uuid"),
     ColumnMeta(key="jrn_name", label="Name", type="string"),
@@ -35,11 +94,7 @@ async def _get_journal_by_id(
     """Get a single journal by ID (shared logic)."""
     return await db.select_one(
         conn,
-        """
-        SELECT id, jrn_name, description
-        FROM hacc.journals
-        WHERE id = %(id)s
-        """,
+        sql_select_journal_by_id(),
         {"id": journal_id},
         columns=JOURNAL_COLUMNS,
     )
@@ -57,11 +112,7 @@ class JournalsController(Controller):
         """List all journals."""
         return await db.select_many(
             conn,
-            """
-            SELECT id, jrn_name, description
-            FROM hacc.journals
-            ORDER BY jrn_name
-            """,
+            sql_select_journals(),
             columns=JOURNAL_COLUMNS,
         )
 
@@ -83,11 +134,7 @@ class JournalsController(Controller):
         """Create a new journal."""
         row = await db.execute_returning(
             conn,
-            """
-            INSERT INTO hacc.journals (jrn_name, description)
-            VALUES (%(jrn_name)s, %(description)s)
-            RETURNING id, jrn_name, description
-            """,
+            sql_insert_journal(),
             {"jrn_name": data.jrn_name, "description": data.description},
         )
         if not row:
@@ -103,27 +150,22 @@ class JournalsController(Controller):
     ) -> SingleRowResponse:
         """Update an existing journal."""
         # Build dynamic update query
-        updates = []
+        fields: set[str] = set()
         params: dict[str, str | UUID | None] = {"id": journal_id}
         if data.jrn_name is not None:
-            updates.append("jrn_name = %(jrn_name)s")
+            fields.add("jrn_name")
             params["jrn_name"] = data.jrn_name
         if data.description is not None:
-            updates.append("description = %(description)s")
+            fields.add("description")
             params["description"] = data.description
 
-        if not updates:
+        if not fields:
             # No updates, just return current state
             return await _get_journal_by_id(conn, journal_id)
 
         row = await db.execute_returning(
             conn,
-            f"""
-            UPDATE hacc.journals
-            SET {", ".join(updates)}
-            WHERE id = %(id)s
-            RETURNING id, jrn_name, description
-            """,
+            sql_update_journal(fields),
             params,
         )
         if not row:
@@ -140,10 +182,7 @@ class JournalsController(Controller):
         # Check if any accounts use this journal
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                SELECT COUNT(*) FROM hacc.accounts
-                WHERE journal_id = %(id)s
-                """,
+                sql_select_journal_accounts_count(),
                 {"id": journal_id},
             )
             row = await cur.fetchone()
@@ -155,7 +194,7 @@ class JournalsController(Controller):
 
         count = await db.execute(
             conn,
-            "DELETE FROM hacc.journals WHERE id = %(id)s",
+            sql_delete_journal(),
             {"id": journal_id},
         )
         if count == 0:

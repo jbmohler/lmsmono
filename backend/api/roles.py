@@ -10,6 +10,113 @@ from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_capabilities() -> str:
+    """List all capabilities."""
+    return """
+        SELECT id, cap_name, description
+        FROM capabilities
+        ORDER BY cap_name
+    """
+
+
+def sql_select_roles() -> str:
+    """List all roles."""
+    return """
+        SELECT id, role_name, sort
+        FROM roles
+        ORDER BY sort, role_name
+    """
+
+
+def sql_select_role_by_id() -> str:
+    """Get a single role by ID."""
+    return """
+        SELECT id, role_name, sort
+        FROM roles
+        WHERE id = %(id)s
+    """
+
+
+def sql_select_role_exists() -> str:
+    """Check if a role exists."""
+    return "SELECT id FROM roles WHERE id = %(id)s"
+
+
+def sql_select_role_max_sort() -> str:
+    """Get the next sort value for a new role."""
+    return "SELECT COALESCE(MAX(sort), 0) + 1 FROM roles"
+
+
+def sql_select_role_capabilities() -> str:
+    """Get all capabilities with permitted status for a role."""
+    return """
+        SELECT
+            c.id,
+            c.cap_name,
+            CASE WHEN rc.roleid IS NOT NULL THEN true ELSE false END AS permitted
+        FROM capabilities c
+        LEFT JOIN rolecapabilities rc
+            ON rc.capabilityid = c.id
+            AND rc.roleid = %(role_id)s
+        ORDER BY c.cap_name
+    """
+
+
+def sql_insert_role() -> str:
+    """Create a new role."""
+    return """
+        INSERT INTO roles (role_name, sort)
+        VALUES (%(role_name)s, %(sort)s)
+        RETURNING id, role_name, sort
+    """
+
+
+def sql_insert_role_capability() -> str:
+    """Add a capability to a role (idempotent)."""
+    return """
+        INSERT INTO rolecapabilities (roleid, capabilityid)
+        VALUES (%(role_id)s, %(cap_id)s)
+        ON CONFLICT (roleid, capabilityid) DO NOTHING
+    """
+
+
+def sql_update_role(fields: set[str]) -> str:
+    """Update role fields dynamically."""
+    valid_fields = {"role_name", "sort"}
+    updates = [f"{f} = %({f})s" for f in fields if f in valid_fields]
+    if not updates:
+        raise ValueError("No valid fields to update")
+    return f"""
+        UPDATE roles
+        SET {", ".join(updates)}
+        WHERE id = %(id)s
+        RETURNING id, role_name, sort
+    """
+
+
+def sql_delete_role_capabilities() -> str:
+    """Delete all capabilities for a role."""
+    return "DELETE FROM rolecapabilities WHERE roleid = %(role_id)s"
+
+
+def sql_delete_role() -> str:
+    """Delete a role by ID."""
+    return "DELETE FROM roles WHERE id = %(id)s"
+
+
+def sql_delete_role_capability() -> str:
+    """Remove a specific capability from a role."""
+    return """
+        DELETE FROM rolecapabilities
+        WHERE roleid = %(role_id)s AND capabilityid = %(cap_id)s
+    """
+
+
 # Capability columns
 CAPABILITY_COLUMNS = [
     ColumnMeta(key="id", label="ID", type="uuid"),
@@ -55,11 +162,7 @@ async def _get_role_by_id(
     """Get a single role by ID."""
     return await db.select_one(
         conn,
-        """
-        SELECT id, role_name, sort
-        FROM roles
-        WHERE id = %(id)s
-        """,
+        sql_select_role_by_id(),
         {"id": role_id},
         columns=ROLE_COLUMNS,
     )
@@ -77,11 +180,7 @@ class CapabilitiesController(Controller):
         """List all capabilities."""
         return await db.select_many(
             conn,
-            """
-            SELECT id, cap_name, description
-            FROM capabilities
-            ORDER BY cap_name
-            """,
+            sql_select_capabilities(),
             columns=CAPABILITY_COLUMNS,
         )
 
@@ -98,11 +197,7 @@ class RolesController(Controller):
         """List all roles."""
         return await db.select_many(
             conn,
-            """
-            SELECT id, role_name, sort
-            FROM roles
-            ORDER BY sort, role_name
-            """,
+            sql_select_roles(),
             columns=ROLE_COLUMNS,
         )
 
@@ -126,17 +221,13 @@ class RolesController(Controller):
         sort_value = data.sort
         if sort_value is None:
             async with conn.cursor() as cur:
-                await cur.execute("SELECT COALESCE(MAX(sort), 0) + 1 FROM roles")
+                await cur.execute(sql_select_role_max_sort())
                 max_row = await cur.fetchone()
                 sort_value = max_row[0] if max_row else 1
 
         result = await db.execute_returning(
             conn,
-            """
-            INSERT INTO roles (role_name, sort)
-            VALUES (%(role_name)s, %(sort)s)
-            RETURNING id, role_name, sort
-            """,
+            sql_insert_role(),
             {"role_name": data.role_name, "sort": sort_value},
         )
         if not result:
@@ -151,26 +242,21 @@ class RolesController(Controller):
         data: RoleUpdate,
     ) -> SingleRowResponse:
         """Update an existing role."""
-        updates = []
+        fields: set[str] = set()
         params: dict[str, str | int | UUID | None] = {"id": role_id}
         if data.role_name is not None:
-            updates.append("role_name = %(role_name)s")
+            fields.add("role_name")
             params["role_name"] = data.role_name
         if data.sort is not None:
-            updates.append("sort = %(sort)s")
+            fields.add("sort")
             params["sort"] = data.sort
 
-        if not updates:
+        if not fields:
             return await _get_role_by_id(conn, role_id)
 
         row = await db.execute_returning(
             conn,
-            f"""
-            UPDATE roles
-            SET {", ".join(updates)}
-            WHERE id = %(id)s
-            RETURNING id, role_name, sort
-            """,
+            sql_update_role(fields),
             params,
         )
         if not row:
@@ -187,13 +273,13 @@ class RolesController(Controller):
         # First delete role-capability mappings
         await db.execute(
             conn,
-            "DELETE FROM rolecapabilities WHERE roleid = %(role_id)s",
+            sql_delete_role_capabilities(),
             {"role_id": role_id},
         )
 
         count = await db.execute(
             conn,
-            "DELETE FROM roles WHERE id = %(id)s",
+            sql_delete_role(),
             {"id": role_id},
         )
         if count == 0:
@@ -209,7 +295,7 @@ class RolesController(Controller):
         # First verify role exists
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT id FROM roles WHERE id = %(id)s",
+                sql_select_role_exists(),
                 {"id": role_id},
             )
             if not await cur.fetchone():
@@ -218,17 +304,7 @@ class RolesController(Controller):
         # Get all capabilities with permitted flag for this role
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                SELECT
-                    c.id,
-                    c.cap_name,
-                    CASE WHEN rc.roleid IS NOT NULL THEN true ELSE false END AS permitted
-                FROM capabilities c
-                LEFT JOIN rolecapabilities rc
-                    ON rc.capabilityid = c.id
-                    AND rc.roleid = %(role_id)s
-                ORDER BY c.cap_name
-                """,
+                sql_select_role_capabilities(),
                 {"role_id": role_id},
             )
             rows = await cur.fetchall()
@@ -254,7 +330,7 @@ class RolesController(Controller):
         # Verify role exists
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT id FROM roles WHERE id = %(id)s",
+                sql_select_role_exists(),
                 {"id": role_id},
             )
             if not await cur.fetchone():
@@ -267,37 +343,20 @@ class RolesController(Controller):
                 if update.permitted:
                     # Add mapping if not exists
                     await cur.execute(
-                        """
-                        INSERT INTO rolecapabilities (roleid, capabilityid)
-                        VALUES (%(role_id)s, %(cap_id)s)
-                        ON CONFLICT (roleid, capabilityid) DO NOTHING
-                        """,
+                        sql_insert_role_capability(),
                         {"role_id": role_id, "cap_id": cap_id},
                     )
                 else:
                     # Remove mapping
                     await cur.execute(
-                        """
-                        DELETE FROM rolecapabilities
-                        WHERE roleid = %(role_id)s AND capabilityid = %(cap_id)s
-                        """,
+                        sql_delete_role_capability(),
                         {"role_id": role_id, "cap_id": cap_id},
                     )
 
         # Return updated state - fetch capabilities with permitted status
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                SELECT
-                    c.id,
-                    c.cap_name,
-                    CASE WHEN rc.roleid IS NOT NULL THEN true ELSE false END AS permitted
-                FROM capabilities c
-                LEFT JOIN rolecapabilities rc
-                    ON rc.capabilityid = c.id
-                    AND rc.roleid = %(role_id)s
-                ORDER BY c.cap_name
-                """,
+                sql_select_role_capabilities(),
                 {"role_id": role_id},
             )
             cap_rows = await cur.fetchall()

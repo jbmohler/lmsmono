@@ -8,6 +8,30 @@ import core.db as db
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 
 
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_eventlog() -> str:
+    """List recent event log entries."""
+    return """
+        SELECT id, logtype, logtime, descr
+        FROM yenotsys.eventlog
+        ORDER BY logtime DESC
+        LIMIT 50
+    """
+
+
+def sql_insert_eventlog() -> str:
+    """Create a new event log entry."""
+    return """
+        INSERT INTO yenotsys.eventlog (logtype, descr)
+        VALUES (%(logtype)s, %(descr)s)
+        RETURNING id, logtype, logtime, descr
+    """
+
+
 EVENTLOG_COLUMNS = [
     ColumnMeta(key="id", label="ID", type="number"),
     ColumnMeta(key="logtype", label="Type", type="string"),
@@ -34,12 +58,7 @@ class EventLogController(Controller):
         """List recent event log entries."""
         return await db.select_many(
             conn,
-            """
-            SELECT id, logtype, logtime, descr
-            FROM yenotsys.eventlog
-            ORDER BY logtime DESC
-            LIMIT 50
-            """,
+            sql_select_eventlog(),
             columns=EVENTLOG_COLUMNS,
         )
 
@@ -52,11 +71,7 @@ class EventLogController(Controller):
         """Create a new event log entry."""
         row = await db.execute_returning(
             conn,
-            """
-            INSERT INTO yenotsys.eventlog (logtype, descr)
-            VALUES (%(logtype)s, %(descr)s)
-            RETURNING id, logtype, logtime, descr
-            """,
+            sql_insert_eventlog(),
             {"logtype": data.logtype, "descr": data.descr},
         )
         if not row:

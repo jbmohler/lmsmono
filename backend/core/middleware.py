@@ -7,6 +7,28 @@ from litestar.types import Receive, Scope, Send
 
 from core.auth import AuthenticatedUser
 import core.db as db
+from core.queries_admin import sql_select_user_capabilities
+
+
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_session_with_user() -> str:
+    """Get session with associated user data for validation."""
+    return """
+        SELECT
+            s.expires,
+            s.inactive,
+            u.id,
+            u.username,
+            u.full_name,
+            u.inactive AS user_inactive
+        FROM sessions s
+        JOIN users u ON u.id = s.userid
+        WHERE s.id = %(session_id)s
+    """
 
 
 class SessionMiddleware(AbstractMiddleware):
@@ -51,18 +73,7 @@ class SessionMiddleware(AbstractMiddleware):
             async with conn.cursor() as cur:
                 # Get session with user data
                 await cur.execute(
-                    """
-                    SELECT
-                        s.expires,
-                        s.inactive,
-                        u.id,
-                        u.username,
-                        u.full_name,
-                        u.inactive AS user_inactive
-                    FROM sessions s
-                    JOIN users u ON u.id = s.userid
-                    WHERE s.id = %(session_id)s
-                    """,
+                    sql_select_session_with_user(),
                     {"session_id": session_id},
                 )
                 row = await cur.fetchone()
@@ -82,13 +93,7 @@ class SessionMiddleware(AbstractMiddleware):
 
                 # Get user capabilities
                 await cur.execute(
-                    """
-                    SELECT DISTINCT c.cap_name
-                    FROM capabilities c
-                    JOIN rolecapabilities rc ON rc.capabilityid = c.id
-                    JOIN userroles ur ON ur.roleid = rc.roleid
-                    WHERE ur.userid = %(user_id)s
-                    """,
+                    sql_select_user_capabilities(),
                     {"user_id": user_id},
                 )
                 cap_rows = await cur.fetchall()

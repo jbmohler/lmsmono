@@ -11,6 +11,109 @@ from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse, make_ref
 
 
+# ---------------------------------------------------------------------------
+# SQL Queries
+# ---------------------------------------------------------------------------
+
+
+def sql_select_account_types() -> str:
+    """List all account types."""
+    return """
+        SELECT id, atype_name, description, balance_sheet, debit
+        FROM hacc.accounttypes
+        ORDER BY sort
+    """
+
+
+def sql_select_accounts() -> str:
+    """List all accounts with type and journal info."""
+    return """
+        SELECT
+            a.id,
+            a.acc_name,
+            a.description,
+            t.id AS account_type_id,
+            t.atype_name AS account_type_name,
+            j.id AS journal_id,
+            j.jrn_name AS journal_name
+        FROM hacc.accounts a
+        JOIN hacc.accounttypes t ON a.type_id = t.id
+        JOIN hacc.journals j ON a.journal_id = j.id
+        ORDER BY t.sort, a.acc_name
+    """
+
+
+def sql_select_account_by_id() -> str:
+    """Get a single account by ID with joins."""
+    return """
+        SELECT
+            a.id,
+            a.acc_name,
+            a.description,
+            t.id AS account_type_id,
+            t.atype_name AS account_type_name,
+            j.id AS journal_id,
+            j.jrn_name AS journal_name
+        FROM hacc.accounts a
+        JOIN hacc.accounttypes t ON a.type_id = t.id
+        JOIN hacc.journals j ON a.journal_id = j.id
+        WHERE a.id = %(id)s
+    """
+
+
+def sql_select_account_transactions() -> str:
+    """Get transactions for a specific account."""
+    return """
+        SELECT
+            t.tid AS id,
+            t.trandate,
+            t.tranref,
+            t.payee,
+            t.memo,
+            s.sum
+        FROM hacc.transactions t
+        JOIN hacc.splits s ON s.stid = t.tid
+        WHERE s.account_id = %(account_id)s
+        ORDER BY t.trandate DESC, t.tid DESC
+        LIMIT %(limit)s OFFSET %(offset)s
+    """
+
+
+def sql_select_account_splits_count() -> str:
+    """Count splits using an account (for delete check)."""
+    return """
+        SELECT COUNT(*) FROM hacc.splits
+        WHERE account_id = %(id)s
+    """
+
+
+def sql_insert_account() -> str:
+    """Create a new account."""
+    return """
+        INSERT INTO hacc.accounts (acc_name, type_id, journal_id, description)
+        VALUES (%(acc_name)s, %(type_id)s, %(journal_id)s, %(description)s)
+        RETURNING id
+    """
+
+
+def sql_update_account(fields: set[str]) -> str:
+    """Update account fields dynamically."""
+    valid_fields = {"acc_name", "description"}
+    updates = [f"{f} = %({f})s" for f in fields if f in valid_fields]
+    if not updates:
+        raise ValueError("No valid fields to update")
+    return f"""
+        UPDATE hacc.accounts
+        SET {", ".join(updates)}
+        WHERE id = %(id)s
+    """
+
+
+def sql_delete_account() -> str:
+    """Delete an account by ID."""
+    return "DELETE FROM hacc.accounts WHERE id = %(id)s"
+
+
 ACCOUNT_TYPE_COLUMNS = [
     ColumnMeta(key="id", label="ID", type="uuid"),
     ColumnMeta(key="atype_name", label="Name", type="string"),
@@ -81,20 +184,7 @@ async def _get_account_by_id(
     """Get a single account by ID (shared logic)."""
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
-            """
-            SELECT
-                a.id,
-                a.acc_name,
-                a.description,
-                t.id AS account_type_id,
-                t.atype_name AS account_type_name,
-                j.id AS journal_id,
-                j.jrn_name AS journal_name
-            FROM hacc.accounts a
-            JOIN hacc.accounttypes t ON a.type_id = t.id
-            JOIN hacc.journals j ON a.journal_id = j.id
-            WHERE a.id = %(id)s
-            """,
+            sql_select_account_by_id(),
             {"id": account_id},
         )
         row = await cur.fetchone()
@@ -118,11 +208,7 @@ class AccountTypesController(Controller):
         """List all account types."""
         return await db.select_many(
             conn,
-            """
-            SELECT id, atype_name, description, balance_sheet, debit
-            FROM hacc.accounttypes
-            ORDER BY sort
-            """,
+            sql_select_account_types(),
             columns=ACCOUNT_TYPE_COLUMNS,
         )
 
@@ -138,22 +224,7 @@ class AccountsController(Controller):
     ) -> MultiRowResponse:
         """List all accounts with type and journal info."""
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT
-                    a.id,
-                    a.acc_name,
-                    a.description,
-                    t.id AS account_type_id,
-                    t.atype_name AS account_type_name,
-                    j.id AS journal_id,
-                    j.jrn_name AS journal_name
-                FROM hacc.accounts a
-                JOIN hacc.accounttypes t ON a.type_id = t.id
-                JOIN hacc.journals j ON a.journal_id = j.id
-                ORDER BY t.sort, a.acc_name
-                """
-            )
+            await cur.execute(sql_select_accounts())
             rows = await cur.fetchall()
             data = [transform_account_row(dict(row)) for row in rows]
             return MultiRowResponse(columns=ACCOUNT_COLUMNS, data=data)
@@ -178,20 +249,7 @@ class AccountsController(Controller):
         """Get transactions for a specific account."""
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                """
-                SELECT
-                    t.tid AS id,
-                    t.trandate,
-                    t.tranref,
-                    t.payee,
-                    t.memo,
-                    s.sum
-                FROM hacc.transactions t
-                JOIN hacc.splits s ON s.stid = t.tid
-                WHERE s.account_id = %(account_id)s
-                ORDER BY t.trandate DESC, t.tid DESC
-                LIMIT %(limit)s OFFSET %(offset)s
-                """,
+                sql_select_account_transactions(),
                 {"account_id": account_id, "limit": limit, "offset": offset},
             )
             rows = await cur.fetchall()
@@ -218,11 +276,7 @@ class AccountsController(Controller):
         """Create a new account."""
         row = await db.execute_returning(
             conn,
-            """
-            INSERT INTO hacc.accounts (acc_name, type_id, journal_id, description)
-            VALUES (%(acc_name)s, %(type_id)s, %(journal_id)s, %(description)s)
-            RETURNING id
-            """,
+            sql_insert_account(),
             {
                 "acc_name": data.acc_name,
                 "type_id": data.type_id,
@@ -242,25 +296,21 @@ class AccountsController(Controller):
         data: AccountUpdate,
     ) -> SingleRowResponse:
         """Update an existing account."""
-        updates = []
+        fields: set[str] = set()
         params: dict[str, str | UUID | None] = {"id": account_id}
         if data.acc_name is not None:
-            updates.append("acc_name = %(acc_name)s")
+            fields.add("acc_name")
             params["acc_name"] = data.acc_name
         if data.description is not None:
-            updates.append("description = %(description)s")
+            fields.add("description")
             params["description"] = data.description
 
-        if not updates:
+        if not fields:
             return await _get_account_by_id(conn, account_id)
 
         count = await db.execute(
             conn,
-            f"""
-            UPDATE hacc.accounts
-            SET {", ".join(updates)}
-            WHERE id = %(id)s
-            """,
+            sql_update_account(fields),
             params,
         )
         if count == 0:
@@ -276,10 +326,7 @@ class AccountsController(Controller):
         """Delete an account. Only succeeds if no transactions reference it."""
         async with conn.cursor() as cur:
             await cur.execute(
-                """
-                SELECT COUNT(*) FROM hacc.splits
-                WHERE account_id = %(id)s
-                """,
+                sql_select_account_splits_count(),
                 {"id": account_id},
             )
             row = await cur.fetchone()
@@ -291,7 +338,7 @@ class AccountsController(Controller):
 
         count = await db.execute(
             conn,
-            "DELETE FROM hacc.accounts WHERE id = %(id)s",
+            sql_delete_account(),
             {"id": account_id},
         )
         if count == 0:
