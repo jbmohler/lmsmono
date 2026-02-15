@@ -1,0 +1,105 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="flex items-center justify-between w-full">
+      <div class="flex items-center gap-4">
+        <a
+          routerLink="/reports"
+          class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          Reports
+        </a>
+        <h1 class="text-xl font-semibold text-gray-900">Profit &amp; Loss</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="start-date">From:</label>
+          <input
+            id="start-date"
+            type="date"
+            [value]="startDate()"
+            (change)="onStartDateChange($event)"
+          />
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="end-date">To:</label>
+          <input
+            id="end-date"
+            type="date"
+            [value]="endDate()"
+            (change)="onEndDateChange($event)"
+          />
+        </div>
+        <button class="btn btn-primary" (click)="generate()">Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="max-w-5xl mx-auto flex flex-col gap-6 p-6">
+      @for (group of groups(); track group.atype_id) {
+        <div class="card">
+          <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">{{ group.atype_name }}</h2>
+            <span class="text-sm font-semibold text-gray-900">{{ group.subtotal | currency }}</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Journal</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (acct of group.accounts; track acct.id) {
+                <tr>
+                  <td>
+                    <span class="cell-primary">{{ acct.acc_name }}</span>
+                    @if (acct.description) {
+                      <span class="text-xs text-gray-400 ml-2">{{ acct.description }}</span>
+                    }
+                  </td>
+                  <td class="text-sm text-gray-500">{{ acct.journal.name }}</td>
+                  <td class="text-right tabular-nums">{{ acct.amount | currency }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @if (groups().length > 0) {
+        <div class="card px-4 py-3 flex flex-col gap-2 bg-gray-50">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-gray-600">Total Income</span>
+            <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ totalIncome() | currency }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-gray-600">Total Expenses</span>
+            <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ totalExpenses() | currency }}</span>
+          </div>
+          <div class="flex items-center justify-between border-t border-gray-300 pt-2">
+            <span class="text-sm font-semibold text-gray-900">Net Income</span>
+            <span
+              class="text-sm font-bold tabular-nums"
+              [class.text-green-700]="netIncome() >= 0"
+              [class.text-red-700]="netIncome() < 0"
+            >
+              {{ netIncome() | currency }}
+            </span>
+          </div>
+        </div>
+      }
+
+      @if (groups().length === 0) {
+        <div class="card p-12 text-center text-gray-500 flex flex-col gap-1">
+          <p class="text-sm">No profit &amp; loss data for this period.</p>
+          <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
+        </div>
+      }
+    </div>
+  </div>
+</div>

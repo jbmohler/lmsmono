@@ -64,6 +64,18 @@ export const routes: Routes = [
     loadComponent: () => import('./reports/reports.component').then(m => m.ReportsComponent),
   },
   {
+    path: 'reports/balance-sheet',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./reports/balance-sheet/balance-sheet.component').then(m => m.BalanceSheetComponent),
+  },
+  {
+    path: 'reports/profit-loss',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./reports/profit-loss/profit-loss.component').then(m => m.ProfitLossComponent),
+  },
+  {
     path: 'reports/:reportType',
     canActivate: [authGuard],
     loadComponent: () => import('./reports/report-viewer.component').then(m => m.ReportViewerComponent),

@@ -17,6 +17,7 @@ from api.transactions import TransactionsController
 from api.contacts import ContactsController
 from api.roles import CapabilitiesController, RolesController
 from api.users import UsersController
+from api.financials import FinancialsController
 from core.middleware import SessionMiddleware
 
 
@@ -57,6 +58,7 @@ app = Litestar(
         CapabilitiesController,
         RolesController,
         UsersController,
+        FinancialsController,
     ],
     dependencies={
         "conn": Provide(provide_connection),
