@@ -1,6 +1,10 @@
 import { Component, computed, signal, inject, effect } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { BehaviorSubject, Subject, combineLatest } from 'rxjs';
+import { startWith, switchMap } from 'rxjs/operators';
 import { TransactionEntryComponent } from '../transactions/transaction-entry/transaction-entry.component';
 import { TransactionService } from '../services/transaction.service';
+import { TransactionFilters } from '@finances/models/transaction.model';
 
 interface CalendarTransaction {
   id: string;
@@ -45,8 +49,21 @@ export class TransactionCalendarComponent {
     return `${months[this.currentMonth()]} ${this.currentYear()}`;
   });
 
-  // Transactions from the service
-  private allTransactions = this.transactionService.transactions;
+  // Local filter & refresh state
+  private filters$ = new BehaviorSubject<TransactionFilters>({});
+  private refresh$ = new Subject<void>();
+
+  // Local reactive data pipeline
+  private listResponse = toSignal(
+    combineLatest([
+      this.filters$,
+      this.refresh$.pipe(startWith(undefined)),
+    ]).pipe(
+      switchMap(([filters]) => this.transactionService.list(filters))
+    )
+  );
+
+  private allTransactions = computed(() => this.listResponse()?.data ?? []);
 
   // Map transactions by date for quick lookup
   private transactionsByDate = computed(() => {
@@ -81,7 +98,7 @@ export class TransactionCalendarComponent {
       const to = new Date(lastDay);
       to.setDate(to.getDate() + 14);
 
-      this.transactionService.setFilters({
+      this.filters$.next({
         from: this.formatDate(from.getFullYear(), from.getMonth(), from.getDate()),
         to: this.formatDate(to.getFullYear(), to.getMonth(), to.getDate()),
       });
@@ -195,7 +212,7 @@ export class TransactionCalendarComponent {
   }
 
   onTransactionSaved(): void {
-    this.transactionService.refresh();
+    this.refresh$.next();
   }
 
   private formatDate(year: number, month: number, day: number): string {

@@ -1,10 +1,7 @@
-import { Injectable, inject, computed } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, Subject, combineLatest } from 'rxjs';
-import { debounceTime, startWith, switchMap } from 'rxjs/operators';
+import { Injectable, inject } from '@angular/core';
 
 import { ApiService } from '@core/api/api.service';
-import { ColumnMeta } from '@core/api/api.types';
+import { MultiRowResponse } from '@core/api/api.types';
 import {
   TemplateSearchResult,
   Transaction,
@@ -13,61 +10,24 @@ import {
   TransactionFilters,
   TransactionUpdate,
 } from '@finances/models/transaction.model';
-
-const SEARCH_DEBOUNCE_MS = 300;
+import { Observable } from 'rxjs';
 
 /**
- * Service for transaction operations with reactive filtering.
+ * Service for transaction CRUD operations.
+ * List filtering is managed locally by each consumer.
  */
 @Injectable({ providedIn: 'root' })
 export class TransactionService {
   private api = inject(ApiService);
 
-  // Filter state
-  private filters$ = new BehaviorSubject<TransactionFilters>({});
-
-  // Manual refresh trigger
-  private refresh$ = new Subject<void>();
-
-  // Combined stream: filters + refresh trigger, with debounce for search
-  private listResponse = toSignal(
-    combineLatest([
-      this.filters$.pipe(debounceTime(SEARCH_DEBOUNCE_MS)),
-      this.refresh$.pipe(startWith(undefined)),
-    ]).pipe(
-      switchMap(([filters]) =>
-        this.api.getMany<Transaction>('/api/transactions', {
-          q: filters.q,
-          account_id: filters.account_id,
-          from: filters.from,
-          to: filters.to,
-        })
-      )
-    )
-  );
-
-  /** Current transaction list */
-  transactions = computed(() => this.listResponse()?.data ?? []);
-
-  /** Column metadata for transactions */
-  columns = computed<ColumnMeta[]>(() => this.listResponse()?.columns ?? []);
-
-  /** Current filter values (readonly) */
-  currentFilters = computed(() => this.filters$.value);
-
-  /** Update filters (partial update) */
-  setFilters(filters: Partial<TransactionFilters>): void {
-    this.filters$.next({ ...this.filters$.value, ...filters });
-  }
-
-  /** Clear all filters */
-  clearFilters(): void {
-    this.filters$.next({});
-  }
-
-  /** Trigger a manual refresh of the transaction list */
-  refresh(): void {
-    this.refresh$.next();
+  /** Fetch transactions with the given filters */
+  list(filters: TransactionFilters): Observable<MultiRowResponse<Transaction>> {
+    return this.api.getMany<Transaction>('/api/transactions', {
+      q: filters.q,
+      account_id: filters.account_id,
+      from: filters.from,
+      to: filters.to,
+    });
   }
 
   /** Get a single transaction by ID with its splits */

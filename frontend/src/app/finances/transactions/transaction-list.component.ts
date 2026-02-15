@@ -1,8 +1,21 @@
-import { Component, afterNextRender, inject, signal, viewChild, ElementRef } from '@angular/core';
+import { Component, afterNextRender, inject, signal, viewChild, ElementRef, computed } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
+import { BehaviorSubject, Subject, combineLatest } from 'rxjs';
+import { debounceTime, startWith, switchMap } from 'rxjs/operators';
 import { TransactionEntryComponent } from './transaction-entry/transaction-entry.component';
 import { TransactionService } from '../services/transaction.service';
+import { TransactionFilters } from '@finances/models/transaction.model';
+import { ColumnMeta } from '@core/api/api.types';
+
+const SEARCH_DEBOUNCE_MS = 300;
+
+function defaultFromDate(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 3);
+  return d.toISOString().slice(0, 10);
+}
 
 @Component({
   selector: 'app-transaction-list',
@@ -21,14 +34,27 @@ export class TransactionListComponent {
   showEntryDialog = signal(false);
   editTransactionId = signal<string | undefined>(undefined);
 
-  // Bind to service filters
+  // Local filter state
+  private filters$ = new BehaviorSubject<TransactionFilters>({ from: defaultFromDate() });
+  private refresh$ = new Subject<void>();
+
+  // Bind to template inputs
   searchQuery = '';
-  dateFrom = '';
+  dateFrom = defaultFromDate();
   dateTo = '';
 
-  // Expose service data to template
-  transactions = this.transactionService.transactions;
-  columns = this.transactionService.columns;
+  // Local reactive data pipeline
+  private listResponse = toSignal(
+    combineLatest([
+      this.filters$.pipe(debounceTime(SEARCH_DEBOUNCE_MS)),
+      this.refresh$.pipe(startWith(undefined)),
+    ]).pipe(
+      switchMap(([filters]) => this.transactionService.list(filters))
+    )
+  );
+
+  transactions = computed(() => this.listResponse()?.data ?? []);
+  columns = computed<ColumnMeta[]>(() => this.listResponse()?.columns ?? []);
 
   constructor() {
     afterNextRender(() => {
@@ -48,22 +74,22 @@ export class TransactionListComponent {
   }
 
   onSearchChange(): void {
-    this.transactionService.setFilters({ q: this.searchQuery || undefined });
+    this.setFilters({ q: this.searchQuery || undefined });
   }
 
   onDateFromChange(): void {
-    this.transactionService.setFilters({ from: this.dateFrom || undefined });
+    this.setFilters({ from: this.dateFrom || undefined });
   }
 
   onDateToChange(): void {
-    this.transactionService.setFilters({ to: this.dateTo || undefined });
+    this.setFilters({ to: this.dateTo || undefined });
   }
 
   clearFilters(): void {
     this.searchQuery = '';
-    this.dateFrom = '';
+    this.dateFrom = defaultFromDate();
     this.dateTo = '';
-    this.transactionService.clearFilters();
+    this.filters$.next({ from: defaultFromDate() });
   }
 
   openEntryDialog(transactionId?: string): void {
@@ -77,10 +103,14 @@ export class TransactionListComponent {
   }
 
   onTransactionSaved(): void {
-    this.transactionService.refresh();
+    this.refresh$.next();
   }
 
   onRowClick(transactionId: string): void {
     this.openEntryDialog(transactionId);
+  }
+
+  private setFilters(filters: Partial<TransactionFilters>): void {
+    this.filters$.next({ ...this.filters$.value, ...filters });
   }
 }
