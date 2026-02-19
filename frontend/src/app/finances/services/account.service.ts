@@ -8,6 +8,7 @@ import { ColumnMeta } from '@core/api/api.types';
 import {
   Account,
   AccountCreate,
+  AccountDetail,
   AccountTransaction,
   AccountType,
   AccountUpdate,
@@ -69,16 +70,16 @@ export class AccountService {
     this.refreshAccounts$.next();
   }
 
-  /** Get a single account by ID */
+  /** Get a single account by ID (returns detail fields) */
   getById(id: string) {
-    return this.api.getOne<Account>(`/api/accounts/${id}`);
+    return this.api.getOne<AccountDetail>(`/api/accounts/${id}`);
   }
 
   /** Get transactions for a specific account */
-  getAccountTransactions(accountId: string, limit = 50, offset = 0) {
+  getAccountTransactions(accountId: string, limit = 50, offset = 0, from?: string) {
     return this.api.getMany<AccountTransaction>(
       `/api/accounts/${accountId}/transactions`,
-      { limit, offset }
+      { limit, offset, from }
     );
   }
 

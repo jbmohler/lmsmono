@@ -1,3 +1,4 @@
+import datetime
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -44,7 +45,7 @@ def sql_select_accounts() -> str:
 
 
 def sql_select_account_by_id() -> str:
-    """Get a single account by ID with joins."""
+    """Get a single account by ID with joins (includes extra detail fields)."""
     return """
         SELECT
             a.id,
@@ -53,7 +54,16 @@ def sql_select_account_by_id() -> str:
             t.id AS account_type_id,
             t.atype_name AS account_type_name,
             j.id AS journal_id,
-            j.jrn_name AS journal_name
+            j.jrn_name AS journal_name,
+            a.acc_note,
+            a.rec_note,
+            a.contact_keywords,
+            a.instname,
+            a.instaddr1,
+            a.instaddr2,
+            a.instcity,
+            a.inststate,
+            a.instzip
         FROM hacc.accounts a
         JOIN hacc.accounttypes t ON a.type_id = t.id
         JOIN hacc.journals j ON a.journal_id = j.id
@@ -61,9 +71,10 @@ def sql_select_account_by_id() -> str:
     """
 
 
-def sql_select_account_transactions() -> str:
+def sql_select_account_transactions(date_from: bool = False) -> str:
     """Get transactions for a specific account."""
-    return """
+    date_filter = "AND t.trandate >= %(from_date)s" if date_from else ""
+    return f"""
         SELECT
             t.tid AS id,
             t.trandate,
@@ -74,6 +85,7 @@ def sql_select_account_transactions() -> str:
         FROM hacc.transactions t
         JOIN hacc.splits s ON s.stid = t.tid
         WHERE s.account_id = %(account_id)s
+            {date_filter}
         ORDER BY t.trandate DESC, t.tid DESC
         LIMIT %(limit)s OFFSET %(offset)s
     """
@@ -130,6 +142,19 @@ ACCOUNT_COLUMNS = [
     ColumnMeta(key="journal", label="Journal", type="ref"),
 ]
 
+ACCOUNT_DETAIL_COLUMNS = [
+    *ACCOUNT_COLUMNS,
+    ColumnMeta(key="acc_note", label="Account Note", type="string"),
+    ColumnMeta(key="rec_note", label="Reconciliation Note", type="string"),
+    ColumnMeta(key="contact_keywords", label="Contact Keywords", type="string"),
+    ColumnMeta(key="instname", label="Institution", type="string"),
+    ColumnMeta(key="instaddr1", label="Address 1", type="string"),
+    ColumnMeta(key="instaddr2", label="Address 2", type="string"),
+    ColumnMeta(key="instcity", label="City", type="string"),
+    ColumnMeta(key="inststate", label="State", type="string"),
+    ColumnMeta(key="instzip", label="Zip", type="string"),
+]
+
 # Columns for the account transactions endpoint
 ACCOUNT_TRANSACTION_COLUMNS = [
     ColumnMeta(key="id", label="ID", type="uuid"),
@@ -151,6 +176,23 @@ def transform_account_row(row: dict) -> dict:
         "account_type": make_ref(str(row["account_type_id"]), row["account_type_name"]),
         "journal": make_ref(str(row["journal_id"]), row["journal_name"]),
     }
+
+
+def transform_account_detail_row(row: dict) -> dict:
+    """Transform a raw account detail row (includes extra fields)."""
+    base = transform_account_row(row)
+    base.update({
+        "acc_note": row["acc_note"],
+        "rec_note": row["rec_note"],
+        "contact_keywords": row["contact_keywords"],
+        "instname": row["instname"],
+        "instaddr1": row["instaddr1"],
+        "instaddr2": row["instaddr2"],
+        "instcity": row["instcity"],
+        "inststate": row["inststate"],
+        "instzip": row["instzip"],
+    })
+    return base
 
 
 def sum_to_debit_credit(sum_value) -> tuple:
@@ -191,8 +233,8 @@ async def _get_account_by_id(
         if not row:
             raise HTTPException(status_code=404, detail="Account not found")
         return SingleRowResponse(
-            columns=ACCOUNT_COLUMNS,
-            data=transform_account_row(dict(row)),
+            columns=ACCOUNT_DETAIL_COLUMNS,
+            data=transform_account_detail_row(dict(row)),
         )
 
 
@@ -245,12 +287,16 @@ class AccountsController(Controller):
         account_id: UUID,
         limit: int = Parameter(default=50, le=500),
         offset: int = Parameter(default=0, ge=0),
+        from_date: datetime.date | None = Parameter(default=None, query="from"),
     ) -> MultiRowResponse:
         """Get transactions for a specific account."""
+        params: dict = {"account_id": account_id, "limit": limit, "offset": offset}
+        if from_date is not None:
+            params["from_date"] = from_date
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                sql_select_account_transactions(),
-                {"account_id": account_id, "limit": limit, "offset": offset},
+                sql_select_account_transactions(date_from=from_date is not None),
+                params,
             )
             rows = await cur.fetchall()
             data = []

@@ -5,12 +5,13 @@ import { CurrencyPipe } from '@angular/common';
 import { Subject, switchMap, startWith, filter } from 'rxjs';
 import { ReportService } from '../report.service';
 import { AccountTypeGroup, BalanceSheetRow } from '../report.models';
+import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.component';
 
 @Component({
   selector: 'app-balance-sheet',
   templateUrl: './balance-sheet.component.html',
   styleUrl: './balance-sheet.component.scss',
-  imports: [RouterLink, CurrencyPipe],
+  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent],
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },
@@ -18,6 +19,7 @@ import { AccountTypeGroup, BalanceSheetRow } from '../report.models';
 export class BalanceSheetComponent {
   private reportService = inject(ReportService);
 
+  selectedAccountId = signal<string | null>(null);
   reportDate = signal(new Date().toISOString().slice(0, 10));
   private generate$ = new Subject<string>();
 
@@ -46,6 +48,16 @@ export class BalanceSheetComponent {
       .filter((g) => !g.debit_account)
       .reduce((sum, g) => sum + g.subtotal, 0);
   });
+
+  selectAccount(id: string): void {
+    this.selectedAccountId.set(
+      this.selectedAccountId() === id ? null : id
+    );
+  }
+
+  closeSidebar(): void {
+    this.selectedAccountId.set(null);
+  }
 
   onDateChange(event: Event): void {
     const input = event.target as HTMLInputElement;

@@ -1,0 +1,185 @@
+<div class="flex flex-col h-full">
+  <!-- Header -->
+  <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+    <h2 class="text-sm font-semibold text-gray-900 truncate">
+      {{ account()?.acc_name ?? 'Loading...' }}
+    </h2>
+    <button
+      (click)="sidebarClose.emit()"
+      class="p-1 text-gray-400 hover:text-gray-600 rounded"
+      title="Close (Escape)"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex border-b border-gray-200">
+    <button
+      (click)="setTab('info')"
+      class="flex-1 px-3 py-2 text-xs font-medium text-center"
+      [class.text-blue-600]="activeTab() === 'info'"
+      [class.border-b-2]="activeTab() === 'info'"
+      [class.border-blue-600]="activeTab() === 'info'"
+      [class.text-gray-500]="activeTab() !== 'info'"
+      [class.hover:text-gray-700]="activeTab() !== 'info'"
+    >Info</button>
+    <button
+      (click)="setTab('contacts')"
+      class="flex-1 px-3 py-2 text-xs font-medium text-center"
+      [class.text-blue-600]="activeTab() === 'contacts'"
+      [class.border-b-2]="activeTab() === 'contacts'"
+      [class.border-blue-600]="activeTab() === 'contacts'"
+      [class.text-gray-500]="activeTab() !== 'contacts'"
+      [class.hover:text-gray-700]="activeTab() !== 'contacts'"
+    >Contacts</button>
+    <button
+      (click)="setTab('transactions')"
+      class="flex-1 px-3 py-2 text-xs font-medium text-center"
+      [class.text-blue-600]="activeTab() === 'transactions'"
+      [class.border-b-2]="activeTab() === 'transactions'"
+      [class.border-blue-600]="activeTab() === 'transactions'"
+      [class.text-gray-500]="activeTab() !== 'transactions'"
+      [class.hover:text-gray-700]="activeTab() !== 'transactions'"
+    >Transactions</button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="flex-1 overflow-y-auto">
+    @if (activeTab() === 'info') {
+      @if (account(); as acct) {
+        <div class="p-4 flex flex-col gap-3 text-sm">
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-gray-500 uppercase">Type</span>
+            <span class="text-gray-900">{{ acct.account_type.name }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-medium text-gray-500 uppercase">Journal</span>
+            <span class="text-gray-900">{{ acct.journal.name }}</span>
+          </div>
+          @if (acct.description) {
+            <div class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-500 uppercase">Description</span>
+              <span class="text-gray-900">{{ acct.description }}</span>
+            </div>
+          }
+          @if (acct.acc_note) {
+            <div class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-500 uppercase">Account Note</span>
+              <span class="text-gray-900 whitespace-pre-wrap">{{ acct.acc_note }}</span>
+            </div>
+          }
+          @if (acct.rec_note) {
+            <div class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-500 uppercase">Reconciliation Note</span>
+              <span class="text-gray-900 whitespace-pre-wrap">{{ acct.rec_note }}</span>
+            </div>
+          }
+          @if (acct.contact_keywords) {
+            <div class="flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-500 uppercase">Contact Keywords</span>
+              <span class="text-gray-900">{{ acct.contact_keywords }}</span>
+            </div>
+          }
+          @if (acct.instname) {
+            <div class="flex flex-col gap-2 mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <span class="text-xs font-semibold text-gray-500 uppercase">Institution</span>
+              <span class="text-gray-900 font-medium">{{ acct.instname }}</span>
+              @if (acct.instaddr1 || acct.instcity) {
+                <div class="text-gray-600 text-xs leading-relaxed">
+                  @if (acct.instaddr1) {
+                    <div>{{ acct.instaddr1 }}</div>
+                  }
+                  @if (acct.instaddr2) {
+                    <div>{{ acct.instaddr2 }}</div>
+                  }
+                  @if (acct.instcity || acct.inststate || acct.instzip) {
+                    <div>
+                      @if (acct.instcity) { {{ acct.instcity }} }
+                      @if (acct.inststate) { {{ acct.inststate }} }
+                      @if (acct.instzip) { {{ acct.instzip }} }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="p-4 text-sm text-gray-400">Loading account...</div>
+      }
+    }
+
+    @if (activeTab() === 'contacts') {
+      @if (!contactsLoaded()) {
+        <div class="p-4 text-sm text-gray-400">Loading contacts...</div>
+      } @else if (contacts().length === 0) {
+        <div class="p-4 text-sm text-gray-400">
+          @if (account()?.contact_keywords) {
+            No contacts found for "{{ account()?.contact_keywords }}"
+          } @else {
+            No contact keywords set for this account.
+          }
+        </div>
+      } @else {
+        <div class="flex flex-col">
+          @for (contact of contacts(); track contact.id) {
+            <a
+              [routerLink]="['/contacts']"
+              [queryParams]="{ id: contact.id }"
+              class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 flex flex-col gap-0.5"
+            >
+              <span class="text-sm font-medium text-gray-900">{{ contact.entityName }}</span>
+              @if (contact.organization) {
+                <span class="text-xs text-gray-500">{{ contact.organization }}</span>
+              }
+              @if (contact.primaryEmail) {
+                <span class="text-xs text-gray-400">{{ contact.primaryEmail }}</span>
+              }
+              @if (contact.primaryPhone) {
+                <span class="text-xs text-gray-400">{{ contact.primaryPhone }}</span>
+              }
+            </a>
+          }
+        </div>
+      }
+    }
+
+    @if (activeTab() === 'transactions') {
+      @if (!transactionsLoaded()) {
+        <div class="p-4 text-sm text-gray-400">Loading transactions...</div>
+      } @else if (transactions().length === 0) {
+        <div class="p-4 text-sm text-gray-400">No transactions in the last year.</div>
+      } @else {
+        <table class="w-full">
+          <thead>
+            <tr>
+              <th class="text-left text-xs">Date</th>
+              <th class="text-left text-xs">Payee</th>
+              <th class="text-left text-xs">Memo</th>
+              <th class="text-right text-xs">Debit</th>
+              <th class="text-right text-xs">Credit</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (txn of transactions(); track txn.id) {
+              <tr>
+                <td class="text-xs whitespace-nowrap">{{ txn.trandate | date:'M/d/yy' }}</td>
+                <td class="text-xs truncate max-w-[100px]">{{ txn.payee }}</td>
+                <td class="text-xs truncate max-w-[100px]">{{ txn.memo }}</td>
+                <td class="text-right text-xs tabular-nums">
+                  @if (txn.debit) { {{ txn.debit | currency }} }
+                </td>
+                <td class="text-right text-xs tabular-nums">
+                  @if (txn.credit) { {{ txn.credit | currency }} }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    }
+  </div>
+</div>

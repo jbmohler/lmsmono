@@ -38,66 +38,83 @@
   </div>
 
   <div class="page-content">
-    <div class="max-w-5xl mx-auto flex flex-col gap-6 p-6">
-      @for (group of groups(); track group.atype_id) {
-        <div class="card">
-          <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">{{ group.atype_name }}</h2>
-            <span class="text-sm font-semibold text-gray-900">{{ group.subtotal | currency }}</span>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th>Journal</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (acct of group.accounts; track acct.id) {
-                <tr>
-                  <td>
-                    <span class="cell-primary">{{ acct.acc_name }}</span>
-                    @if (acct.description) {
-                      <span class="text-xs text-gray-400 ml-2">{{ acct.description }}</span>
-                    }
-                  </td>
-                  <td class="text-sm text-gray-500">{{ acct.journal.name }}</td>
-                  <td class="text-right tabular-nums">{{ acct.amount | currency }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
+    <div class="flex h-full gap-4 md:gap-6">
+      <div class="flex-1 overflow-y-auto">
+        <div class="max-w-3xl flex flex-col gap-4">
+          @for (group of groups(); track group.atype_id) {
+            <div class="card">
+              <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">{{ group.atype_name }}</h2>
+                <span class="text-sm font-semibold text-gray-900">{{ group.subtotal | currency }}</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Account</th>
+                    <th>Journal</th>
+                    <th class="text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (acct of group.accounts; track acct.id) {
+                    <tr
+                      class="row-clickable"
+                      [class.bg-blue-50]="selectedAccountId() === acct.id"
+                      (click)="selectAccount(acct.id)"
+                    >
+                      <td>
+                        <span class="cell-primary">{{ acct.acc_name }}</span>
+                        @if (acct.description) {
+                          <span class="text-xs text-gray-400 ml-2">{{ acct.description }}</span>
+                        }
+                      </td>
+                      <td class="text-sm text-gray-500">{{ acct.journal.name }}</td>
+                      <td class="text-right tabular-nums">{{ acct.amount | currency }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
 
-      @if (groups().length > 0) {
-        <div class="card px-4 py-3 flex flex-col gap-2 bg-gray-50">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-gray-600">Total Income</span>
-            <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ totalIncome() | currency }}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-gray-600">Total Expenses</span>
-            <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ totalExpenses() | currency }}</span>
-          </div>
-          <div class="flex items-center justify-between border-t border-gray-300 pt-2">
-            <span class="text-sm font-semibold text-gray-900">Net Income</span>
-            <span
-              class="text-sm font-bold tabular-nums"
-              [class.text-green-700]="netIncome() >= 0"
-              [class.text-red-700]="netIncome() < 0"
-            >
-              {{ netIncome() | currency }}
-            </span>
-          </div>
-        </div>
-      }
+          @if (groups().length > 0) {
+            <div class="card px-4 py-3 flex flex-col gap-2 bg-gray-50">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-600">Total Income</span>
+                <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ totalIncome() | currency }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-600">Total Expenses</span>
+                <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ totalExpenses() | currency }}</span>
+              </div>
+              <div class="flex items-center justify-between border-t border-gray-300 pt-2">
+                <span class="text-sm font-semibold text-gray-900">Net Income</span>
+                <span
+                  class="text-sm font-bold tabular-nums"
+                  [class.text-green-700]="netIncome() >= 0"
+                  [class.text-red-700]="netIncome() < 0"
+                >
+                  {{ netIncome() | currency }}
+                </span>
+              </div>
+            </div>
+          }
 
-      @if (groups().length === 0) {
-        <div class="card p-12 text-center text-gray-500 flex flex-col gap-1">
-          <p class="text-sm">No profit &amp; loss data for this period.</p>
-          <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
+          @if (groups().length === 0) {
+            <div class="card p-12 text-center text-gray-500 flex flex-col gap-1">
+              <p class="text-sm">No profit &amp; loss data for this period.</p>
+              <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
+            </div>
+          }
+        </div>
+      </div>
+
+      @if (selectedAccountId(); as acctId) {
+        <div class="w-[28rem] flex-shrink-0 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+          <app-account-sidebar
+            [accountId]="acctId"
+            (sidebarClose)="closeSidebar()"
+          />
         </div>
       }
     </div>

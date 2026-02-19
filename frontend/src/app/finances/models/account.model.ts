@@ -22,6 +22,19 @@ export interface Account {
   journal: ItemRef;
 }
 
+/** Account detail with extra fields from the detail endpoint */
+export interface AccountDetail extends Account {
+  acc_note: string | null;
+  rec_note: string | null;
+  contact_keywords: string | null;
+  instname: string | null;
+  instaddr1: string | null;
+  instaddr2: string | null;
+  instcity: string | null;
+  inststate: string | null;
+  instzip: string | null;
+}
+
 /** Data for creating a new account */
 export interface AccountCreate {
   acc_name: string;

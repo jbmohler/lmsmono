@@ -5,6 +5,7 @@ import { CurrencyPipe } from '@angular/common';
 import { Subject, switchMap, startWith, filter } from 'rxjs';
 import { ReportService } from '../report.service';
 import { AccountTypeGroup, ProfitLossRow } from '../report.models';
+import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.component';
 
 interface DateRange {
   d1: string;
@@ -15,7 +16,7 @@ interface DateRange {
   selector: 'app-profit-loss',
   templateUrl: './profit-loss.component.html',
   styleUrl: './profit-loss.component.scss',
-  imports: [RouterLink, CurrencyPipe],
+  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent],
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },
@@ -23,6 +24,7 @@ interface DateRange {
 export class ProfitLossComponent {
   private reportService = inject(ReportService);
 
+  selectedAccountId = signal<string | null>(null);
   private today = new Date().toISOString().slice(0, 10);
   private yearStart = this.today.slice(0, 4) + '-01-01';
 
@@ -57,6 +59,16 @@ export class ProfitLossComponent {
   });
 
   netIncome = computed(() => this.totalIncome() - this.totalExpenses());
+
+  selectAccount(id: string): void {
+    this.selectedAccountId.set(
+      this.selectedAccountId() === id ? null : id
+    );
+  }
+
+  closeSidebar(): void {
+    this.selectedAccountId.set(null);
+  }
 
   onStartDateChange(event: Event): void {
     this.startDate.set((event.target as HTMLInputElement).value);
