@@ -1,0 +1,147 @@
+<dialog
+  #dialog
+  class="w-full max-w-lg flex flex-col"
+  (close)="dialogClose.emit()"
+  (keydown)="handleKeydown($event)"
+>
+  <!-- Header -->
+  <div class="dialog-header">
+    <h2 class="dialog-header-title">
+      @if (isEditMode()) {
+        Edit Account
+      } @else {
+        New Account
+      }
+    </h2>
+    <button
+      type="button"
+      (click)="onCancel()"
+      class="dialog-close-btn"
+      aria-label="Close"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Body -->
+  <div class="px-4 md:px-6 py-4 overflow-y-auto flex-1 flex flex-col gap-4">
+    @if (loading()) {
+      <div class="flex items-center justify-center py-12">
+        <span class="text-gray-500">Loading account...</span>
+      </div>
+    } @else {
+      <div class="flex flex-col gap-3 input-compact">
+        <!-- Account Name -->
+        <div>
+          <label for="acc-name" class="label-compact">Account Name</label>
+          <input
+            #nameInput
+            id="acc-name"
+            type="text"
+            [ngModel]="accName()"
+            (ngModelChange)="accName.set($event)"
+            placeholder="Account name (min 3 characters)"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label for="acc-desc" class="label-compact">Description</label>
+          <input
+            id="acc-desc"
+            type="text"
+            [ngModel]="description()"
+            (ngModelChange)="description.set($event)"
+            placeholder="Optional description"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Account Type -->
+        <div>
+          <label for="acc-type" class="label-compact">Account Type</label>
+          <select
+            id="acc-type"
+            [ngModel]="typeId()"
+            (ngModelChange)="typeId.set($event)"
+            class="w-full"
+          >
+            <option value="">Select type...</option>
+            @for (type of accountTypes(); track type.id) {
+              <option [value]="type.id">{{ type.atype_name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Journal -->
+        <div>
+          <label for="acc-journal" class="label-compact">Journal</label>
+          <select
+            id="acc-journal"
+            [ngModel]="journalId()"
+            (ngModelChange)="journalId.set($event)"
+            class="w-full"
+          >
+            <option value="">Select journal...</option>
+            @for (journal of journals(); track journal.id) {
+              <option [value]="journal.id">{{ journal.jrn_name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Retained Earnings (non-balance-sheet types only) -->
+        @if (showRetainedEarnings()) {
+          <div>
+            <label for="acc-retearn" class="label-compact">Retained Earnings Account</label>
+            <select
+              id="acc-retearn"
+              [ngModel]="retearnId()"
+              (ngModelChange)="retearnId.set($event)"
+              class="w-full"
+            >
+              <option value="">Select account...</option>
+              @for (acct of balanceSheetAccounts(); track acct.id) {
+                <option [value]="acct.id">{{ acct.acc_name }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+
+      <!-- Error message -->
+      @if (errorMessage()) {
+        <div class="p-3 bg-red-50 border border-red-200 rounded-md">
+          <p class="text-sm text-red-800">{{ errorMessage() }}</p>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Footer -->
+  <div class="dialog-footer">
+    <div class="dialog-shortcuts">
+      <span class="font-medium">Shortcuts:</span>
+      Ctrl+S save | Esc cancel
+    </div>
+    <div class="dialog-actions">
+      <button type="button" (click)="onCancel()" class="btn btn-secondary">
+        Cancel
+      </button>
+      <button
+        type="button"
+        (click)="onSave()"
+        [disabled]="!isValid() || saving() || loading()"
+        class="btn btn-primary"
+      >
+        @if (saving()) {
+          Saving...
+        } @else {
+          Save Account
+        }
+      </button>
+    </div>
+  </div>
+</dialog>

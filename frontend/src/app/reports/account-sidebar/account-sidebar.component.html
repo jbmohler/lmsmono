@@ -4,15 +4,26 @@
     <h2 class="text-sm font-semibold text-gray-900 truncate">
       {{ account()?.acc_name ?? 'Loading...' }}
     </h2>
-    <button
-      (click)="sidebarClose.emit()"
-      class="p-1 text-gray-400 hover:text-gray-600 rounded"
-      title="Close (Escape)"
-    >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    </button>
+    <div class="flex items-center gap-1">
+      <button
+        (click)="accountEdit.emit(accountId())"
+        class="icon-btn icon-btn-edit"
+        title="Edit account"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+      </button>
+      <button
+        (click)="sidebarClose.emit()"
+        class="p-1 text-gray-400 hover:text-gray-600 rounded"
+        title="Close (Escape)"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
   </div>
 
   <!-- Tabs -->

@@ -115,6 +115,7 @@
             [accountId]="acctId"
             (sidebarClose)="closeSidebar()"
             (transactionOpen)="openTransaction($event)"
+            (accountEdit)="openAccountEdit($event)"
           />
         </div>
       }
@@ -127,5 +128,13 @@
     [transactionId]="editTransactionId()"
     (dialogClose)="closeEntryDialog()"
     (dialogSave)="closeEntryDialog()"
+  />
+}
+
+@if (showAccountEditDialog()) {
+  <app-account-edit-dialog
+    [accountId]="editAccountId()"
+    (dialogClose)="closeAccountEditDialog()"
+    (dialogSave)="onAccountSaved()"
   />
 }

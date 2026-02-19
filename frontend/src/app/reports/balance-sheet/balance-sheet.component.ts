@@ -7,12 +7,13 @@ import { ReportService } from '../report.service';
 import { AccountTypeGroup, BalanceSheetRow } from '../report.models';
 import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.component';
 import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
+import { AccountEditDialogComponent } from '../../finances/setup/account-edit-dialog/account-edit-dialog.component';
 
 @Component({
   selector: 'app-balance-sheet',
   templateUrl: './balance-sheet.component.html',
   styleUrl: './balance-sheet.component.scss',
-  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent, TransactionEntryComponent],
+  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent, TransactionEntryComponent, AccountEditDialogComponent],
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },
@@ -23,6 +24,8 @@ export class BalanceSheetComponent {
   selectedAccountId = signal<string | null>(null);
   editTransactionId = signal<string | undefined>(undefined);
   showEntryDialog = signal(false);
+  showAccountEditDialog = signal(false);
+  editAccountId = signal<string | undefined>(undefined);
   reportDate = signal(new Date().toISOString().slice(0, 10));
   private generate$ = new Subject<string>();
 
@@ -70,6 +73,21 @@ export class BalanceSheetComponent {
   closeEntryDialog(): void {
     this.showEntryDialog.set(false);
     this.editTransactionId.set(undefined);
+  }
+
+  openAccountEdit(id: string): void {
+    this.editAccountId.set(id);
+    this.showAccountEditDialog.set(true);
+  }
+
+  closeAccountEditDialog(): void {
+    this.showAccountEditDialog.set(false);
+    this.editAccountId.set(undefined);
+  }
+
+  onAccountSaved(): void {
+    this.closeAccountEditDialog();
+    this.generate();
   }
 
   onDateChange(event: Event): void {

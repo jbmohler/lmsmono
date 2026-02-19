@@ -1,6 +1,9 @@
 <div class="page-container">
   <div class="page-header">
-    <h1 class="text-xl font-semibold text-gray-900">Accounts</h1>
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-semibold text-gray-900">Accounts</h1>
+      <button class="btn btn-primary" (click)="openCreate()">New Account</button>
+    </div>
   </div>
 
   <div class="page-content">
@@ -23,7 +26,7 @@
           </tr>
         } @else {
           @for (account of accounts(); track account.id) {
-            <tr class="row-hover">
+            <tr class="row-clickable" (click)="openEdit(account.id)">
               <td class="cell-primary">{{ account.acc_name }}</td>
               <td>{{ account.description || '-' }}</td>
               <td>{{ account.account_type.name }}</td>
@@ -36,3 +39,11 @@
     </div>
   </div>
 </div>
+
+@if (showEditDialog()) {
+  <app-account-edit-dialog
+    [accountId]="editAccountId()"
+    (dialogClose)="onDialogClose()"
+    (dialogSave)="onDialogSave()"
+  />
+}

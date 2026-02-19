@@ -20,6 +20,7 @@ export interface Account {
   description: string | null;
   account_type: ItemRef;
   journal: ItemRef;
+  retained_earnings: ItemRef | null;
 }
 
 /** Account detail with extra fields from the detail endpoint */
@@ -41,12 +42,16 @@ export interface AccountCreate {
   type_id: string;
   journal_id: string;
   description?: string | null;
+  retearn_id?: string | null;
 }
 
-/** Data for updating an account (only name and description) */
+/** Data for updating an account */
 export interface AccountUpdate {
   acc_name?: string;
   description?: string | null;
+  type_id?: string;
+  journal_id?: string;
+  retearn_id?: string | null;
 }
 
 /** Transaction from account's perspective (includes debit/credit for that account) */

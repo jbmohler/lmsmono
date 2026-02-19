@@ -7,6 +7,7 @@ import { ReportService } from '../report.service';
 import { AccountTypeGroup, ProfitLossRow } from '../report.models';
 import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.component';
 import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
+import { AccountEditDialogComponent } from '../../finances/setup/account-edit-dialog/account-edit-dialog.component';
 
 interface DateRange {
   d1: string;
@@ -17,7 +18,7 @@ interface DateRange {
   selector: 'app-profit-loss',
   templateUrl: './profit-loss.component.html',
   styleUrl: './profit-loss.component.scss',
-  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent, TransactionEntryComponent],
+  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent, TransactionEntryComponent, AccountEditDialogComponent],
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },
@@ -28,6 +29,8 @@ export class ProfitLossComponent {
   selectedAccountId = signal<string | null>(null);
   editTransactionId = signal<string | undefined>(undefined);
   showEntryDialog = signal(false);
+  showAccountEditDialog = signal(false);
+  editAccountId = signal<string | undefined>(undefined);
   private today = new Date().toISOString().slice(0, 10);
   private yearStart = this.today.slice(0, 4) + '-01-01';
 
@@ -81,6 +84,21 @@ export class ProfitLossComponent {
   closeEntryDialog(): void {
     this.showEntryDialog.set(false);
     this.editTransactionId.set(undefined);
+  }
+
+  openAccountEdit(id: string): void {
+    this.editAccountId.set(id);
+    this.showAccountEditDialog.set(true);
+  }
+
+  closeAccountEditDialog(): void {
+    this.showAccountEditDialog.set(false);
+    this.editAccountId.set(undefined);
+  }
+
+  onAccountSaved(): void {
+    this.closeAccountEditDialog();
+    this.generate();
   }
 
   onStartDateChange(event: Event): void {

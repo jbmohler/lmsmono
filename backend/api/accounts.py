@@ -36,10 +36,13 @@ def sql_select_accounts() -> str:
             t.id AS account_type_id,
             t.atype_name AS account_type_name,
             j.id AS journal_id,
-            j.jrn_name AS journal_name
+            j.jrn_name AS journal_name,
+            a.retearn_id AS retearn_id,
+            r.acc_name AS retearn_name
         FROM hacc.accounts a
         JOIN hacc.accounttypes t ON a.type_id = t.id
         JOIN hacc.journals j ON a.journal_id = j.id
+        LEFT JOIN hacc.accounts r ON r.id = a.retearn_id
         ORDER BY t.sort, a.acc_name
     """
 
@@ -55,6 +58,8 @@ def sql_select_account_by_id() -> str:
             t.atype_name AS account_type_name,
             j.id AS journal_id,
             j.jrn_name AS journal_name,
+            a.retearn_id AS retearn_id,
+            r.acc_name AS retearn_name,
             a.acc_note,
             a.rec_note,
             a.contact_keywords,
@@ -67,6 +72,7 @@ def sql_select_account_by_id() -> str:
         FROM hacc.accounts a
         JOIN hacc.accounttypes t ON a.type_id = t.id
         JOIN hacc.journals j ON a.journal_id = j.id
+        LEFT JOIN hacc.accounts r ON r.id = a.retearn_id
         WHERE a.id = %(id)s
     """
 
@@ -102,15 +108,15 @@ def sql_select_account_splits_count() -> str:
 def sql_insert_account() -> str:
     """Create a new account."""
     return """
-        INSERT INTO hacc.accounts (acc_name, type_id, journal_id, description)
-        VALUES (%(acc_name)s, %(type_id)s, %(journal_id)s, %(description)s)
+        INSERT INTO hacc.accounts (acc_name, type_id, journal_id, description, retearn_id)
+        VALUES (%(acc_name)s, %(type_id)s, %(journal_id)s, %(description)s, %(retearn_id)s)
         RETURNING id
     """
 
 
 def sql_update_account(fields: set[str]) -> str:
     """Update account fields dynamically."""
-    valid_fields = {"acc_name", "description"}
+    valid_fields = {"acc_name", "description", "type_id", "journal_id", "retearn_id"}
     updates = [f"{f} = %({f})s" for f in fields if f in valid_fields]
     if not updates:
         raise ValueError("No valid fields to update")
@@ -140,6 +146,7 @@ ACCOUNT_COLUMNS = [
     ColumnMeta(key="description", label="Description", type="string"),
     ColumnMeta(key="account_type", label="Type", type="ref"),
     ColumnMeta(key="journal", label="Journal", type="ref"),
+    ColumnMeta(key="retained_earnings", label="Retained Earnings", type="ref"),
 ]
 
 ACCOUNT_DETAIL_COLUMNS = [
@@ -169,13 +176,18 @@ ACCOUNT_TRANSACTION_COLUMNS = [
 
 def transform_account_row(row: dict) -> dict:
     """Transform a raw account row to include ref structs."""
-    return {
+    result: dict = {
         "id": row["id"],
         "acc_name": row["acc_name"],
         "description": row["description"],
         "account_type": make_ref(str(row["account_type_id"]), row["account_type_name"]),
         "journal": make_ref(str(row["journal_id"]), row["journal_name"]),
     }
+    if row.get("retearn_id"):
+        result["retained_earnings"] = make_ref(str(row["retearn_id"]), row["retearn_name"])
+    else:
+        result["retained_earnings"] = None
+    return result
 
 
 def transform_account_detail_row(row: dict) -> dict:
@@ -212,12 +224,16 @@ class AccountCreate:
     type_id: str  # UUID
     journal_id: str  # UUID
     description: str | None = None
+    retearn_id: str | None = None
 
 
 @dataclass
 class AccountUpdate:
     acc_name: str | None = None
     description: str | None = None
+    type_id: str | None = None
+    journal_id: str | None = None
+    retearn_id: str | None = None
 
 
 async def _get_account_by_id(
@@ -328,6 +344,7 @@ class AccountsController(Controller):
                 "type_id": data.type_id,
                 "journal_id": data.journal_id,
                 "description": data.description,
+                "retearn_id": data.retearn_id,
             },
         )
         if not row:
@@ -350,6 +367,16 @@ class AccountsController(Controller):
         if data.description is not None:
             fields.add("description")
             params["description"] = data.description
+        if data.type_id is not None:
+            fields.add("type_id")
+            params["type_id"] = data.type_id
+        if data.journal_id is not None:
+            fields.add("journal_id")
+            params["journal_id"] = data.journal_id
+        if data.retearn_id is not None:
+            fields.add("retearn_id")
+            # Empty string means clear the field
+            params["retearn_id"] = data.retearn_id if data.retearn_id != "" else None
 
         if not fields:
             return await _get_account_by_id(conn, account_id)
