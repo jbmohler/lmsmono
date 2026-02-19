@@ -24,6 +24,7 @@ export class AccountSidebarComponent {
 
   accountId = input.required<string>();
   sidebarClose = output<void>();
+  transactionOpen = output<string>();
 
   activeTab = signal<Tab>('info');
   account = signal<AccountDetail | null>(null);

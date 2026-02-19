@@ -165,7 +165,7 @@
           </thead>
           <tbody>
             @for (txn of transactions(); track txn.id) {
-              <tr>
+              <tr class="row-clickable" (click)="transactionOpen.emit(txn.id)">
                 <td class="text-xs whitespace-nowrap">{{ txn.trandate | date:'M/d/yy' }}</td>
                 <td class="text-xs truncate max-w-[100px]">{{ txn.payee }}</td>
                 <td class="text-xs truncate max-w-[100px]">{{ txn.memo }}</td>

@@ -6,12 +6,13 @@ import { Subject, switchMap, startWith, filter } from 'rxjs';
 import { ReportService } from '../report.service';
 import { AccountTypeGroup, BalanceSheetRow } from '../report.models';
 import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.component';
+import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
 
 @Component({
   selector: 'app-balance-sheet',
   templateUrl: './balance-sheet.component.html',
   styleUrl: './balance-sheet.component.scss',
-  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent],
+  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent, TransactionEntryComponent],
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },
@@ -20,6 +21,8 @@ export class BalanceSheetComponent {
   private reportService = inject(ReportService);
 
   selectedAccountId = signal<string | null>(null);
+  editTransactionId = signal<string | undefined>(undefined);
+  showEntryDialog = signal(false);
   reportDate = signal(new Date().toISOString().slice(0, 10));
   private generate$ = new Subject<string>();
 
@@ -57,6 +60,16 @@ export class BalanceSheetComponent {
 
   closeSidebar(): void {
     this.selectedAccountId.set(null);
+  }
+
+  openTransaction(id: string): void {
+    this.editTransactionId.set(id);
+    this.showEntryDialog.set(true);
+  }
+
+  closeEntryDialog(): void {
+    this.showEntryDialog.set(false);
+    this.editTransactionId.set(undefined);
   }
 
   onDateChange(event: Event): void {

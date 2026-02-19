@@ -6,6 +6,7 @@ import { Subject, switchMap, startWith, filter } from 'rxjs';
 import { ReportService } from '../report.service';
 import { AccountTypeGroup, ProfitLossRow } from '../report.models';
 import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.component';
+import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
 
 interface DateRange {
   d1: string;
@@ -16,7 +17,7 @@ interface DateRange {
   selector: 'app-profit-loss',
   templateUrl: './profit-loss.component.html',
   styleUrl: './profit-loss.component.scss',
-  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent],
+  imports: [RouterLink, CurrencyPipe, AccountSidebarComponent, TransactionEntryComponent],
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },
@@ -25,6 +26,8 @@ export class ProfitLossComponent {
   private reportService = inject(ReportService);
 
   selectedAccountId = signal<string | null>(null);
+  editTransactionId = signal<string | undefined>(undefined);
+  showEntryDialog = signal(false);
   private today = new Date().toISOString().slice(0, 10);
   private yearStart = this.today.slice(0, 4) + '-01-01';
 
@@ -68,6 +71,16 @@ export class ProfitLossComponent {
 
   closeSidebar(): void {
     this.selectedAccountId.set(null);
+  }
+
+  openTransaction(id: string): void {
+    this.editTransactionId.set(id);
+    this.showEntryDialog.set(true);
+  }
+
+  closeEntryDialog(): void {
+    this.showEntryDialog.set(false);
+    this.editTransactionId.set(undefined);
   }
 
   onStartDateChange(event: Event): void {

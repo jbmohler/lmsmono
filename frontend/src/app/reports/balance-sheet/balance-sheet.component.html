@@ -100,9 +100,18 @@
           <app-account-sidebar
             [accountId]="acctId"
             (sidebarClose)="closeSidebar()"
+            (transactionOpen)="openTransaction($event)"
           />
         </div>
       }
     </div>
   </div>
 </div>
+
+@if (showEntryDialog()) {
+  <app-transaction-entry
+    [transactionId]="editTransactionId()"
+    (dialogClose)="closeEntryDialog()"
+    (dialogSave)="closeEntryDialog()"
+  />
+}
