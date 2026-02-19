@@ -2,6 +2,10 @@
 @source "./app/**/*.html";
 @source "./app/**/*.ts";
 
+@theme {
+  --spacing: 0.2rem;
+}
+
 /* ==========================================================================
    Global Element Styles
    ========================================================================== */
@@ -234,12 +238,17 @@ dialog::backdrop {
   @apply h-full flex flex-col;
 }
 
-/* Fixed header area that doesn't scroll */
+/* Fixed header area that doesn't scroll.
+   Horizontal padding via px; vertical padding via py.
+   Bottom padding is smaller — the content area's top padding
+   provides the rest of the visual gap. */
 .page-header {
-  @apply shrink-0 bg-gray-100 p-4 md:p-6 flex flex-col gap-4 md:gap-6;
+  @apply shrink-0 bg-gray-100 px-5 md:px-8 py-3 md:py-4 flex flex-col gap-4 md:gap-6;
 }
 
-/* Scrollable content area */
+/* Scrollable content area.
+   Matches header's horizontal padding; top padding is the gap
+   between header and first content element. */
 .page-content {
-  @apply flex-1 overflow-y-auto p-4 md:p-6;
+  @apply flex-1 overflow-y-auto px-5 md:px-8 py-4 md:py-5;
 }
