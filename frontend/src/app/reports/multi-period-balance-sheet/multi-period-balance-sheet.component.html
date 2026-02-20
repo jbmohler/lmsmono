@@ -74,13 +74,13 @@
               </thead>
               <tbody>
                 @for (group of groups(); track group.atype_id; let first = $first) {
+                  @if (!first) {
+                    <tr class="group-spacer">
+                      <td [attr.colspan]="1 + periods().length"><div class="h-4"></div></td>
+                    </tr>
+                  }
                   <tr class="group-header">
-                    @if (!first) {
-                      <td [attr.colspan]="1 + periods().length" class="!p-0"><div class="h-4"></div></td>
-                    }
-                  </tr>
-                  <tr class="group-header">
-                    <td [attr.colspan]="1 + periods().length" class="!py-2 bg-gray-50 text-sm font-semibold text-gray-700 uppercase tracking-wide sticky left-0">{{ group.atype_name }}</td>
+                    <td [attr.colspan]="1 + periods().length" class="sticky left-0">{{ group.atype_name }}</td>
                   </tr>
                   @for (acct of group.accounts; track acct.id) {
                     <tr
@@ -108,8 +108,8 @@
                 }
               </tbody>
               <tfoot>
-                <tr>
-                  <td [attr.colspan]="1 + periods().length" class="!p-0"><div class="h-4"></div></td>
+                <tr class="group-spacer">
+                  <td [attr.colspan]="1 + periods().length"><div class="h-4"></div></td>
                 </tr>
                 <tr class="font-semibold bg-gray-50">
                   <td class="sticky left-0 bg-gray-50 z-10">Total Liabilities + Equity</td>

@@ -52,13 +52,13 @@
               </thead>
               <tbody>
                 @for (group of groups(); track group.atype_id; let first = $first) {
+                  @if (!first) {
+                    <tr class="group-spacer">
+                      <td colspan="3"><div class="h-4"></div></td>
+                    </tr>
+                  }
                   <tr class="group-header">
-                    @if (!first) {
-                      <td colspan="3" class="!p-0"><div class="h-4"></div></td>
-                    }
-                  </tr>
-                  <tr class="group-header">
-                    <td colspan="3" class="!py-2 bg-gray-50 text-sm font-semibold text-gray-700 uppercase tracking-wide">{{ group.atype_name }}</td>
+                    <td colspan="3">{{ group.atype_name }}</td>
                   </tr>
                   @for (acct of group.accounts; track acct.id) {
                     <tr
@@ -83,8 +83,8 @@
                 }
               </tbody>
               <tfoot>
-                <tr>
-                  <td colspan="3" class="!p-0"><div class="h-4"></div></td>
+                <tr class="group-spacer">
+                  <td colspan="3"><div class="h-4"></div></td>
                 </tr>
                 <tr class="font-semibold bg-gray-50">
                   <td colspan="2">Net Income</td>

@@ -93,6 +93,15 @@ tr.row-clickable {
   @apply hover:bg-gray-50 cursor-pointer;
 }
 
+/* Grouped report tables - spacer and header rows between account type groups */
+tr.group-header > td {
+  @apply !py-2 bg-gray-50 text-sm font-semibold text-gray-700 uppercase tracking-wide;
+}
+
+tr.group-spacer > td {
+  @apply !p-0;
+}
+
 /* ==========================================================================
    Card / Panel
    ========================================================================== */
