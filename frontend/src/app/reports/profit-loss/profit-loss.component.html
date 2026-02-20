@@ -40,22 +40,26 @@
   <div class="page-content">
     <div class="flex h-full gap-4 md:gap-6">
       <div class="flex-1 overflow-y-auto">
-        <div class="max-w-3xl flex flex-col gap-4">
-          @for (group of groups(); track group.atype_id) {
-            <div class="card">
-              <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">{{ group.atype_name }}</h2>
-                <span class="text-sm font-semibold text-gray-900">{{ group.subtotal | currency }}</span>
-              </div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Account</th>
-                    <th>Journal</th>
-                    <th class="text-right">Amount</th>
+        @if (groups().length > 0) {
+          <div class="card max-w-3xl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th>Journal</th>
+                  <th class="text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (group of groups(); track group.atype_id; let first = $first) {
+                  <tr class="group-header">
+                    @if (!first) {
+                      <td colspan="3" class="!p-0"><div class="h-4"></div></td>
+                    }
                   </tr>
-                </thead>
-                <tbody>
+                  <tr class="group-header">
+                    <td colspan="3" class="!py-2 bg-gray-50 text-sm font-semibold text-gray-700 uppercase tracking-wide">{{ group.atype_name }}</td>
+                  </tr>
                   @for (acct of group.accounts; track acct.id) {
                     <tr
                       class="row-clickable"
@@ -72,41 +76,37 @@
                       <td class="text-right tabular-nums">{{ acct.amount | currency }}</td>
                     </tr>
                   }
-                </tbody>
-              </table>
-            </div>
-          }
+                  <tr class="font-semibold">
+                    <td colspan="2">Total {{ group.atype_name }}</td>
+                    <td class="text-right tabular-nums">{{ group.subtotal | currency }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="!p-0"><div class="h-4"></div></td>
+                </tr>
+                <tr class="font-semibold bg-gray-50">
+                  <td colspan="2">Net Income</td>
+                  <td
+                    class="text-right text-sm font-bold tabular-nums"
+                    [class.text-green-700]="netIncome() >= 0"
+                    [class.text-red-700]="netIncome() < 0"
+                  >
+                    {{ netIncome() | currency }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
 
-          @if (groups().length > 0) {
-            <div class="card px-4 py-3 flex flex-col gap-2 bg-gray-50">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-600">Total Income</span>
-                <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ totalIncome() | currency }}</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-600">Total Expenses</span>
-                <span class="text-sm font-semibold text-gray-900 tabular-nums">{{ totalExpenses() | currency }}</span>
-              </div>
-              <div class="flex items-center justify-between border-t border-gray-300 pt-2">
-                <span class="text-sm font-semibold text-gray-900">Net Income</span>
-                <span
-                  class="text-sm font-bold tabular-nums"
-                  [class.text-green-700]="netIncome() >= 0"
-                  [class.text-red-700]="netIncome() < 0"
-                >
-                  {{ netIncome() | currency }}
-                </span>
-              </div>
-            </div>
-          }
-
-          @if (groups().length === 0) {
-            <div class="card p-12 text-center text-gray-500 flex flex-col gap-1">
-              <p class="text-sm">No profit &amp; loss data for this period.</p>
-              <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
-            </div>
-          }
-        </div>
+        @if (groups().length === 0) {
+          <div class="card max-w-3xl p-12 text-center text-gray-500 flex flex-col gap-1">
+            <p class="text-sm">No profit &amp; loss data for this period.</p>
+            <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
+          </div>
+        }
       </div>
 
       @if (selectedAccountId(); as acctId) {
