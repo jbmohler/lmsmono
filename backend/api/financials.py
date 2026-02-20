@@ -1,4 +1,6 @@
+import calendar
 import datetime
+from typing import Any
 
 import psycopg
 import psycopg.rows
@@ -59,6 +61,94 @@ def sql_balance_sheet_at_date() -> str:
         JOIN hacc.accounts ON accounts.id = balsheet.account_id
         JOIN hacc.accounttypes ON accounttypes.id = accounts.type_id
         JOIN hacc.journals ON journals.id = accounts.journal_id
+    """
+
+
+def _balance_sheet_ctes(idx: int, param: str) -> str:
+    """Generate the three CTEs for one period of a multi-period balance sheet.
+
+    Returns CTEs named balances_{idx}, balsheet_{idx}, bs_{idx} that compute
+    the balance sheet as-of the parameter named `param`.
+    """
+    return f"""
+        balances_{idx} AS (
+            SELECT
+                accounts.id,
+                accounts.type_id,
+                accounts.retearn_id,
+                SUM(splits.sum) AS debit
+            FROM hacc.accounts
+            JOIN hacc.splits ON splits.account_id = accounts.id
+            JOIN hacc.transactions ON transactions.tid = splits.stid
+            WHERE transactions.trandate <= %({param})s
+            GROUP BY accounts.id, accounts.type_id, accounts.retearn_id
+        ), balsheet_{idx} AS (
+            SELECT
+                CASE WHEN accounttypes.balance_sheet
+                    THEN balances_{idx}.id
+                    ELSE ret.id
+                END AS account_id,
+                balances_{idx}.debit
+            FROM balances_{idx}
+            JOIN hacc.accounttypes ON accounttypes.id = balances_{idx}.type_id
+            LEFT OUTER JOIN hacc.accounts ret ON ret.id = balances_{idx}.retearn_id
+        ), bs_{idx} AS (
+            SELECT balsheet_{idx}.account_id, SUM(balsheet_{idx}.debit) AS debit
+            FROM balsheet_{idx}
+            GROUP BY balsheet_{idx}.account_id
+            HAVING SUM(balsheet_{idx}.debit) <> 0.
+        )"""
+
+
+def sql_multi_period_balance_sheet(n: int) -> str:
+    """Build a single query that computes balance sheets for n periods.
+
+    Parameters are named d_0, d_1, ..., d_{n-1}.
+    Returns one row per account that appears in any period, with columns
+    bal_0, bal_1, ..., bal_{n-1} for each period's balance.
+    """
+    # Build the CTE chain
+    cte_parts = []
+    for i in range(n):
+        cte_parts.append(_balance_sheet_ctes(i, f"d_{i}"))
+
+    # Union all account IDs across periods
+    union_parts = [f"SELECT account_id FROM bs_{i}" for i in range(n)]
+    all_accounts = "all_accounts AS (\n" + "\n            UNION\n".join(
+        f"            {p}" for p in union_parts
+    ) + "\n        )"
+    cte_parts.append(all_accounts)
+
+    # Build the SELECT with one COALESCE column per period
+    bal_cols = ",\n            ".join(
+        f"COALESCE(bs_{i}.debit, 0) AS bal_{i}" for i in range(n)
+    )
+
+    # Build the LEFT JOINs
+    joins = "\n        ".join(
+        f"LEFT JOIN bs_{i} ON bs_{i}.account_id = aa.account_id"
+        for i in range(n)
+    )
+
+    return f"""
+        WITH {", ".join(cte_parts)}
+        SELECT
+            accounttypes.id AS atype_id,
+            accounttypes.atype_name,
+            accounttypes.sort AS atype_sort,
+            accounttypes.debit AS debit_account,
+            journals.id AS jrn_id,
+            journals.jrn_name,
+            accounts.id,
+            accounts.acc_name,
+            accounts.description,
+            {bal_cols}
+        FROM all_accounts aa
+        JOIN hacc.accounts ON accounts.id = aa.account_id
+        JOIN hacc.accounttypes ON accounttypes.id = accounts.type_id
+        JOIN hacc.journals ON journals.id = accounts.journal_id
+        {joins}
+        ORDER BY accounttypes.sort, journals.jrn_name, accounts.acc_name
     """
 
 
@@ -222,6 +312,53 @@ class FinancialsController(Controller):
             return MultiRowResponse(
                 columns=CURRENT_BALANCE_COLUMNS, data=data
             )
+
+    @get(
+        "/multi-period-balance-sheet",
+        guards=[require_capability("transactions:read")],
+    )
+    async def multi_period_balance_sheet(
+        self,
+        conn: psycopg.AsyncConnection,
+        year: int = Parameter(description="Report year."),
+        month: int = Parameter(description="Report month (1-12)."),
+        periods: int = Parameter(description="Number of annual periods."),
+    ) -> dict[str, Any]:
+        """Balance sheet across multiple same-month annual periods."""
+        # Compute the last day of the target month for each year
+        dates: list[str] = []
+        for i in range(periods):
+            y = year - i
+            last_day = calendar.monthrange(y, month)[1]
+            dates.append(datetime.date(y, month, last_day).isoformat())
+
+        n = len(dates)
+        params = {f"d_{i}": dates[i] for i in range(n)}
+
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(sql_multi_period_balance_sheet(n), params)
+            rows = await cur.fetchall()
+
+        data = []
+        for row in rows:
+            is_debit = row["debit_account"]
+            balances = []
+            for i in range(n):
+                raw = row[f"bal_{i}"] or 0.0
+                balances.append(raw if is_debit else -raw)
+            data.append({
+                "atype_id": row["atype_id"],
+                "atype_name": row["atype_name"],
+                "atype_sort": row["atype_sort"],
+                "debit_account": is_debit,
+                "journal": {"id": str(row["jrn_id"]), "name": row["jrn_name"]},
+                "id": row["id"],
+                "acc_name": row["acc_name"],
+                "description": row["description"],
+                "balances": balances,
+            })
+
+        return {"periods": dates, "data": data}
 
     @get(
         "/profit-loss",

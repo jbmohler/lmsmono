@@ -31,3 +31,28 @@ export interface ProfitLossRow {
   description: string;
   amount: number | null;
 }
+
+export interface MultiPeriodBalanceSheetRow {
+  atype_id: string;
+  atype_name: string;
+  atype_sort: number;
+  debit_account: boolean;
+  journal: ItemRef;
+  id: string;
+  acc_name: string;
+  description: string;
+  balances: number[];
+}
+
+export interface MultiPeriodBalanceSheetResponse {
+  periods: string[];
+  data: MultiPeriodBalanceSheetRow[];
+}
+
+export interface MultiPeriodAccountTypeGroup {
+  atype_id: string;
+  atype_name: string;
+  debit_account: boolean;
+  accounts: MultiPeriodBalanceSheetRow[];
+  subtotals: number[];
+}
