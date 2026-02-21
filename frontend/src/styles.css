@@ -34,7 +34,7 @@ label {
 }
 
 label.label-compact {
-  @apply text-xs text-gray-600;
+  @apply text-xs text-gray-600 whitespace-nowrap;
 }
 
 /* ==========================================================================
@@ -72,7 +72,7 @@ tbody {
 }
 
 td {
-  @apply px-3 py-3 text-sm text-gray-500;
+  @apply px-3 py-3 text-sm text-gray-500 whitespace-nowrap;
 }
 
 @media (min-width: 768px) {
