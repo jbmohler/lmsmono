@@ -252,14 +252,67 @@
             @if (!clearPassword()) {
               <div class="form-row">
                 <label for="newPassword">{{ urlBit.hasPassword ? 'New Password' : 'Password' }}</label>
-                <input
-                  id="newPassword"
-                  type="password"
-                  [ngModel]="newPassword()"
-                  (ngModelChange)="newPassword.set($event)"
-                  name="newPassword"
-                />
+                <div class="flex gap-2">
+                  <input
+                    id="newPassword"
+                    type="text"
+                    class="flex-1 font-mono"
+                    [ngModel]="newPassword()"
+                    (ngModelChange)="newPassword.set($event)"
+                    name="newPassword"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm whitespace-nowrap"
+                    (click)="toggleGenerator()"
+                  >
+                    Generate
+                  </button>
+                </div>
               </div>
+
+              @if (showGenerator()) {
+                <div class="generator-options">
+                  <div class="form-row-split">
+                    <div class="split-field">
+                      <label for="genMode" class="label-compact">Mode</label>
+                      <select
+                        id="genMode"
+                        [ngModel]="generatorMode()"
+                        (ngModelChange)="generatorMode.set($event)"
+                        name="genMode"
+                      >
+                        <option value="alphanumeric">Alphanumeric</option>
+                        <option value="random">Random</option>
+                        <option value="pronounciable">Pronounciable</option>
+                        <option value="words">Words</option>
+                      </select>
+                    </div>
+                    <div class="split-field">
+                      <label for="genBits" class="label-compact">Strength</label>
+                      <select
+                        id="genBits"
+                        [ngModel]="generatorBits()"
+                        (ngModelChange)="generatorBits.set(+$event)"
+                        name="genBits"
+                      >
+                        <option [ngValue]="30">Low (30)</option>
+                        <option [ngValue]="50">Medium (50)</option>
+                        <option [ngValue]="80">High (80)</option>
+                        <option [ngValue]="128">Very High (128)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    (click)="generatePassword()"
+                    [disabled]="generating()"
+                  >
+                    {{ generating() ? 'Generating...' : 'Generate Password' }}
+                  </button>
+                </div>
+              }
 
               <div class="form-row">
                 <label for="pwResetDt">Last Changed</label>

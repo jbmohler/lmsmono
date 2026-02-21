@@ -17,6 +17,7 @@ import {
   ContactUrl,
 } from '../contacts.model';
 import { ContactsService } from '../services/contacts.service';
+import { PasswordGeneratorService } from '../services/password-generator.service';
 
 export interface BitEditResult {
   bit: ContactBit;
@@ -36,6 +37,7 @@ export interface BitEditResult {
 })
 export class BitEditDialogComponent {
   private contactsService = inject(ContactsService);
+  private passwordGenerator = inject(PasswordGeneratorService);
 
   contactId = input.required<string>();
   bit = input.required<ContactBit>();
@@ -59,6 +61,12 @@ export class BitEditDialogComponent {
   clearPassword = signal(false);
   copyFeedback = signal(false);
 
+  // Password generator
+  generatorMode = signal('alphanumeric');
+  generatorBits = signal(50);
+  showGenerator = signal(false);
+  generating = signal(false);
+
   constructor() {
     afterNextRender(() => {
       this.open();
@@ -76,6 +84,10 @@ export class BitEditDialogComponent {
     this.newPassword.set('');
     this.showPasswordChange.set(false);
     this.clearPassword.set(false);
+    this.generatorMode.set('alphanumeric');
+    this.generatorBits.set(50);
+    this.showGenerator.set(false);
+    this.generating.set(false);
 
     const dialog = this.dialogEl()?.nativeElement;
     if (dialog && !dialog.open) {
@@ -205,6 +217,48 @@ export class BitEditDialogComponent {
     await navigator.clipboard.writeText(password);
     this.copyFeedback.set(true);
     setTimeout(() => this.copyFeedback.set(false), 2000);
+  }
+
+  toggleGenerator(): void {
+    this.showGenerator.update(v => !v);
+  }
+
+  generatePassword(): void {
+    this.generating.set(true);
+    this.passwordGenerator.generate(this.generatorMode(), this.generatorBits()).subscribe({
+      next: (password) => {
+        this.newPassword.set(password);
+
+        // Auto-update password dates
+        const bit = this.editBit();
+        if (bit && bit.bitType === 'url') {
+          const urlBit = bit as ContactUrl;
+          const today = new Date().toISOString().slice(0, 10);
+
+          if (urlBit.pwResetDt && urlBit.pwNextResetDt) {
+            const lastReset = new Date(urlBit.pwResetDt);
+            const nextReset = new Date(urlBit.pwNextResetDt);
+            const intervalDays = Math.round(
+              (nextReset.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24),
+            );
+            const newNext = new Date();
+            newNext.setDate(newNext.getDate() + intervalDays);
+            this.updateField('pwResetDt', today);
+            this.updateField('pwNextResetDt', newNext.toISOString().slice(0, 10));
+          } else {
+            const newNext = new Date();
+            newNext.setDate(newNext.getDate() + 365);
+            this.updateField('pwResetDt', today);
+            this.updateField('pwNextResetDt', newNext.toISOString().slice(0, 10));
+          }
+        }
+
+        this.generating.set(false);
+      },
+      error: () => {
+        this.generating.set(false);
+      },
+    });
   }
 
   togglePasswordChange(): void {
