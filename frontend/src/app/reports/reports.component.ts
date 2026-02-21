@@ -6,6 +6,7 @@ interface ReportItem {
   name: string;
   description: string;
   icon: string;
+  desktopOnly?: boolean;
 }
 
 @Component({
@@ -32,6 +33,7 @@ export class ReportsComponent {
       id: 'multi-period-balance-sheet',
       name: 'Multi-Period Balance Sheet',
       description: 'Balance sheet compared across annual periods',
+      desktopOnly: true,
       icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18M3 18h18M3 6h18" /></svg>',
     },
     {

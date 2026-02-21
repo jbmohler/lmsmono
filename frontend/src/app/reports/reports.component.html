@@ -10,6 +10,8 @@
       <a
         [routerLink]="['/reports', report.id]"
         class="card p-6 hover:border-blue-300 hover:shadow-md transition-all"
+        [class.hidden]="report.desktopOnly"
+        [class.md:block]="report.desktopOnly"
       >
         <div class="flex items-start gap-4">
           <div class="p-2 bg-blue-50 rounded-lg text-blue-600" [innerHTML]="report.icon"></div>

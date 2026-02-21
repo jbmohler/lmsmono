@@ -26,6 +26,8 @@ interface DateRange {
 export class ProfitLossComponent {
   private reportService = inject(ReportService);
 
+  filtersOpen = signal(false);
+  mobileShowDetail = signal(false);
   selectedAccountId = signal<string | null>(null);
   editTransactionId = signal<string | undefined>(undefined);
   showEntryDialog = signal(false);
@@ -70,10 +72,14 @@ export class ProfitLossComponent {
     this.selectedAccountId.set(
       this.selectedAccountId() === id ? null : id
     );
+    if (this.selectedAccountId()) {
+      this.mobileShowDetail.set(true);
+    }
   }
 
   closeSidebar(): void {
     this.selectedAccountId.set(null);
+    this.mobileShowDetail.set(false);
   }
 
   openTransaction(id: string): void {
