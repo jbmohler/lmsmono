@@ -3,7 +3,12 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiService } from '@core/api/api.service';
 import { MultiRowResponse } from '@core/api/api.types';
-import { BalanceSheetRow, MultiPeriodBalanceSheetResponse, ProfitLossRow } from './report.models';
+import {
+  BalanceSheetRow,
+  MultiPeriodBalanceSheetResponse,
+  ProfitLossRow,
+  ProfitLossTransactionRow,
+} from './report.models';
 
 @Injectable({ providedIn: 'root' })
 export class ReportService {
@@ -16,6 +21,16 @@ export class ReportService {
 
   profitAndLoss(d1: string, d2: string): Observable<MultiRowResponse<ProfitLossRow>> {
     return this.api.getMany<ProfitLossRow>('/api/reports/profit-loss', { d1, d2 });
+  }
+
+  profitLossTransactions(
+    d1: string,
+    d2: string,
+  ): Observable<MultiRowResponse<ProfitLossTransactionRow>> {
+    return this.api.getMany<ProfitLossTransactionRow>('/api/reports/profit-loss-transactions', {
+      d1,
+      d2,
+    });
   }
 
   multiPeriodBalanceSheet(

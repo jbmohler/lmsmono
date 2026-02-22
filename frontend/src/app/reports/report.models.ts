@@ -32,6 +32,29 @@ export interface ProfitLossRow {
   amount: number | null;
 }
 
+export interface ProfitLossTransactionRow {
+  atype_id: string;
+  atype_name: string;
+  atype_sort: number;
+  debit_account: boolean;
+  account_id: string;
+  acc_name: string;
+  journal: ItemRef;
+  id: string;
+  trandate: string;
+  payee: string | null;
+  memo: string | null;
+  amount: number | null;
+}
+
+export interface ProfitLossTransactionGroup {
+  atype_id: string;
+  atype_name: string;
+  debit_account: boolean;
+  rows: ProfitLossTransactionRow[];
+  subtotal: number;
+}
+
 export interface MultiPeriodBalanceSheetRow {
   atype_id: string;
   atype_name: string;

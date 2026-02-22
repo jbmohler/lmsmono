@@ -1,0 +1,157 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="flex items-center justify-between w-full">
+      <div class="flex items-center gap-4">
+        <a
+          routerLink="/reports"
+          class="inline-flex items-center text-gray-400 hover:text-gray-900"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <h1 class="text-xl font-semibold text-gray-900">P&amp;L Transactions</h1>
+      </div>
+      <div class="hidden md:flex items-center gap-3">
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="start-date">From:</label>
+          <input
+            id="start-date"
+            type="date"
+            [value]="startDate()"
+            (change)="onStartDateChange($event)"
+          />
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="end-date">To:</label>
+          <input
+            id="end-date"
+            type="date"
+            [value]="endDate()"
+            (change)="onEndDateChange($event)"
+          />
+        </div>
+        <button class="btn btn-primary" (click)="generate()">Generate</button>
+      </div>
+      <button
+        class="md:hidden p-2 text-gray-500 hover:text-gray-900"
+        (click)="filtersOpen.set(!filtersOpen())"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+      </button>
+    </div>
+    @if (filtersOpen()) {
+      <div class="flex flex-wrap items-center gap-3 md:hidden pt-3">
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="start-date-mobile">From:</label>
+          <input
+            id="start-date-mobile"
+            type="date"
+            [value]="startDate()"
+            (change)="onStartDateChange($event)"
+          />
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="end-date-mobile">To:</label>
+          <input
+            id="end-date-mobile"
+            type="date"
+            [value]="endDate()"
+            (change)="onEndDateChange($event)"
+          />
+        </div>
+        <button class="btn btn-primary" (click)="generate()">Generate</button>
+      </div>
+    }
+  </div>
+
+  <div class="page-content">
+    @if (groups().length > 0) {
+      <div class="card max-w-4xl overflow-hidden">
+        <table class="table-fixed">
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th class="hidden md:table-cell">Journal</th>
+              <th class="hidden md:table-cell">Date</th>
+              <th class="hidden md:table-cell">Payee</th>
+              <th class="hidden lg:table-cell">Memo</th>
+              <th class="text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (group of groups(); track group.atype_id; let first = $first) {
+              @if (!first) {
+                <tr class="group-spacer">
+                  <td colspan="6"><div class="h-4"></div></td>
+                </tr>
+              }
+              <tr class="group-header">
+                <td colspan="6">{{ group.atype_name }}</td>
+              </tr>
+              @for (row of group.rows; track row.id + row.account_id) {
+                <tr
+                  class="row-clickable"
+                  (click)="openTransaction(row.id)"
+                >
+                  <td class="truncate max-w-0">
+                    <span class="cell-primary">{{ row.acc_name }}</span>
+                  </td>
+                  <td class="hidden md:table-cell text-sm text-gray-500">{{ row.journal.name }}</td>
+                  <td class="hidden md:table-cell text-sm text-gray-500 whitespace-nowrap">{{ row.trandate | date:'shortDate' }}</td>
+                  <td class="hidden md:table-cell text-sm text-gray-500 truncate max-w-0">{{ row.payee }}</td>
+                  <td class="hidden lg:table-cell text-sm text-gray-400 truncate max-w-0">{{ row.memo }}</td>
+                  <td class="text-right tabular-nums">{{ row.amount | currency }}</td>
+                </tr>
+              }
+              <tr class="font-semibold">
+                <td class="truncate">Total {{ group.atype_name }}</td>
+                <td class="hidden md:table-cell"></td>
+                <td class="hidden md:table-cell"></td>
+                <td class="hidden md:table-cell"></td>
+                <td class="hidden lg:table-cell"></td>
+                <td class="text-right tabular-nums">{{ group.subtotal | currency }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr class="group-spacer">
+              <td colspan="6"><div class="h-4"></div></td>
+            </tr>
+            <tr class="font-semibold bg-gray-50">
+              <td>Net Income</td>
+              <td class="hidden md:table-cell"></td>
+              <td class="hidden md:table-cell"></td>
+              <td class="hidden md:table-cell"></td>
+              <td class="hidden lg:table-cell"></td>
+              <td
+                class="text-right text-sm font-bold tabular-nums"
+                [class.text-green-700]="netIncome() >= 0"
+                [class.text-red-700]="netIncome() < 0"
+              >
+                {{ netIncome() | currency }}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    }
+
+    @if (groups().length === 0) {
+      <div class="card max-w-4xl p-12 text-center text-gray-500 flex flex-col gap-1">
+        <p class="text-sm">No P&amp;L transaction data for this period.</p>
+        <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
+      </div>
+    }
+  </div>
+</div>
+
+@if (showEntryDialog()) {
+  <app-transaction-entry
+    [transactionId]="editTransactionId()"
+    (dialogClose)="closeEntryDialog()"
+    (dialogSave)="closeEntryDialog()"
+  />
+}

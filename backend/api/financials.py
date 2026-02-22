@@ -191,6 +191,34 @@ def sql_current_balance_accounts() -> str:
     """
 
 
+def sql_profit_loss_transactions() -> str:
+    """Individual splits for non-balance-sheet accounts within a date range."""
+    return """
+        SELECT
+            accounttypes.id AS atype_id,
+            accounttypes.atype_name,
+            accounttypes.sort AS atype_sort,
+            accounttypes.debit AS debit_account,
+            accounts.id AS account_id,
+            accounts.acc_name,
+            journals.id AS jrn_id,
+            journals.jrn_name,
+            transactions.tid AS id,
+            transactions.trandate,
+            transactions.payee,
+            transactions.memo,
+            splits.sum
+        FROM hacc.transactions
+        JOIN hacc.splits ON transactions.tid = splits.stid
+        JOIN hacc.accounts ON splits.account_id = accounts.id
+        JOIN hacc.accounttypes ON accounttypes.id = accounts.type_id
+        JOIN hacc.journals ON journals.id = accounts.journal_id
+        WHERE transactions.trandate BETWEEN %(d1)s AND %(d2)s
+            AND NOT accounttypes.balance_sheet
+        ORDER BY accounttypes.sort, transactions.trandate, accounts.acc_name
+    """
+
+
 def sql_profit_and_loss() -> str:
     """Profit & loss for a date range (non-balance-sheet accounts)."""
     return """
@@ -282,6 +310,44 @@ def transform_pnl_row(row: dict) -> dict:
         "id": row["id"],
         "acc_name": row["acc_name"],
         "description": row["description"],
+        "amount": amount,
+    }
+
+
+PL_TRANSACTION_COLUMNS = [
+    ColumnMeta(key="atype_id", label="Type ID", type="uuid"),
+    ColumnMeta(key="atype_name", label="Account Type", type="string"),
+    ColumnMeta(key="atype_sort", label="Type Sort", type="number"),
+    ColumnMeta(key="debit_account", label="Debit Account", type="boolean"),
+    ColumnMeta(key="account_id", label="Account ID", type="uuid"),
+    ColumnMeta(key="acc_name", label="Account", type="string"),
+    ColumnMeta(key="journal", label="Journal", type="ref"),
+    ColumnMeta(key="id", label="ID", type="uuid"),
+    ColumnMeta(key="trandate", label="Date", type="date"),
+    ColumnMeta(key="payee", label="Payee", type="string"),
+    ColumnMeta(key="memo", label="Memo", type="string"),
+    ColumnMeta(key="amount", label="Amount", type="currency"),
+]
+
+
+def transform_pl_txn_row(row: dict) -> dict:
+    """Transform a P&L transaction row, sign-adjusting for credit accounts."""
+    raw = row["sum"] or 0.0
+    amount = raw if row["debit_account"] else -raw
+    return {
+        "atype_id": row["atype_id"],
+        "atype_name": row["atype_name"],
+        "atype_sort": row["atype_sort"],
+        "debit_account": row["debit_account"],
+        "account_id": row["account_id"],
+        "acc_name": row["acc_name"],
+        "journal": {"id": str(row["jrn_id"]), "name": row["jrn_name"]},
+        "id": row["id"],
+        "trandate": row["trandate"].isoformat()
+        if hasattr(row["trandate"], "isoformat")
+        else row["trandate"],
+        "payee": row["payee"],
+        "memo": row["memo"],
         "amount": amount,
     }
 
@@ -388,4 +454,36 @@ class FinancialsController(Controller):
             data = [transform_pnl_row(dict(row)) for row in rows]
             return MultiRowResponse(
                 columns=PROFIT_LOSS_COLUMNS, data=data
+            )
+
+    @get(
+        "/profit-loss-transactions",
+        guards=[require_capability("transactions:read")],
+    )
+    async def profit_loss_transactions(
+        self,
+        conn: psycopg.AsyncConnection,
+        d1: str = Parameter(
+            default=None,
+            description="Start date (ISO 8601). Defaults to start of current year.",
+        ),
+        d2: str = Parameter(
+            default=None,
+            description="End date (ISO 8601). Defaults to today.",
+        ),
+    ) -> MultiRowResponse:
+        """P&L transaction detail for a date range."""
+        today = datetime.date.today()
+        if d1 is None:
+            d1 = today.replace(month=1, day=1).isoformat()
+        if d2 is None:
+            d2 = today.isoformat()
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                sql_profit_loss_transactions(), {"d1": d1, "d2": d2}
+            )
+            rows = await cur.fetchall()
+            data = [transform_pl_txn_row(dict(row)) for row in rows]
+            return MultiRowResponse(
+                columns=PL_TRANSACTION_COLUMNS, data=data
             )

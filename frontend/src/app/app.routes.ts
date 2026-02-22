@@ -76,6 +76,14 @@ export const routes: Routes = [
       import('./reports/profit-loss/profit-loss.component').then(m => m.ProfitLossComponent),
   },
   {
+    path: 'reports/profit-loss-transactions',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./reports/profit-loss-transactions/profit-loss-transactions.component').then(
+        m => m.ProfitLossTransactionsComponent,
+      ),
+  },
+  {
     path: 'reports/multi-period-balance-sheet',
     canActivate: [authGuard],
     loadComponent: () =>
