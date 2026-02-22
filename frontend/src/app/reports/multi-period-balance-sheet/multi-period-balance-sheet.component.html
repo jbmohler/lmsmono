@@ -58,13 +58,13 @@
   </div>
 
   <div class="page-content">
-    <div class="md:hidden p-6">
-      <div class="card p-12 text-center text-gray-500 flex flex-col gap-1">
+    <div class="md:hidden">
+      <div class="card p-6 text-center text-gray-500 flex flex-col gap-1">
         <p class="text-sm">This report is best viewed on a larger screen.</p>
         <a routerLink="/reports" class="text-sm text-blue-600 hover:text-blue-800">Back to Reports</a>
       </div>
     </div>
-    <div class="hidden md:flex h-full gap-4 md:gap-6">
+    <div class="hidden md:flex h-full gap-4">
       <div class="flex-1 overflow-x-auto overflow-y-auto">
         @if (groups().length > 0) {
           <div class="card">
@@ -128,7 +128,7 @@
         }
 
         @if (groups().length === 0) {
-          <div class="card p-12 text-center text-gray-500 flex flex-col gap-1">
+          <div class="card p-6 text-center text-gray-500 flex flex-col gap-1">
             <p class="text-sm">No balance sheet data for these parameters.</p>
             <p class="text-xs text-gray-400">Select a month, year, and number of periods, then click Generate.</p>
           </div>

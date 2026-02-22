@@ -252,12 +252,12 @@ dialog::backdrop {
    Bottom padding is smaller — the content area's top padding
    provides the rest of the visual gap. */
 .page-header {
-  @apply shrink-0 bg-gray-100 px-5 md:px-8 py-3 md:py-4 flex flex-col gap-4 md:gap-6;
+  @apply shrink-0 bg-gray-100 px-4 py-3 flex flex-col gap-4;
 }
 
 /* Scrollable content area.
    Matches header's horizontal padding; top padding is the gap
    between header and first content element. */
 .page-content {
-  @apply flex-1 overflow-y-auto px-5 md:px-8 py-4 md:py-5;
+  @apply flex-1 overflow-y-auto p-4;
 }

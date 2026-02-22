@@ -1,44 +1,48 @@
-<div class="max-w-7xl mx-auto p-6 flex flex-col gap-6">
-  <!-- Back link -->
-  <a
-    routerLink="/reports"
-    class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-  >
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-    </svg>
-    Back to Reports
-  </a>
+<div class="page-container">
+  <div class="page-content">
+    <div class="flex flex-col gap-4">
+      <!-- Back link -->
+      <a
+        routerLink="/reports"
+        class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Reports
+      </a>
 
-  <!-- Report header -->
-  <div class="flex items-center justify-between">
-    <div class="flex flex-col gap-1">
-      <h1 class="text-2xl font-semibold text-gray-900 capitalize">{{ reportType()?.replace('-', ' ') }}</h1>
-      <p class="text-sm text-gray-500">Report type: {{ reportType() }}</p>
-    </div>
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2 input-compact">
-        <label class="text-sm text-gray-600">From:</label>
-        <input type="date" />
+      <!-- Report header -->
+      <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold text-gray-900 capitalize">{{ reportType()?.replace('-', ' ') }}</h1>
+          <p class="text-sm text-gray-500">Report type: {{ reportType() }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 input-compact">
+            <label class="text-sm text-gray-600">From:</label>
+            <input type="date" />
+          </div>
+          <div class="flex items-center gap-2 input-compact">
+            <label class="text-sm text-gray-600">To:</label>
+            <input type="date" />
+          </div>
+          <button class="btn btn-primary">Generate</button>
+        </div>
       </div>
-      <div class="flex items-center gap-2 input-compact">
-        <label class="text-sm text-gray-600">To:</label>
-        <input type="date" />
+
+      <!-- Export buttons -->
+      <div class="flex items-center gap-2">
+        <button class="btn btn-secondary">Export CSV</button>
+        <button class="btn btn-secondary">Export PDF</button>
+        <button class="btn btn-secondary">Print</button>
       </div>
-      <button class="btn btn-primary">Generate</button>
+
+      <!-- Report content placeholder -->
+      <div class="card p-6 text-center text-gray-500 flex flex-col gap-1">
+        <p class="text-sm">Report data will appear here once the API is connected.</p>
+        <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
+      </div>
     </div>
-  </div>
-
-  <!-- Export buttons -->
-  <div class="flex items-center gap-2">
-    <button class="btn btn-secondary">Export CSV</button>
-    <button class="btn btn-secondary">Export PDF</button>
-    <button class="btn btn-secondary">Print</button>
-  </div>
-
-  <!-- Report content placeholder -->
-  <div class="card p-12 text-center text-gray-500 flex flex-col gap-1">
-    <p class="text-sm">Report data will appear here once the API is connected.</p>
-    <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
   </div>
 </div>

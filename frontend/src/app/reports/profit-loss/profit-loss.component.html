@@ -68,7 +68,7 @@
   </div>
 
   <div class="page-content">
-    <div class="flex h-full gap-4 md:gap-6">
+    <div class="flex h-full gap-4">
       <div class="flex-1 overflow-y-auto" [class.hidden]="mobileShowDetail() && selectedAccountId()" [class.md:block]="true">
         @if (groups().length > 0) {
           <div class="card max-w-3xl overflow-hidden">
@@ -134,7 +134,7 @@
         }
 
         @if (groups().length === 0) {
-          <div class="card max-w-3xl p-12 text-center text-gray-500 flex flex-col gap-1">
+          <div class="card max-w-3xl p-6 text-center text-gray-500 flex flex-col gap-1">
             <p class="text-sm">No profit &amp; loss data for this period.</p>
             <p class="text-xs text-gray-400">Select a date range and click Generate to view the report.</p>
           </div>
