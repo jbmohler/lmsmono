@@ -43,6 +43,12 @@ export class ReportsComponent {
       icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18M3 18h18M3 6h18" /></svg>',
     },
     {
+      id: 'account-running-balance',
+      name: 'Account Running Balance',
+      description: 'Ledger view of a single account with speculative future transactions',
+      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>',
+    },
+    {
       id: 'account-activity',
       name: 'Account Activity',
       description: 'Detailed activity by account',

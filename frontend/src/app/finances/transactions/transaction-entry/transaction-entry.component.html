@@ -32,8 +32,8 @@
         <span class="text-gray-500">Loading transaction...</span>
       </div>
     } @else {
-    <!-- Quick-fill search (only for new transactions) -->
-    @if (!isEditMode()) {
+    <!-- Quick-fill search (only for new transactions without a pre-filled template) -->
+    @if (!isEditMode() && !isPrefilled()) {
       <div class="input-compact">
         <label for="quick-fill" class="label-compact">Quick-fill</label>
         <input
@@ -62,6 +62,12 @@
           <p class="text-xs text-gray-400 mt-1">No matching transactions found</p>
         }
       </div>
+    }
+
+    @if (isPrefilled()) {
+      <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+        Prefilled from last recorded occurrence — review and save to confirm.
+      </p>
     }
 
     <!-- Header fields -->

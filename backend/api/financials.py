@@ -5,6 +5,7 @@ from typing import Any
 import psycopg
 import psycopg.rows
 from litestar import Controller, get
+from litestar.exceptions import HTTPException, NotFoundException
 from litestar.params import Parameter
 
 from core.guards import require_capability
@@ -352,6 +353,104 @@ def transform_pl_txn_row(row: dict) -> dict:
     }
 
 
+def sql_account_running_balance() -> str:
+    """Ledger-style running balance for a single balance sheet account with speculative future rows."""
+    return """
+        WITH
+        balances AS (
+            SELECT COALESCE(SUM(splits.sum), 0) AS debit
+            FROM hacc.splits
+            JOIN hacc.transactions ON transactions.tid = splits.stid
+            WHERE splits.account_id = %(account_id)s
+              AND transactions.trandate <= %(d)s
+        ),
+        recent_txns AS (
+            SELECT transactions.trandate, transactions.payee, transactions.memo, splits.sum AS amount
+            FROM hacc.splits
+            JOIN hacc.transactions ON transactions.tid = splits.stid
+            WHERE splits.account_id = %(account_id)s
+              AND transactions.trandate >= CURRENT_DATE - INTERVAL '12 months'
+        ),
+        recurrence_groups AS (
+            SELECT
+                payee, memo,
+                COUNT(*) AS occurrence_count,
+                MAX(trandate) AS last_date,
+                AVG(amount) AS avg_amount,
+                CASE WHEN COUNT(*) > 1
+                    THEN (MAX(trandate) - MIN(trandate))::FLOAT / (COUNT(*) - 1)
+                    ELSE NULL
+                END AS avg_days_between
+            FROM recent_txns
+            GROUP BY payee, memo
+            HAVING COUNT(*) >= 2
+        ),
+        speculative AS (
+            SELECT
+                NULL::UUID AS tid,
+                (rg.last_date + (rg.avg_days_between * g.n)::INTEGER)::DATE AS trandate,
+                NULL::TEXT AS reference,
+                rg.payee, rg.memo,
+                rg.avg_amount AS amount,
+                TRUE AS is_speculative
+            FROM recurrence_groups rg
+            CROSS JOIN generate_series(1, 30) AS g(n)
+            WHERE rg.avg_days_between IS NOT NULL
+              AND (rg.last_date + (rg.avg_days_between * g.n)::INTEGER)::DATE
+                  BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '3 weeks'
+        ),
+        all_rows AS (
+            SELECT NULL::UUID AS tid, %(d)s::DATE AS trandate, NULL::TEXT AS reference,
+                   'Initial Balance'::TEXT AS payee, NULL::TEXT AS memo,
+                   NULL::NUMERIC(12,2) AS amount, FALSE AS is_speculative
+            UNION ALL
+            SELECT transactions.tid, transactions.trandate, transactions.tranref AS reference,
+                   transactions.payee, transactions.memo, splits.sum AS amount, FALSE AS is_speculative
+            FROM hacc.splits
+            JOIN hacc.transactions ON transactions.tid = splits.stid
+            WHERE splits.account_id = %(account_id)s
+              AND transactions.trandate > %(d)s
+            UNION ALL
+            SELECT tid, trandate, reference, payee, memo, amount, is_speculative
+            FROM speculative
+        )
+        SELECT
+            tid, trandate, reference, payee, memo, amount, is_speculative,
+            (SELECT debit FROM balances) + COALESCE(SUM(amount) OVER (ORDER BY trandate, amount), 0) AS balance
+        FROM all_rows
+        ORDER BY trandate, amount
+    """
+
+
+ACCOUNT_RUNNING_BALANCE_COLUMNS = [
+    ColumnMeta(key="tid", label="Transaction ID", type="uuid"),
+    ColumnMeta(key="trandate", label="Date", type="date"),
+    ColumnMeta(key="reference", label="Reference", type="string"),
+    ColumnMeta(key="payee", label="Payee", type="string"),
+    ColumnMeta(key="memo", label="Memo", type="string"),
+    ColumnMeta(key="amount", label="Amount", type="currency"),
+    ColumnMeta(key="balance", label="Balance", type="currency"),
+    ColumnMeta(key="is_speculative", label="Speculative", type="boolean"),
+]
+
+
+def transform_arb_row(row: dict, debit_account: bool) -> dict:
+    """Transform an account running balance row, sign-adjusting for credit accounts."""
+    sign = 1 if debit_account else -1
+    raw_amount = row["amount"]
+    raw_balance = row["balance"]
+    return {
+        "tid": str(row["tid"]) if row["tid"] else None,
+        "trandate": row["trandate"].isoformat() if hasattr(row["trandate"], "isoformat") else row["trandate"],
+        "reference": row["reference"],
+        "payee": row["payee"],
+        "memo": row["memo"],
+        "amount": float(raw_amount * sign) if raw_amount is not None else None,
+        "balance": float(raw_balance * sign) if raw_balance is not None else None,
+        "is_speculative": row["is_speculative"],
+    }
+
+
 class FinancialsController(Controller):
     path = "/api/reports"
     tags = ["reports"]
@@ -487,3 +586,37 @@ class FinancialsController(Controller):
             return MultiRowResponse(
                 columns=PL_TRANSACTION_COLUMNS, data=data
             )
+
+    @get("/account-running-balance", guards=[require_capability("transactions:read")])
+    async def account_running_balance(
+        self,
+        conn: psycopg.AsyncConnection,
+        account_id: str = Parameter(description="Account UUID"),
+        d: str = Parameter(
+            default=None,
+            description="Start date (ISO 8601). Defaults to start of current year.",
+        ),
+    ) -> MultiRowResponse:
+        """Ledger-style running balance for a single balance sheet account."""
+        today = datetime.date.today()
+        if d is None:
+            d = today.replace(month=1, day=1).isoformat()
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                "SELECT accounttypes.balance_sheet, accounttypes.debit AS debit_account "
+                "FROM hacc.accounts "
+                "JOIN hacc.accounttypes ON accounttypes.id = accounts.type_id "
+                "WHERE accounts.id = %(account_id)s",
+                {"account_id": account_id},
+            )
+            meta = await cur.fetchone()
+        if meta is None:
+            raise NotFoundException(detail="Account not found")
+        if not meta["balance_sheet"]:
+            raise HTTPException(status_code=400, detail="Account is not a balance sheet account")
+        debit_account = meta["debit_account"]
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(sql_account_running_balance(), {"account_id": account_id, "d": d})
+            rows = await cur.fetchall()
+        data = [transform_arb_row(dict(row), debit_account) for row in rows]
+        return MultiRowResponse(columns=ACCOUNT_RUNNING_BALANCE_COLUMNS, data=data)

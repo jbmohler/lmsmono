@@ -90,6 +90,12 @@ export const routes: Routes = [
       import('./reports/multi-period-balance-sheet/multi-period-balance-sheet.component').then(m => m.MultiPeriodBalanceSheetComponent),
   },
   {
+    path: 'reports/account-running-balance',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./reports/account-running-balance/account-running-balance.component').then(m => m.AccountRunningBalanceComponent),
+  },
+  {
     path: 'reports/:reportType',
     canActivate: [authGuard],
     loadComponent: () => import('./reports/report-viewer.component').then(m => m.ReportViewerComponent),

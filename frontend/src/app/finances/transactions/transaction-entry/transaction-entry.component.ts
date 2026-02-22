@@ -31,6 +31,10 @@ export class TransactionEntryComponent {
   /** Transaction ID for editing existing transactions */
   transactionId = input<string>();
 
+  /** Pre-fill payee/memo for a new transaction (e.g. from a speculative row).
+   *  Causes quick-fill to be hidden and the template to be auto-applied. */
+  initialTemplate = input<{ payee: string | null; memo: string | null } | undefined>();
+
   dialogClose = output<void>();
   dialogSave = output<void>();
 
@@ -57,6 +61,9 @@ export class TransactionEntryComponent {
 
   // Edit mode flag
   isEditMode = computed(() => !!this.transactionId());
+
+  // True when opened with a pre-filled template (speculative row) — hides quick-fill
+  isPrefilled = computed(() => !!this.initialTemplate() && !this.transactionId());
 
   // Header fields
   date = signal(this.todayString());
@@ -114,8 +121,31 @@ export class TransactionEntryComponent {
         this.date.set(initial);
       }
       this.dialog()?.nativeElement.showModal();
-      // Focus quick-fill for new transactions, date for edit mode
-      if (this.transactionId()) {
+
+      const template = this.initialTemplate();
+      if (template && !this.transactionId()) {
+        // Auto-apply template from the last recorded occurrence of this payee
+        const query = template.payee ?? '';
+        if (query) {
+          this.transactionService.searchTemplate(query).subscribe({
+            next: (response) => {
+              const result = response.data;
+              if (result) {
+                this.applyTemplate(result);
+                // Override memo with the speculative row's memo
+                this.memo.set(template.memo ?? '');
+              } else {
+                this.payee.set(template.payee ?? '');
+                this.memo.set(template.memo ?? '');
+              }
+            },
+          });
+        } else {
+          this.payee.set(template.payee ?? '');
+          this.memo.set(template.memo ?? '');
+        }
+        this.dateInput()?.nativeElement.focus();
+      } else if (this.transactionId()) {
         this.dateInput()?.nativeElement.focus();
       } else {
         this.quickFillInput()?.nativeElement.focus();

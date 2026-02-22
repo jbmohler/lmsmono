@@ -79,3 +79,14 @@ export interface MultiPeriodAccountTypeGroup {
   accounts: MultiPeriodBalanceSheetRow[];
   subtotals: number[];
 }
+
+export interface AccountRunningBalanceRow {
+  tid: string | null;
+  trandate: string;
+  reference: string | null;
+  payee: string | null;
+  memo: string | null;
+  amount: number | null;
+  balance: number | null;
+  is_speculative: boolean;
+}

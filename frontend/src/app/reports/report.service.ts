@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { ApiService } from '@core/api/api.service';
 import { MultiRowResponse } from '@core/api/api.types';
 import {
+  AccountRunningBalanceRow,
   BalanceSheetRow,
   MultiPeriodBalanceSheetResponse,
   ProfitLossRow,
@@ -30,6 +31,13 @@ export class ReportService {
     return this.api.getMany<ProfitLossTransactionRow>('/api/reports/profit-loss-transactions', {
       d1,
       d2,
+    });
+  }
+
+  accountRunningBalance(accountId: string, d: string): Observable<MultiRowResponse<AccountRunningBalanceRow>> {
+    return this.api.getMany<AccountRunningBalanceRow>('/api/reports/account-running-balance', {
+      account_id: accountId,
+      d,
     });
   }
 
