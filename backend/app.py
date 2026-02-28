@@ -19,6 +19,7 @@ from api.roles import CapabilitiesController, RolesController
 from api.users import UsersController
 from api.financials import FinancialsController
 from api.passwords.passwords import PasswordGeneratorController
+from api.reconcile import ReconcileController
 from core.middleware import SessionMiddleware
 
 
@@ -61,6 +62,7 @@ app = Litestar(
         UsersController,
         FinancialsController,
         PasswordGeneratorController,
+        ReconcileController,
     ],
     dependencies={
         "conn": Provide(provide_connection),

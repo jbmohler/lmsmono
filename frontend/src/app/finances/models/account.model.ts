@@ -11,6 +11,7 @@ export interface AccountType {
   description: string | null;
   balance_sheet: boolean;
   debit: boolean;
+  retained_earnings: boolean;
 }
 
 /** Account entity with type and journal refs */

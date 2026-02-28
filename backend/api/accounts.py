@@ -20,7 +20,7 @@ from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse, make
 def sql_select_account_types() -> str:
     """List all account types."""
     return """
-        SELECT id, atype_name, description, balance_sheet, debit
+        SELECT id, atype_name, description, balance_sheet, debit, retained_earnings
         FROM hacc.accounttypes
         ORDER BY sort
     """
@@ -138,6 +138,7 @@ ACCOUNT_TYPE_COLUMNS = [
     ColumnMeta(key="description", label="Description", type="string"),
     ColumnMeta(key="balance_sheet", label="Balance Sheet", type="boolean"),
     ColumnMeta(key="debit", label="Debit", type="boolean"),
+    ColumnMeta(key="retained_earnings", label="Retained Earnings Type", type="boolean"),
 ]
 
 ACCOUNT_COLUMNS = [

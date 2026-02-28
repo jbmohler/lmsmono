@@ -290,6 +290,14 @@ SELECT txn.tid, acc_id, amount FROM txn,
 DROP FUNCTION hacc.get_account_id(varchar);
 
 -- ============================================================================
+-- Reconciliation Tags
+-- ============================================================================
+
+INSERT INTO hacc.tags (tag_name, description) VALUES
+  ('Bank Pending',    'Draft reconciliation — matched on statement but not yet finalized'),
+  ('Bank Reconciled', 'Fully reconciled against a bank or credit card statement');
+
+-- ============================================================================
 -- Verification queries (optional - run to confirm data integrity)
 -- ============================================================================
 
