@@ -1,4 +1,14 @@
-import { Component, input, output, signal, computed, inject, effect } from '@angular/core';
+import {
+  Component,
+  input,
+  output,
+  signal,
+  computed,
+  inject,
+  viewChild,
+  ElementRef,
+  afterNextRender,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { ContactsService } from '../services/contacts.service';
@@ -6,23 +16,25 @@ import { UsersService, UserSearchResult } from '@core/services/users.service';
 import { PersonaShare } from '../contacts.model';
 
 @Component({
-  selector: 'app-sharing-panel',
-  templateUrl: './sharing-panel.component.html',
-  styleUrl: './sharing-panel.component.scss',
+  selector: 'app-sharing-dialog',
+  templateUrl: './sharing-dialog.component.html',
+  styleUrl: './sharing-dialog.component.scss',
   imports: [FormsModule],
 })
-export class SharingPanelComponent {
+export class SharingDialogComponent {
   private contactsService = inject(ContactsService);
   private usersService = inject(UsersService);
 
   contactId = input.required<string>();
   isOwner = input<boolean>(true);
+
+  closed = output<void>();
   sharesChanged = output<void>();
 
-  expanded = signal(false);
+  dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
+
   loading = signal(false);
   shares = signal<PersonaShare[]>([]);
-  loaded = signal(false);
 
   // User search
   searchQuery = signal('');
@@ -32,28 +44,16 @@ export class SharingPanelComponent {
   owner = computed(() => this.shares().find(s => s.isOwner));
   sharedUsers = computed(() => this.shares().filter(s => !s.isOwner));
 
-  // Summary for collapsed view
-  shareSummary = computed(() => {
-    const shared = this.sharedUsers();
-    if (shared.length === 0) return '';
-    if (shared.length === 1) return shared[0].user.name;
-    if (shared.length === 2) return `${shared[0].user.name}, ${shared[1].user.name}`;
-    return `${shared[0].user.name}, ${shared[1].user.name} +${shared.length - 2}`;
-  });
-
   constructor() {
-    // Load shares when contactId changes
-    effect(() => {
-      const id = this.contactId();
-      if (id) {
-        this.loaded.set(false);
-        this.loadShares();
-      }
+    afterNextRender(() => {
+      this.dialog().nativeElement.showModal();
+      this.loadShares();
     });
   }
 
-  toggle(): void {
-    this.expanded.set(!this.expanded());
+  close(): void {
+    this.dialog().nativeElement.close();
+    this.closed.emit();
   }
 
   async loadShares(): Promise<void> {
@@ -61,7 +61,6 @@ export class SharingPanelComponent {
     try {
       const shares = await this.contactsService.getShares(this.contactId());
       this.shares.set(shares);
-      this.loaded.set(true);
     } finally {
       this.loading.set(false);
     }
@@ -77,7 +76,6 @@ export class SharingPanelComponent {
     this.searching.set(true);
     try {
       const results = await this.usersService.searchUsers(query);
-      // Filter out users already shared with
       const existingIds = new Set(this.shares().map(s => s.user.id));
       this.searchResults.set(results.filter(r => !existingIds.has(r.id)));
     } finally {

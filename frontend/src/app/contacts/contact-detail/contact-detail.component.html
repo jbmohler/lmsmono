@@ -71,144 +71,7 @@
           }
         </div>
 
-        <!-- Contact Info (unified list) -->
-        <div class="card p-4 input-compact flex flex-col gap-3">
-          <div class="flex items-center justify-between flex-wrap gap-2">
-            <h3 class="text-sm font-medium text-gray-700">Contact Info</h3>
-            <div class="flex gap-2 flex-wrap">
-              <button (click)="addBit('email')" class="text-xs text-blue-600 hover:text-blue-800">+ Email</button>
-              <button (click)="addBit('phone')" class="text-xs text-blue-600 hover:text-blue-800">+ Phone</button>
-              <button (click)="addBit('address')" class="text-xs text-blue-600 hover:text-blue-800">+ Address</button>
-              <button (click)="addBit('url')" class="text-xs text-blue-600 hover:text-blue-800">+ Link</button>
-            </div>
-          </div>
-
-          @for (bit of editSortedBits(); track trackById($index, bit); let first = $first; let last = $last) {
-            <div class="border border-gray-200 rounded-md p-3 flex flex-col gap-2">
-              <div class="flex items-center justify-between flex-wrap gap-2">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <!-- Reorder buttons -->
-                  <div class="icon-btn-vertical">
-                    <button
-                      (click)="moveBitUp(bit.id)"
-                      [disabled]="first"
-                      class="icon-btn icon-btn-move"
-                      title="Move up"
-                    >▲</button>
-                    <button
-                      (click)="moveBitDown(bit.id)"
-                      [disabled]="last"
-                      class="icon-btn icon-btn-move"
-                      title="Move down"
-                    >▼</button>
-                  </div>
-                  <!-- Primary star -->
-                  <button
-                    (click)="setPrimary(bit.id, bit.bitType)"
-                    class="text-gray-400 hover:text-yellow-500"
-                    [class.text-yellow-500]="bit.isPrimary"
-                    title="Set as primary"
-                  >
-                    @if (bit.isPrimary) { ★ } @else { ☆ }
-                  </button>
-                  <!-- Type badge -->
-                  <span class="badge badge-gray">
-                    {{ getBitTypeLabel(bit.bitType) }}
-                  </span>
-                  <!-- Label input -->
-                  <input
-                    type="text"
-                    [ngModel]="bit.label"
-                    (ngModelChange)="updateBit(bit.id, 'label', $event)"
-                    placeholder="Label"
-                    class="w-auto flex-shrink"
-                  />
-                </div>
-                <button (click)="removeBit(bit.id)" class="icon-btn icon-btn-delete">×</button>
-              </div>
-
-              <!-- Type-specific fields -->
-              @if (isEmail(bit)) {
-                <input
-                  type="email"
-                  [ngModel]="bit.email"
-                  (ngModelChange)="updateBit(bit.id, 'email', $event)"
-                  placeholder="email@example.com"
-                />
-              }
-
-              @if (isPhone(bit)) {
-                <input
-                  type="tel"
-                  [ngModel]="bit.number"
-                  (ngModelChange)="updateBit(bit.id, 'number', $event)"
-                  placeholder="(555) 123-4567"
-                />
-              }
-
-              @if (isAddress(bit)) {
-                <div class="flex flex-col gap-2">
-                  <input
-                    type="text"
-                    [ngModel]="bit.address1"
-                    (ngModelChange)="updateBit(bit.id, 'address1', $event)"
-                    placeholder="Address line 1"
-                  />
-                  <input
-                    type="text"
-                    [ngModel]="bit.address2"
-                    (ngModelChange)="updateBit(bit.id, 'address2', $event)"
-                    placeholder="Address line 2"
-                  />
-                  <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <input
-                      type="text"
-                      [ngModel]="bit.city"
-                      (ngModelChange)="updateBit(bit.id, 'city', $event)"
-                      placeholder="City"
-                      class="col-span-2"
-                    />
-                    <input
-                      type="text"
-                      [ngModel]="bit.state"
-                      (ngModelChange)="updateBit(bit.id, 'state', $event)"
-                      placeholder="State"
-                    />
-                    <input
-                      type="text"
-                      [ngModel]="bit.zip"
-                      (ngModelChange)="updateBit(bit.id, 'zip', $event)"
-                      placeholder="ZIP"
-                    />
-                  </div>
-                </div>
-              }
-
-              @if (isUrl(bit)) {
-                <div class="flex flex-col md:flex-row gap-2">
-                  <input
-                    type="url"
-                    [ngModel]="bit.url"
-                    (ngModelChange)="updateBit(bit.id, 'url', $event)"
-                    placeholder="https://..."
-                    class="md:flex-1"
-                  />
-                  <input
-                    type="text"
-                    [ngModel]="bit.username"
-                    (ngModelChange)="updateBit(bit.id, 'username', $event)"
-                    placeholder="Username"
-                    class="md:w-32"
-                  />
-                </div>
-              }
-            </div>
-          } @empty {
-            <p class="text-sm text-gray-400 italic">No contact info</p>
-          }
-        </div>
-
-        <!-- Memo -->
+        <!-- Notes -->
         <div class="card p-4 flex flex-col gap-2">
           <label>Notes</label>
           <textarea
@@ -251,17 +114,42 @@
       }
     </div>
 
-    <!-- Sharing Panel -->
-    <div class="px-4 md:px-6 py-2 border-b border-gray-100">
-      <app-sharing-panel
-        [contactId]="contact().id"
-        [isOwner]="contact().isOwner ?? true"
-        (sharesChanged)="refreshContact()"
-      />
+    <!-- Sharing Row -->
+    <div class="px-4 md:px-6 py-2 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+      @if (sharesLoading()) {
+        <span class="text-xs text-gray-400">...</span>
+      } @else {
+        @for (share of shares(); track share.user.id) {
+          <span class="inline-flex items-center gap-1 text-xs text-gray-600">
+            @if (share.isOwner) {
+              <span class="text-yellow-500">★</span>
+            } @else {
+              <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+            }
+            {{ share.user.name }}
+          </span>
+        }
+      }
+      @if (contact().isOwner !== false) {
+        <button (click)="openSharingDialog()" class="ml-auto text-xs text-blue-600 hover:text-blue-800">
+          Manage
+        </button>
+      }
     </div>
 
     <!-- View Content -->
     <div class="flex-1 overflow-auto p-4 md:p-6 flex flex-col gap-4">
+      <!-- Notes (shown first) -->
+      @if (contact().memo) {
+        <div class="flex flex-col gap-2">
+          <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</h3>
+          <p class="text-sm text-gray-700 whitespace-pre-line">{{ contact().memo }}</p>
+        </div>
+      }
+
       <!-- Add buttons for contact info (owner only) -->
       @if (contact().isOwner !== false) {
         <div class="flex items-center gap-2 flex-wrap">
@@ -406,14 +294,6 @@
       } @empty {
         <p class="text-sm text-gray-400 italic">No contact info</p>
       }
-
-      <!-- Memo -->
-      @if (contact().memo) {
-        <div class="pt-4 border-t border-gray-200 flex flex-col gap-2">
-          <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</h3>
-          <p class="text-sm text-gray-700 whitespace-pre-line">{{ contact().memo }}</p>
-        </div>
-      }
     </div>
 
     <!-- Footer -->
@@ -430,5 +310,15 @@
     [bit]="bit"
     (saved)="saveBitFromDialog($event)"
     (cancelled)="closeBitDialog()"
+  />
+}
+
+<!-- Sharing Dialog -->
+@if (showSharingDialog()) {
+  <app-sharing-dialog
+    [contactId]="contact().id"
+    [isOwner]="contact().isOwner ?? true"
+    (closed)="closeSharingDialog()"
+    (sharesChanged)="onSharesChanged()"
   />
 }

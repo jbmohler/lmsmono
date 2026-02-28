@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed, inject } from '@angular/core';
+import { Component, input, output, signal, computed, inject, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Persona,
@@ -7,16 +7,17 @@ import {
   ContactPhone,
   ContactAddress,
   ContactUrl,
+  PersonaShare,
 } from '../contacts.model';
 import { BitEditDialogComponent, BitEditResult } from '../bit-edit-dialog/bit-edit-dialog.component';
-import { SharingPanelComponent } from '../sharing-panel/sharing-panel.component';
+import { SharingDialogComponent } from '../sharing-dialog/sharing-dialog.component';
 import { ContactsService } from '../services/contacts.service';
 
 @Component({
   selector: 'app-contact-detail',
   templateUrl: './contact-detail.component.html',
   styleUrl: './contact-detail.component.scss',
-  imports: [FormsModule, BitEditDialogComponent, SharingPanelComponent],
+  imports: [FormsModule, BitEditDialogComponent, SharingDialogComponent],
   host: {
     '(keydown)': 'handleKeydown($event)',
   },
@@ -41,6 +42,11 @@ export class ContactDetailComponent {
   // Bit dialog state
   editingBit = signal<ContactBit | null>(null);
 
+  // Sharing state
+  shares = signal<PersonaShare[]>([]);
+  sharesLoading = signal(false);
+  showSharingDialog = signal(false);
+
   // Password copy feedback
   copyingPasswordId = signal<string | null>(null);
 
@@ -57,12 +63,14 @@ export class ContactDetailComponent {
     return [...this.contact().bits].sort((a, b) => a.bitSequence - b.bitSequence);
   });
 
-  // Sorted bits for edit mode
-  editSortedBits = computed(() => {
-    const data = this.editData();
-    if (!data) return [];
-    return [...data.bits].sort((a, b) => a.bitSequence - b.bitSequence);
-  });
+  constructor() {
+    effect(() => {
+      const id = this.contact().id;
+      if (id) {
+        this.loadShares();
+      }
+    });
+  }
 
   handleKeydown(event: KeyboardEvent): void {
     // Escape to exit edit mode
@@ -103,134 +111,6 @@ export class ContactDetailComponent {
     this.editData.update(data => {
       if (!data) return data;
       return { ...data, [field]: value };
-    });
-  }
-
-  // Generic bit operations
-  addBit(bitType: ContactBit['bitType']): void {
-    this.editData.update(data => {
-      if (!data) return data;
-
-      // Get max sequence to place new bit at end
-      const maxSeq = data.bits.reduce((max, b) => Math.max(max, b.bitSequence), 0);
-      const baseProps = {
-        id: `new-${Date.now()}`,
-        label: '',
-        memo: '',
-        isPrimary: data.bits.filter(b => b.bitType === bitType).length === 0,
-        bitSequence: maxSeq + 10,
-      };
-
-      let newBit: ContactBit;
-      switch (bitType) {
-        case 'email':
-          newBit = { ...baseProps, bitType: 'email', email: '' };
-          break;
-        case 'phone':
-          newBit = { ...baseProps, bitType: 'phone', number: '' };
-          break;
-        case 'address':
-          newBit = {
-            ...baseProps,
-            bitType: 'address',
-            address1: '',
-            address2: '',
-            city: '',
-            state: '',
-            zip: '',
-            country: '',
-          };
-          break;
-        case 'url':
-          newBit = {
-            ...baseProps,
-            bitType: 'url',
-            url: '',
-            username: '',
-            hasPassword: false,
-            pwResetDt: null,
-            pwNextResetDt: null,
-          };
-          break;
-      }
-
-      return { ...data, bits: [...data.bits, newBit] };
-    });
-  }
-
-  updateBit(id: string, field: string, value: string | boolean): void {
-    this.editData.update(data => {
-      if (!data) return data;
-      return {
-        ...data,
-        bits: data.bits.map(b => b.id === id ? { ...b, [field]: value } : b),
-      };
-    });
-  }
-
-  removeBit(id: string): void {
-    this.editData.update(data => {
-      if (!data) return data;
-      return { ...data, bits: data.bits.filter(b => b.id !== id) };
-    });
-  }
-
-  setPrimary(id: string, bitType: ContactBit['bitType']): void {
-    this.editData.update(data => {
-      if (!data) return data;
-      return {
-        ...data,
-        bits: data.bits.map(b => {
-          if (b.bitType !== bitType) return b;
-          return { ...b, isPrimary: b.id === id };
-        }),
-      };
-    });
-  }
-
-  moveBitUp(id: string): void {
-    this.editData.update(data => {
-      if (!data) return data;
-
-      const sorted = [...data.bits].sort((a, b) => a.bitSequence - b.bitSequence);
-      const index = sorted.findIndex(b => b.id === id);
-      if (index <= 0) return data;
-
-      // Swap bitSequence values with the item above
-      const current = sorted[index];
-      const above = sorted[index - 1];
-
-      return {
-        ...data,
-        bits: data.bits.map(b => {
-          if (b.id === current.id) return { ...b, bitSequence: above.bitSequence };
-          if (b.id === above.id) return { ...b, bitSequence: current.bitSequence };
-          return b;
-        }),
-      };
-    });
-  }
-
-  moveBitDown(id: string): void {
-    this.editData.update(data => {
-      if (!data) return data;
-
-      const sorted = [...data.bits].sort((a, b) => a.bitSequence - b.bitSequence);
-      const index = sorted.findIndex(b => b.id === id);
-      if (index < 0 || index >= sorted.length - 1) return data;
-
-      // Swap bitSequence values with the item below
-      const current = sorted[index];
-      const below = sorted[index + 1];
-
-      return {
-        ...data,
-        bits: data.bits.map(b => {
-          if (b.id === current.id) return { ...b, bitSequence: below.bitSequence };
-          if (b.id === below.id) return { ...b, bitSequence: current.bitSequence };
-          return b;
-        }),
-      };
     });
   }
 
@@ -284,7 +164,6 @@ export class ContactDetailComponent {
 
   /** Create a new bit template and open the dialog (for view mode) */
   addBitFromView(bitType: ContactBit['bitType']): void {
-    // Get max sequence to place new bit at end
     const maxSeq = this.contact().bits.reduce((max, b) => Math.max(max, b.bitSequence), 0);
     const baseProps = {
       id: `new-${Date.now()}`,
@@ -334,33 +213,16 @@ export class ContactDetailComponent {
     const { bit, password, clearPassword, isNew } = result;
     this.editingBit.set(null);
 
-    // If in edit mode, update local state
-    if (this.isEditing()) {
-      this.editData.update(data => {
-        if (!data) return data;
-        if (isNew) {
-          // Add new bit to local state
-          return { ...data, bits: [...data.bits, bit] };
-        } else {
-          // Update existing bit in local state
-          return {
-            ...data,
-            bits: data.bits.map(b => b.id === bit.id ? bit : b),
-          };
-        }
-      });
+    // In view mode, emit to parent
+    if (isNew) {
+      this.bitAdded.emit({ bit, password });
     } else {
-      // In view mode, emit to parent
-      if (isNew) {
-        this.bitAdded.emit({ bit, password });
-      } else {
-        this.bitUpdated.emit({
-          bitId: bit.id,
-          changes: bit,
-          password,
-          clearPassword,
-        });
-      }
+      this.bitUpdated.emit({
+        bitId: bit.id,
+        changes: bit,
+        password,
+        clearPassword,
+      });
     }
   }
 
@@ -408,8 +270,27 @@ export class ContactDetailComponent {
     }
   }
 
-  /** Refresh contact data (called after sharing changes) */
-  refreshContact(): void {
+  // Sharing operations
+  async loadShares(): Promise<void> {
+    this.sharesLoading.set(true);
+    try {
+      const shares = await this.contactsService.getShares(this.contact().id);
+      this.shares.set(shares);
+    } finally {
+      this.sharesLoading.set(false);
+    }
+  }
+
+  openSharingDialog(): void {
+    this.showSharingDialog.set(true);
+  }
+
+  closeSharingDialog(): void {
+    this.showSharingDialog.set(false);
+  }
+
+  onSharesChanged(): void {
+    this.loadShares();
     this.contactRefresh.emit();
   }
 }
