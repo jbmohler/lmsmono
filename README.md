@@ -15,21 +15,22 @@ The underlying data model has been in production use for approximately 20 years.
 ## Tech Stack
 
 ### Backend
-- **Python** with **FastAPI** - async API framework with auto-generated OpenAPI documentation
+- **Python 3.13** with **Litestar** - async web framework with guards and dependency injection
 - **psycopg3** - async PostgreSQL driver with connection pooling
-- **Pydantic** - request/response validation
+- **uvicorn** - ASGI server
 
 ### Frontend
-- **Angular 17+** - standalone components, signals-based reactivity
-- **Tailwind CSS** - utility-first CSS, mobile-first responsive design
+- **Angular 21** - standalone components, signals-based reactivity
+- **Tailwind CSS 4** - utility-first CSS, mobile-first responsive design
 - **Angular CDK** - accessibility and keyboard navigation primitives
+- **pnpm** - package manager
 
 ### Database
 - **PostgreSQL** (managed cloud instance)
 
 ### Deployment
 - Single Docker container serving both API and static frontend
-- FastAPI serves Angular build artifacts from `/`
+- Litestar serves Angular build artifacts from `/`
 - API routes under `/api/`
 
 ## Project Structure
@@ -37,34 +38,87 @@ The underlying data model has been in production use for approximately 20 years.
 ```
 /
 ├── backend/
-│   ├── main.py              # FastAPI application entry
-│   ├── api/                 # Route modules
-│   │   ├── transactions.py
-│   │   ├── accounts.py
-│   │   ├── contacts.py
-│   │   ├── passwords.py
-│   │   └── reports.py
-│   ├── db/                  # Database layer
-│   │   ├── pool.py          # psycopg connection pool
-│   │   └── queries/         # SQL queries
-│   ├── models/              # Pydantic models
+│   ├── app.py               # Litestar application entry
+│   ├── core/                # Config, DB pool, auth, middleware
+│   ├── api/                 # Route controllers by domain
 │   └── requirements.txt
 ├── frontend/                # Angular application
 │   ├── src/
-│   │   ├── app/
-│   │   │   ├── transactions/
-│   │   │   ├── accounts/
-│   │   │   ├── contacts/
-│   │   │   ├── passwords/
-│   │   │   └── reports/
+│   │   ├── app/             # Feature modules (lazy-loaded by route)
 │   │   └── styles.css       # Tailwind entry
-│   ├── angular.json
 │   └── package.json
-├── Dockerfile
-├── docker-compose.yml       # Local development with PostgreSQL
+├── secrets/
+│   ├── config.example.json  # Config template (committed)
+│   └── config.json          # Actual config (gitignored)
+├── Dockerfile               # Production multi-stage build
+├── docker-compose.yml       # Local development environment
 ├── CLAUDE.md
 └── README.md
 ```
+
+## Development
+
+All tooling runs inside Docker containers.
+
+### First-time setup
+
+```bash
+cp secrets/config.example.json secrets/config.json
+# Edit secrets/config.json with your local settings
+```
+
+### Start the dev environment
+
+```bash
+docker compose up -d
+docker compose logs -f       # Follow logs
+```
+
+Access the app at **http://localhost:8080** (Nginx proxies to frontend dev server and backend).
+
+PostgreSQL is also exposed directly on port **5432**.
+
+### Common dev commands
+
+```bash
+# Linting
+docker compose exec backend ruff check .
+docker compose exec backend mypy .
+docker compose exec frontend pnpm lint
+docker compose exec frontend pnpm knip      # Dead code detection
+
+# Testing
+docker compose exec backend pytest
+docker compose exec frontend pnpm test      # Vitest unit tests
+docker compose exec frontend pnpm e2e       # Playwright e2e tests
+
+# Shell access
+docker compose exec backend bash
+docker compose exec frontend sh
+docker compose exec postgres psql -U lms -d lms
+```
+
+## Production Build
+
+The production image is a multi-stage build: Node.js compiles the Angular app, then Python serves both the API and the compiled static files from a single container.
+
+### Build the image
+
+```bash
+docker build -t lms .
+```
+
+### Run the image
+
+The backend reads its config from a Docker secret at `/run/secrets/config.json`. Point it at your managed database by setting the appropriate host and credentials there.
+
+```bash
+docker run -p 8000:8000 \
+  -v /path/to/config.json:/run/secrets/config.json:ro \
+  lms
+```
+
+The app is then available at **http://localhost:8000**.
 
 ## Key Features
 
@@ -81,21 +135,8 @@ The underlying data model has been in production use for approximately 20 years.
 
 ### Multi-Tenant Password Sharing
 - Family/group password sharing with granular permissions
-- Secure credential storage
+- Secure credential storage with server-side encryption
 - Integration with contacts for credential association
-
-## Development
-
-```bash
-# Local development with docker-compose
-docker-compose up -d
-
-# Backend only
-cd backend && pip install -r requirements.txt && uvicorn main:app --reload
-
-# Frontend only
-cd frontend && npm install && ng serve
-```
 
 ## Reports
 

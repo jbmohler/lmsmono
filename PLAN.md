@@ -15,8 +15,8 @@ Check boxes as tasks complete. Claude should read this file at session start to 
 - [x] Create docker-compose.yml for local dev with PostgreSQL
 - [x] Configure Nginx reverse proxy for dev
 - [x] Schema auto-import on database init
-- [ ] Create production Dockerfile (single container)
-- [ ] Configure FastAPI to serve Angular static build (production)
+- [x] Create production Dockerfile (single container)
+- [x] Configure FastAPI to serve Angular static build (production)
 
 ## Phase 2: Database Layer
 - [x] Schema SQL received (6 files: core, authentication, contacts, databits, lmshacc, roscoe)

@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 from litestar import Litestar
 from litestar.di import Provide
+from litestar.static_files import StaticFilesConfig
 
 from core.config import AppConfig
 from core.crypto import init_crypto
@@ -70,4 +72,9 @@ app = Litestar(
     },
     middleware=[SessionMiddleware],
     lifespan=[lifespan],
+    static_files_config=(
+        [StaticFilesConfig(directories=[Path("static")], path="/", html_mode=True)]
+        if Path("static").exists()
+        else []
+    ),
 )
