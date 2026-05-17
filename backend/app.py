@@ -1,10 +1,11 @@
+import traceback
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from litestar import Litestar, Request, Response
 from litestar.di import Provide
-from litestar.exceptions import NotFoundException
+from litestar.exceptions import HTTPException, NotFoundException
 from litestar.static_files import StaticFilesConfig
 
 from core.config import AppConfig
@@ -29,6 +30,22 @@ from core.middleware import SessionMiddleware
 config: AppConfig | None = None
 
 _index_html = Path("static/index.html")
+
+
+def internal_error_handler(request: Request, exc: Exception) -> Response:
+    if isinstance(exc, HTTPException):
+        return Response(
+            content={"detail": exc.detail},
+            media_type="application/json",
+            status_code=exc.status_code,
+        )
+    print(f"ERROR {request.method} {request.url.path}")
+    print(traceback.format_exc())
+    return Response(
+        content={"detail": "Internal server error"},
+        media_type="application/json",
+        status_code=500,
+    )
 
 
 def spa_fallback(request: Request, exc: NotFoundException) -> Response:
@@ -90,7 +107,7 @@ app = Litestar(
     },
     middleware=[SessionMiddleware],
     lifespan=[lifespan],
-    exception_handlers={404: spa_fallback},
+    exception_handlers={404: spa_fallback, Exception: internal_error_handler},
     static_files_config=(
         [StaticFilesConfig(directories=[Path("static")], path="/", html_mode=True)]
         if Path("static").exists()

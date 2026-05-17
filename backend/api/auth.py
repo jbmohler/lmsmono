@@ -1,9 +1,10 @@
 """Authentication controller for login, logout, and session management."""
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+
+import traceback
 
 import jwt
 import psycopg
@@ -15,8 +16,6 @@ from core.email import send_password_reset_email
 from core.jwt_utils import create_reset_token, decode_reset_token
 from core.password import hash_password, verify_password
 from core.queries_admin import sql_select_user_capabilities
-
-log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -221,7 +220,7 @@ class AuthController(Controller):
         user_id, username, email_address = row
 
         if not email_address:
-            log.warning("Password reset requested for user %s but no email on file", username)
+            print(f"Password reset requested for user {username} but no email on file")
             return {"ok": True}
 
         token = create_reset_token(str(user_id), config.session.secret_key)
@@ -230,7 +229,8 @@ class AuthController(Controller):
         try:
             send_password_reset_email(config.smtp, email_address, username, reset_url)
         except Exception:
-            log.exception("Failed to send password reset email to %s", email_address)
+            print(f"Failed to send password reset email to {email_address}")
+            print(traceback.format_exc())
 
         return {"ok": True}
 
