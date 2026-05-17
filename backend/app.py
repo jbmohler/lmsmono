@@ -2,8 +2,9 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
-from litestar import Litestar
+from litestar import Litestar, Request, Response
 from litestar.di import Provide
+from litestar.exceptions import NotFoundException
 from litestar.static_files import StaticFilesConfig
 
 from core.config import AppConfig
@@ -26,6 +27,23 @@ from core.middleware import SessionMiddleware
 
 
 config: AppConfig | None = None
+
+_index_html = Path("static/index.html")
+
+
+def spa_fallback(request: Request, exc: NotFoundException) -> Response:
+    """Serve index.html for non-API 404s to support SPA client-side routing."""
+    if not request.url.path.startswith("/api/") and _index_html.exists():
+        return Response(
+            content=_index_html.read_bytes(),
+            media_type="text/html",
+            status_code=200,
+        )
+    return Response(
+        content={"detail": exc.detail},
+        media_type="application/json",
+        status_code=404,
+    )
 
 
 @asynccontextmanager
@@ -72,6 +90,7 @@ app = Litestar(
     },
     middleware=[SessionMiddleware],
     lifespan=[lifespan],
+    exception_handlers={404: spa_fallback},
     static_files_config=(
         [StaticFilesConfig(directories=[Path("static")], path="/", html_mode=True)]
         if Path("static").exists()
