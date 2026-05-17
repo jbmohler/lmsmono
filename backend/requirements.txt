@@ -8,6 +8,7 @@ psycopg[binary,pool]
 # Security
 argon2-cffi
 cryptography
+PyJWT
 
 # Development tools
 ruff

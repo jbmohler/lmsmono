@@ -9,6 +9,14 @@ export const routes: Routes = [
     path: 'login',
     loadComponent: () => import('./auth/login.component').then(m => m.LoginComponent),
   },
+  {
+    path: 'forgot-password',
+    loadComponent: () => import('./auth/forgot-password.component').then(m => m.ForgotPasswordComponent),
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./auth/reset-password.component').then(m => m.ResetPasswordComponent),
+  },
 
   // Finances section
   {

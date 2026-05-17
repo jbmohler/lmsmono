@@ -1,16 +1,22 @@
 """Authentication controller for login, logout, and session management."""
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import jwt
 import psycopg
 from litestar import Controller, Request, Response, get, post
-from litestar.exceptions import NotAuthorizedException
+from litestar.exceptions import NotAuthorizedException, ValidationException
 
 from core.auth import AuthenticatedUser
-from core.password import verify_password
+from core.email import send_password_reset_email
+from core.jwt_utils import create_reset_token, decode_reset_token
+from core.password import hash_password, verify_password
 from core.queries_admin import sql_select_user_capabilities
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -40,10 +46,41 @@ def sql_update_session_inactive() -> str:
     return "UPDATE sessions SET inactive = true WHERE id = %(id)s"
 
 
+def sql_select_user_primary_email() -> str:
+    """Get a user's primary email address, falling back to any email."""
+    return """
+        SELECT u.id, u.username, a.address
+        FROM users u
+        LEFT JOIN addresses a
+            ON a.userid = u.id
+            AND a.addr_type = 'email'
+        WHERE u.username = %(username)s
+          AND u.inactive = false
+        ORDER BY a.is_primary DESC NULLS LAST
+        LIMIT 1
+    """
+
+
+def sql_update_user_password() -> str:
+    """Update a user's password hash."""
+    return "UPDATE users SET pwhash = %(pwhash)s WHERE id = %(id)s"
+
+
 @dataclass
 class LoginRequest:
     username: str
     password: str
+
+
+@dataclass
+class ForgotPasswordRequest:
+    username: str
+
+
+@dataclass
+class ResetPasswordRequest:
+    token: str
+    new_password: str
 
 
 @dataclass
@@ -157,6 +194,72 @@ class AuthController(Controller):
         response.delete_cookie(key="session_id", path="/")
 
         return response
+
+    @post("/forgot-password", status_code=200)
+    async def forgot_password(
+        self,
+        conn: psycopg.AsyncConnection,
+        data: ForgotPasswordRequest,
+    ) -> dict:
+        """Send a password reset email.
+
+        Always returns 200 to avoid revealing whether a username exists.
+        """
+        config = _get_config()
+
+        async with conn.cursor() as cur:
+            await cur.execute(
+                sql_select_user_primary_email(),
+                {"username": data.username},
+            )
+            row = await cur.fetchone()
+
+        if not row:
+            # Return success silently - don't reveal if username exists
+            return {"ok": True}
+
+        user_id, username, email_address = row
+
+        if not email_address:
+            log.warning("Password reset requested for user %s but no email on file", username)
+            return {"ok": True}
+
+        token = create_reset_token(str(user_id), config.session.secret_key)
+        reset_url = f"{config.app_base_url}/reset-password?token={token}"
+
+        try:
+            send_password_reset_email(config.smtp, email_address, username, reset_url)
+        except Exception:
+            log.exception("Failed to send password reset email to %s", email_address)
+
+        return {"ok": True}
+
+    @post("/reset-password", status_code=200)
+    async def reset_password(
+        self,
+        conn: psycopg.AsyncConnection,
+        data: ResetPasswordRequest,
+    ) -> dict:
+        """Reset a user's password using a valid reset token."""
+        config = _get_config()
+
+        if not data.new_password or len(data.new_password) < 8:
+            raise ValidationException("Password must be at least 8 characters")
+
+        try:
+            user_id = decode_reset_token(data.token, config.session.secret_key)
+        except jwt.ExpiredSignatureError:
+            raise ValidationException("Reset link has expired")
+        except jwt.InvalidTokenError:
+            raise ValidationException("Invalid reset token")
+
+        async with conn.cursor() as cur:
+            await cur.execute(
+                sql_update_user_password(),
+                {"id": user_id, "pwhash": hash_password(data.new_password)},
+            )
+
+        return {"ok": True}
 
     @get("/me")
     async def get_current_user(

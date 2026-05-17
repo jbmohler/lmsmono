@@ -33,10 +33,22 @@ class SessionConfig:
 
 
 @dataclass
+class SmtpConfig:
+    host: str = "localhost"
+    port: int = 587
+    username: str = ""
+    password: str = ""
+    from_address: str = ""
+    use_tls: bool = True
+
+
+@dataclass
 class AppConfig:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     encryption: EncryptionConfig = field(default_factory=EncryptionConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
+    smtp: SmtpConfig = field(default_factory=SmtpConfig)
+    app_base_url: str = "http://localhost:4200"
 
     @classmethod
     def load(cls) -> "AppConfig":
@@ -49,10 +61,13 @@ class AppConfig:
             db_data = data.get("database", {})
             enc_data = data.get("encryption", {})
             session_data = data.get("session", {})
+            smtp_data = data.get("smtp", {})
             return cls(
                 database=DatabaseConfig(**db_data),
                 encryption=EncryptionConfig(**enc_data),
                 session=SessionConfig(**session_data),
+                smtp=SmtpConfig(**smtp_data),
+                app_base_url=data.get("app_base_url", "http://localhost:4200"),
             )
 
         print(f"Warning: Config file not found at {config_path}")
