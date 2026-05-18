@@ -26,7 +26,12 @@ def sql_select_personas(filter_search: bool = False) -> str:
     search_condition = """
         AND (
             %(search)s::text IS NULL
+            OR pc.fts_search @@ websearch_to_tsquery('simple', %(search)s)
             OR pc.fts_search @@ websearch_to_tsquery('english', %(search)s)
+            OR pc.fts_search @@ to_tsquery('simple',
+                (SELECT string_agg(lexeme || ':*', ' & ')
+                 FROM unnest(to_tsvector('simple', %(search)s)))
+            )
         )
     """ if filter_search else ""
 

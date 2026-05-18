@@ -299,6 +299,52 @@ mypy .
 pytest
 ```
 
+## Full-Text Search Strategy
+
+FTS-based searches (currently: contacts) use a **dual-config tsvector** combined with a **prefix query** branch for search-as-you-type feel.
+
+### Why dual config
+
+| Config | Behaviour | Good for | Bad for |
+|--------|-----------|----------|---------|
+| `english` | Stems words, removes stop words | Prose, memos | Names ("Holdings" → `hold`), company words ("of", "and" removed) |
+| `simple` | Lowercase only, no stemming, no stop words | Names, proper nouns, all words kept | No stemming |
+
+Both configs are stored in the `fts_search` tsvector column so a single `@@` hit on either satisfies the match.
+
+### Query pattern (three branches)
+
+```python
+AND (
+    %(search)s::text IS NULL
+    OR fts_search @@ websearch_to_tsquery('simple', %(search)s)   -- exact words, stop words preserved
+    OR fts_search @@ websearch_to_tsquery('english', %(search)s)  -- stemmed words
+    OR fts_search @@ to_tsquery('simple',                         -- prefix: "Smi" matches "Smith"
+        (SELECT string_agg(lexeme || ':*', ' & ')
+         FROM unnest(to_tsvector('simple', %(search)s)))
+    )
+)
+```
+
+The prefix branch tokenises the raw search string with `to_tsvector('simple', ...)` (safe tokenisation), appends `:*` to each lexeme, then re-assembles as a `to_tsquery` expression. This returns results as the user types each word.
+
+### Schema
+
+The `fts_search` column in views like `contacts.personas_calc` must be built with both configs:
+
+```sql
+to_tsvector('simple',  coalesce(l_name, '')) ||
+to_tsvector('simple',  coalesce(f_name, '')) ||
+to_tsvector('english', coalesce(l_name, '')) ||
+to_tsvector('english', coalesce(f_name, '')) || ...
+```
+
+See `scripts/fts_simple_english.sql` for the migration SQL and `scripts/migrate-fts-simple-english.sh` to apply it.
+
+### Transaction searches
+
+Transaction list (`GET /api/transactions`) and template-search (`GET /api/transactions/template-search`) use `ILIKE '%query%'` against `payee`, `memo`, and `tranref`. This is intentional — those fields are short, structured, and benefit more from partial string matching than from FTS stemming. No FTS is used there.
+
 ## Key Differences from FastAPI
 
 | FastAPI | Litestar |

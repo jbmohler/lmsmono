@@ -97,20 +97,30 @@ CREATE TABLE contacts.urls (
 
 create view contacts.perfts_search as
 select id,
-    to_tsvector(coalesce(l_name, ''))||
-    to_tsvector(coalesce(f_name, ''))||
-    to_tsvector(coalesce(organization, ''))||
-    to_tsvector(coalesce(title, ''))||
-    to_tsvector(coalesce(memo, '')) as fts_search
+    to_tsvector('simple', coalesce(l_name, ''))||
+    to_tsvector('simple', coalesce(f_name, ''))||
+    to_tsvector('simple', coalesce(organization, ''))||
+    to_tsvector('simple', coalesce(title, ''))||
+    to_tsvector('simple', coalesce(memo, ''))||
+    to_tsvector('english', coalesce(l_name, ''))||
+    to_tsvector('english', coalesce(f_name, ''))||
+    to_tsvector('english', coalesce(organization, ''))||
+    to_tsvector('english', coalesce(title, ''))||
+    to_tsvector('english', coalesce(memo, '')) as fts_search
 from contacts.personas;
 
 create view contacts.personas_calc as
 select personas.*,
-    to_tsvector(coalesce(l_name, ''))||
-    to_tsvector(coalesce(f_name, ''))||
-    to_tsvector(coalesce(organization, ''))||
-    to_tsvector(coalesce(title, ''))||
-    to_tsvector(coalesce(memo, '')) as fts_search,
+    to_tsvector('simple', coalesce(l_name, ''))||
+    to_tsvector('simple', coalesce(f_name, ''))||
+    to_tsvector('simple', coalesce(organization, ''))||
+    to_tsvector('simple', coalesce(title, ''))||
+    to_tsvector('simple', coalesce(memo, ''))||
+    to_tsvector('english', coalesce(l_name, ''))||
+    to_tsvector('english', coalesce(f_name, ''))||
+    to_tsvector('english', coalesce(organization, ''))||
+    to_tsvector('english', coalesce(title, ''))||
+    to_tsvector('english', coalesce(memo, '')) as fts_search,
     -- see also constraints related to corporate_entity & f_name
     concat_ws(' ',
         case when personas.title='' then null else personas.title end,
@@ -123,9 +133,12 @@ create view contacts.bits as
     select id, persona_id, 'urls' as bit_type,
         name, memo, is_primary,
         bit_sequence,
-        to_tsvector(coalesce(memo, ''))||
-        to_tsvector(coalesce(name, ''))||
-        to_tsvector(coalesce(url, '')) as fts_search,
+        to_tsvector('simple', coalesce(memo, ''))||
+        to_tsvector('simple', coalesce(name, ''))||
+        to_tsvector('simple', coalesce(url, ''))||
+        to_tsvector('english', coalesce(memo, ''))||
+        to_tsvector('english', coalesce(name, ''))||
+        to_tsvector('english', coalesce(url, '')) as fts_search,
         json_build_object(
                 'url', url,
                 'username', username,
@@ -137,11 +150,16 @@ create view contacts.bits as
     select id, persona_id, 'street_addresses' as bit_type,
         name, memo, is_primary,
         bit_sequence,
-        to_tsvector(coalesce(memo, ''))||
-        to_tsvector(coalesce(name, ''))||
-        to_tsvector(coalesce(address1, ''))||
-        to_tsvector(coalesce(address2, ''))||
-        to_tsvector(coalesce(city, '')) as fts_search,
+        to_tsvector('simple', coalesce(memo, ''))||
+        to_tsvector('simple', coalesce(name, ''))||
+        to_tsvector('simple', coalesce(address1, ''))||
+        to_tsvector('simple', coalesce(address2, ''))||
+        to_tsvector('simple', coalesce(city, ''))||
+        to_tsvector('english', coalesce(memo, ''))||
+        to_tsvector('english', coalesce(name, ''))||
+        to_tsvector('english', coalesce(address1, ''))||
+        to_tsvector('english', coalesce(address2, ''))||
+        to_tsvector('english', coalesce(city, '')) as fts_search,
         json_build_object(
                 'address1', address1,
                 'address2', address2,
@@ -154,8 +172,10 @@ create view contacts.bits as
     select id, persona_id, 'phone_numbers' as bit_type,
         name, memo, is_primary,
         bit_sequence,
-        to_tsvector(coalesce(memo, ''))||
-        to_tsvector(coalesce(name, '')) as fts_search,
+        to_tsvector('simple', coalesce(memo, ''))||
+        to_tsvector('simple', coalesce(name, ''))||
+        to_tsvector('english', coalesce(memo, ''))||
+        to_tsvector('english', coalesce(name, '')) as fts_search,
         json_build_object(
                 'number', number) as bit_data
     from contacts.phone_numbers
@@ -163,8 +183,10 @@ create view contacts.bits as
     select id, persona_id, 'email_addresses' as bit_type,
         name, memo, is_primary,
         bit_sequence,
-        to_tsvector(coalesce(memo, ''))||
-        to_tsvector(coalesce(name, '')) as fts_search,
+        to_tsvector('simple', coalesce(memo, ''))||
+        to_tsvector('simple', coalesce(name, ''))||
+        to_tsvector('english', coalesce(memo, ''))||
+        to_tsvector('english', coalesce(name, '')) as fts_search,
         json_build_object(
                 'email', email) as bit_data
     from contacts.email_addresses
