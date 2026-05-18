@@ -50,7 +50,7 @@ def internal_error_handler(request: Request, exc: Exception) -> Response:
 
 def spa_fallback(request: Request, exc: NotFoundException) -> Response:
     """Serve index.html for non-API 404s to support SPA client-side routing."""
-    if not request.url.path.startswith("/api/") and _index_html.exists():
+    if not request.url.path.lstrip("/").startswith("api/") and _index_html.exists():
         return Response(
             content=_index_html.read_bytes(),
             media_type="text/html",
@@ -109,7 +109,7 @@ app = Litestar(
     lifespan=[lifespan],
     exception_handlers={404: spa_fallback, Exception: internal_error_handler},
     static_files_config=(
-        [StaticFilesConfig(directories=[Path("static")], path="/", html_mode=True)]
+        [StaticFilesConfig(directories=[Path("static")], path="/")]
         if Path("static").exists()
         else []
     ),
