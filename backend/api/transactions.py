@@ -25,10 +25,27 @@ def sql_select_transactions(
 ) -> str:
     """List transactions with optional filters."""
     conditions = []
+    # LATERAL computes the tsvector once per row; only added when needed
+    fts_lateral = ""
+
     if filter_query:
-        conditions.append(
-            "(t.payee ILIKE %(q)s OR t.memo ILIKE %(q)s OR t.tranref ILIKE %(q)s)"
-        )
+        fts_lateral = """,
+        LATERAL (
+            SELECT
+                to_tsvector('simple',  coalesce(t.payee, '')) ||
+                to_tsvector('simple',  coalesce(t.memo,  '')) ||
+                to_tsvector('english', coalesce(t.payee, '')) ||
+                to_tsvector('english', coalesce(t.memo,  '')) AS fts_search
+        ) t_fts"""
+        conditions.append("""(
+            t_fts.fts_search @@ websearch_to_tsquery('simple',  %(q)s)
+            OR t_fts.fts_search @@ websearch_to_tsquery('english', %(q)s)
+            OR t_fts.fts_search @@ to_tsquery('simple',
+                (SELECT string_agg(lexeme || ':*', ' & ')
+                 FROM unnest(to_tsvector('simple', %(q)s)))
+            )
+            OR t.tranref ILIKE %(q_like)s
+        )""")
     if filter_account:
         conditions.append(
             "EXISTS (SELECT 1 FROM hacc.splits s WHERE s.stid = t.tid AND s.account_id = %(account_id)s)"
@@ -47,7 +64,7 @@ def sql_select_transactions(
             t.tranref,
             t.payee,
             t.memo
-        FROM hacc.transactions t
+        FROM hacc.transactions t{fts_lateral}
         WHERE {where_sql}
         ORDER BY t.trandate DESC, t.tid DESC
         LIMIT %(limit)s OFFSET %(offset)s
@@ -108,11 +125,22 @@ def sql_select_transaction_templates() -> str:
                     WHEN LOWER(t.memo) LIKE LOWER(%(contains)s) THEN 30
                     ELSE 0
                 END AS memo_score
-            FROM hacc.transactions t
+            FROM hacc.transactions t,
+            LATERAL (
+                SELECT
+                    to_tsvector('simple',  coalesce(t.payee, '')) ||
+                    to_tsvector('simple',  coalesce(t.memo,  '')) ||
+                    to_tsvector('english', coalesce(t.payee, '')) ||
+                    to_tsvector('english', coalesce(t.memo,  '')) AS fts_search
+            ) t_fts
             WHERE t.trandate >= CURRENT_DATE - INTERVAL '2 years'
               AND (
-                  t.payee ILIKE %(contains)s
-                  OR t.memo ILIKE %(contains)s
+                  t_fts.fts_search @@ websearch_to_tsquery('simple',  %(search)s)
+                  OR t_fts.fts_search @@ websearch_to_tsquery('english', %(search)s)
+                  OR t_fts.fts_search @@ to_tsquery('simple',
+                      (SELECT string_agg(lexeme || ':*', ' & ')
+                       FROM unnest(to_tsvector('simple', %(search)s)))
+                  )
               )
         ),
         grouped AS (
@@ -391,7 +419,8 @@ class TransactionsController(Controller):
         params: dict = {"limit": limit, "offset": offset}
 
         if q:
-            params["q"] = f"%{q}%"
+            params["q"] = q
+            params["q_like"] = f"%{q}%"
         if account_id:
             params["account_id"] = account_id
         if from_date:

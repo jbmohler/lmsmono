@@ -343,7 +343,9 @@ See `scripts/fts_simple_english.sql` for the migration SQL and `scripts/migrate-
 
 ### Transaction searches
 
-Transaction list (`GET /api/transactions`) and template-search (`GET /api/transactions/template-search`) use `ILIKE '%query%'` against `payee`, `memo`, and `tranref`. This is intentional — those fields are short, structured, and benefit more from partial string matching than from FTS stemming. No FTS is used there.
+Transaction list (`GET /api/transactions`) and template-search (`GET /api/transactions/template-search`) apply the same three-branch FTS pattern to `payee` and `memo`. The tsvector is computed inline via a `LATERAL` subquery (no schema view needed). `tranref` stays as `ILIKE` since it is a reference number, not natural-language text.
+
+The template-search scoring (exact / prefix / contains CASE expressions) still uses `ILIKE` for ranking quality — FTS only replaces the filter that decides which rows are candidates.
 
 ## Key Differences from FastAPI
 
