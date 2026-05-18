@@ -34,7 +34,7 @@ DB_APP_USER="${DB_APP_USER:-lms}"
 DB_APP_PASSWORD="${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}"
 
 psql() {
-    docker run --rm \
+    docker run --interactive --rm \
         -e PGPASSWORD="$DB_ADMIN_PASSWORD" \
         postgres:18-bookworm \
         psql \
@@ -45,8 +45,13 @@ psql() {
         "$@"
 }
 
+echo "==> Connection test"
+psql defaultdb <<SQL
+select version(), current_database(), current_user;
+SQL
+
 echo "==> Creating owner role: $DB_OWNER"
-psql postgres <<SQL
+psql defaultdb <<SQL
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_OWNER') THEN
@@ -63,7 +68,7 @@ END
 SQL
 
 echo "==> Creating app user: $DB_APP_USER"
-psql postgres <<SQL
+psql defaultdb <<SQL
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_APP_USER') THEN
@@ -80,9 +85,14 @@ END
 SQL
 
 echo "==> Creating database: $DB_NAME (owner: $DB_OWNER)"
-psql postgres <<SQL
+psql defaultdb <<SQL
 SELECT 'CREATE DATABASE $DB_NAME OWNER $DB_OWNER'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
+SQL
+
+echo "==> Connection test"
+psql "$DB_NAME" <<SQL
+select version(), current_database(), current_user;
 SQL
 
 echo "==> Granting app user connect and usage privileges"
