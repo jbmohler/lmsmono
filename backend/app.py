@@ -1,3 +1,4 @@
+import mimetypes
 import traceback
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
@@ -6,7 +7,6 @@ from pathlib import Path
 from litestar import Litestar, Request, Response
 from litestar.di import Provide
 from litestar.exceptions import HTTPException, NotFoundException
-from litestar.static_files import StaticFilesConfig
 
 from core.config import AppConfig
 from core.crypto import init_crypto
@@ -29,7 +29,8 @@ from core.middleware import SessionMiddleware
 
 config: AppConfig | None = None
 
-_index_html = Path("static/index.html")
+_static_dir = Path("static")
+_index_html = _static_dir / "index.html"
 
 
 def internal_error_handler(request: Request, exc: Exception) -> Response:
@@ -49,8 +50,25 @@ def internal_error_handler(request: Request, exc: Exception) -> Response:
 
 
 def spa_fallback(request: Request, exc: NotFoundException) -> Response:
-    """Serve index.html for non-API 404s to support SPA client-side routing."""
-    if not request.url.path.lstrip("/").startswith("api/") and _index_html.exists():
+    """Serve static files or index.html for non-API 404s (SPA routing)."""
+    path = request.url.path
+    if path.startswith("/api/"):
+        return Response(
+            content={"detail": exc.detail},
+            media_type="application/json",
+            status_code=404,
+        )
+    # Try to serve the file from ./static
+    candidate = _static_dir / path.lstrip("/")
+    if candidate.is_file():
+        mime, _ = mimetypes.guess_type(candidate.name)
+        return Response(
+            content=candidate.read_bytes(),
+            media_type=mime or "application/octet-stream",
+            status_code=200,
+        )
+    # SPA fallback: any unmatched non-API route gets index.html
+    if _index_html.exists():
         return Response(
             content=_index_html.read_bytes(),
             media_type="text/html",
@@ -108,9 +126,4 @@ app = Litestar(
     middleware=[SessionMiddleware],
     lifespan=[lifespan],
     exception_handlers={404: spa_fallback, Exception: internal_error_handler},
-    static_files_config=(
-        [StaticFilesConfig(directories=[Path("static")], path="/")]
-        if Path("static").exists()
-        else []
-    ),
 )

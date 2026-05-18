@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: lms
+      POSTGRES_PASSWORD: lms_dev_password
+      POSTGRES_DB: lms
+      SEED_DEV_DATA: "true"
+    volumes:
+      - ./schema:/docker-entrypoint-initdb.d:ro
+      - prod_diag_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms -d lms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m seed.run
+    environment:
+      - CONFIG_FILE=/run/secrets/config.json
+    secrets:
+      - config.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8000"
+    environment:
+      - CONFIG_FILE=/run/secrets/config.json
+    secrets:
+      - config.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+
+volumes:
+  prod_diag_pgdata:
+
+secrets:
+  config.json:
+    file: ./secrets/config.json
