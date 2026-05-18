@@ -7,6 +7,16 @@ import { AccountService } from '@finances/services/account.service';
 import { AccountDetail, AccountTransaction } from '@finances/models/account.model';
 import { PersonaListItem } from '../../contacts/contacts.model';
 
+interface ApiPersonaListItem {
+  id: string;
+  entity_name: string;
+  is_corporate: boolean;
+  organization: string | null;
+  primary_email: string | null;
+  primary_phone: string | null;
+  is_owner: boolean;
+}
+
 type Tab = 'info' | 'contacts' | 'transactions';
 
 @Component({
@@ -76,9 +86,17 @@ export class AccountSidebarComponent {
       return;
     }
     this.api
-      .getMany<PersonaListItem>('/api/contacts', { search: keywords })
+      .getMany<ApiPersonaListItem>('/api/contacts', { search: keywords })
       .subscribe((resp) => {
-        this.contacts.set(resp.data);
+        this.contacts.set(resp.data.map(item => ({
+          id: item.id,
+          entityName: item.entity_name,
+          isCorporate: item.is_corporate,
+          organization: item.organization ?? '',
+          primaryEmail: item.primary_email ?? '',
+          primaryPhone: item.primary_phone ?? '',
+          isOwner: item.is_owner,
+        })));
         this.contactsLoaded.set(true);
       });
   }
