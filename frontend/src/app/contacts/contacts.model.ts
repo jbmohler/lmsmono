@@ -49,6 +49,7 @@ export interface Persona {
   anniversary: string | null;
   isCorporate: boolean;
   bits: ContactBit[];
+  shares?: PersonaShare[];
   ownerId?: string;
   isOwner?: boolean;
 }

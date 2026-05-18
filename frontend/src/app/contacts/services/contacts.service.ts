@@ -1,7 +1,7 @@
 import { Injectable, inject, computed, signal } from '@angular/core';
 import { toSignal, toObservable } from '@angular/core/rxjs-interop';
 import { Subject, of, combineLatest } from 'rxjs';
-import { startWith, switchMap, catchError, tap, filter } from 'rxjs/operators';
+import { startWith, switchMap, catchError, tap, filter, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { ApiService } from '@core/api/api.service';
 import { AuthService } from '@core/auth/auth.service';
@@ -31,6 +31,7 @@ interface ApiPersona {
   anniversary: string | null;
   entity_name: string;
   bits?: ApiBit[];
+  shares?: ApiPersonaShare[];
   owner_id?: string;
   is_owner?: boolean;
 }
@@ -208,6 +209,7 @@ function transformPersona(api: ApiPersona): Persona {
     birthday: api.birthday,
     anniversary: api.anniversary,
     bits: (api.bits ?? []).map(transformBit),
+    shares: (api.shares ?? []).map(s => ({ user: s.user, isOwner: s.is_owner })),
     ownerId: api.owner_id,
     isOwner: api.is_owner,
   };
@@ -332,6 +334,9 @@ export class ContactsService {
   loading = signal(false);
   error = signal<string | null>(null);
 
+  // Search query — changes trigger a new backend request (debounced)
+  search = signal('');
+
   // Contact list with refresh trigger
   private refreshList$ = new Subject<void>();
 
@@ -342,6 +347,7 @@ export class ContactsService {
     combineLatest([
       this.user$,
       this.refreshList$.pipe(startWith(undefined)),
+      toObservable(this.search).pipe(debounceTime(300), distinctUntilChanged(), startWith(this.search())),
     ]).pipe(
       // Only load if user is logged in
       filter(([user]) => user !== null),
@@ -349,8 +355,8 @@ export class ContactsService {
         this.loading.set(true);
         this.error.set(null);
       }),
-      switchMap(() =>
-        this.api.getMany<ApiPersonaListItem>('/api/contacts').pipe(
+      switchMap(([, , search]) =>
+        this.api.getMany<ApiPersonaListItem>('/api/contacts', search ? { search } : undefined).pipe(
           tap(() => this.loading.set(false)),
           catchError(err => {
             this.loading.set(false);
@@ -583,23 +589,6 @@ export class ContactsService {
   // -------------------------------------------------------------------------
   // Sharing Methods
   // -------------------------------------------------------------------------
-
-  /** Get list of users with access to this contact */
-  async getShares(contactId: string): Promise<PersonaShare[]> {
-    try {
-      const response = await this.api
-        .getMany<ApiPersonaShare>(`/api/contacts/${contactId}/shares`)
-        .toPromise();
-      return (response?.data ?? []).map(s => ({
-        user: s.user,
-        isOwner: s.is_owner,
-      }));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load shares';
-      this.error.set(message);
-      throw err;
-    }
-  }
 
   /** Share a contact with another user */
   async addShare(contactId: string, userId: string): Promise<PersonaShare[]> {

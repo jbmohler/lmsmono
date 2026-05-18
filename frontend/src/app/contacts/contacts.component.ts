@@ -1,11 +1,11 @@
 import {
   Component,
   signal,
-  computed,
   viewChild,
   ElementRef,
   afterNextRender,
   inject,
+  effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ContactDetailComponent } from './contact-detail/contact-detail.component';
@@ -41,25 +41,16 @@ export class ContactsComponent {
     afterNextRender(() => {
       this.searchInput()?.nativeElement.focus();
     });
+
+    // Sync search input to service (service debounces and re-fetches from backend)
+    effect(() => {
+      this.contactsService.search.set(this.searchQuery());
+    });
   }
 
-  // Contact list from service
+  // Contact list from service (backend-filtered via FTS)
   contacts = this.contactsService.contactsList;
-
-  // Client-side filtering on list data
-  filteredContacts = computed(() => {
-    const query = this.searchQuery().toLowerCase();
-    const list = this.contacts();
-
-    if (!query) return list;
-
-    return list.filter(c => {
-      const name = c.entityName.toLowerCase();
-      const org = c.organization.toLowerCase();
-      const email = c.primaryEmail.toLowerCase();
-      return name.includes(query) || org.includes(query) || email.includes(query);
-    });
-  });
+  filteredContacts = this.contactsService.contactsList;
 
   handleKeydown(event: KeyboardEvent): void {
     // Ctrl+Shift+N - new contact

@@ -378,6 +378,7 @@ PERSONA_DETAIL_COLUMNS = [
     ColumnMeta(key="anniversary", label="Anniversary", type="date"),
     ColumnMeta(key="entity_name", label="Display Name", type="string"),
     ColumnMeta(key="bits", label="Contact Info", type="array"),
+    ColumnMeta(key="shares", label="Shares", type="array"),
     ColumnMeta(key="owner_id", label="Owner ID", type="uuid"),
     ColumnMeta(key="is_owner", label="Owner", type="boolean"),
 ]
@@ -535,6 +536,7 @@ async def _get_persona_by_id(
 
         data = dict(row)
         data["bits"] = await _get_bits_for_persona(conn, persona_id)
+        data["shares"] = await _get_shares_list(conn, persona_id)
 
         return SingleRowResponse(columns=PERSONA_DETAIL_COLUMNS, data=data)
 
@@ -790,18 +792,17 @@ PERSONA_SHARE_COLUMNS = [
 ]
 
 
-async def _get_persona_shares(
+async def _get_shares_list(
     conn: psycopg.AsyncConnection, persona_id: UUID
-) -> MultiRowResponse:
-    """Get list of users who have access to a persona."""
+) -> list[dict]:
+    """Get raw list of share dicts for embedding in a persona response."""
     async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         await cur.execute(
             sql_select_persona_shares(),
             {"persona_id": persona_id},
         )
         rows = await cur.fetchall()
-
-    data = [
+    return [
         {
             "user": {"id": str(row["user_id"]), "name": row["full_name"] or row["username"]},
             "is_owner": row["is_owner"],
@@ -809,6 +810,12 @@ async def _get_persona_shares(
         for row in rows
     ]
 
+
+async def _get_persona_shares(
+    conn: psycopg.AsyncConnection, persona_id: UUID
+) -> MultiRowResponse:
+    """Get list of users who have access to a persona."""
+    data = await _get_shares_list(conn, persona_id)
     return MultiRowResponse(columns=PERSONA_SHARE_COLUMNS, data=data)
 
 
@@ -1234,17 +1241,6 @@ class ContactsController(Controller):
     # -------------------------------------------------------------------------
     # Sharing Endpoints
     # -------------------------------------------------------------------------
-
-    @get("/{contact_id:uuid}/shares", guards=[require_capability("contacts:read")])
-    async def list_shares(
-        self,
-        conn: psycopg.AsyncConnection,
-        current_user: AuthenticatedUser,
-        contact_id: UUID,
-    ) -> MultiRowResponse:
-        """List all users who have access to this contact."""
-        await _verify_persona_access(conn, contact_id, current_user.id)
-        return await _get_persona_shares(conn, contact_id)
 
     @post("/{contact_id:uuid}/shares", status_code=201, guards=[require_capability("contacts:write")])
     async def add_share(

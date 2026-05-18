@@ -27,6 +27,7 @@ export class SharingDialogComponent {
 
   contactId = input.required<string>();
   isOwner = input<boolean>(true);
+  shares = input.required<PersonaShare[]>();
 
   closed = output<void>();
   sharesChanged = output<void>();
@@ -34,7 +35,6 @@ export class SharingDialogComponent {
   dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 
   loading = signal(false);
-  shares = signal<PersonaShare[]>([]);
 
   // User search
   searchQuery = signal('');
@@ -47,23 +47,12 @@ export class SharingDialogComponent {
   constructor() {
     afterNextRender(() => {
       this.dialog().nativeElement.showModal();
-      this.loadShares();
     });
   }
 
   close(): void {
     this.dialog().nativeElement.close();
     this.closed.emit();
-  }
-
-  async loadShares(): Promise<void> {
-    this.loading.set(true);
-    try {
-      const shares = await this.contactsService.getShares(this.contactId());
-      this.shares.set(shares);
-    } finally {
-      this.loading.set(false);
-    }
   }
 
   async onSearchInput(): Promise<void> {
@@ -86,8 +75,7 @@ export class SharingDialogComponent {
   async addShare(user: UserSearchResult): Promise<void> {
     this.loading.set(true);
     try {
-      const shares = await this.contactsService.addShare(this.contactId(), user.id);
-      this.shares.set(shares);
+      await this.contactsService.addShare(this.contactId(), user.id);
       this.searchQuery.set('');
       this.searchResults.set([]);
       this.sharesChanged.emit();
@@ -103,7 +91,6 @@ export class SharingDialogComponent {
     this.loading.set(true);
     try {
       await this.contactsService.removeShare(this.contactId(), userId);
-      this.shares.update(shares => shares.filter(s => s.user.id !== userId));
       this.sharesChanged.emit();
     } finally {
       this.loading.set(false);
@@ -121,7 +108,6 @@ export class SharingDialogComponent {
     this.loading.set(true);
     try {
       await this.contactsService.transferOwnership(this.contactId(), userId);
-      await this.loadShares();
       this.sharesChanged.emit();
     } finally {
       this.loading.set(false);

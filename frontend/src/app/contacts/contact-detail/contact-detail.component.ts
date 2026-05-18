@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed, inject, effect } from '@angular/core';
+import { Component, input, output, signal, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Persona,
@@ -7,7 +7,6 @@ import {
   ContactPhone,
   ContactAddress,
   ContactUrl,
-  PersonaShare,
 } from '../contacts.model';
 import { BitEditDialogComponent, BitEditResult } from '../bit-edit-dialog/bit-edit-dialog.component';
 import { SharingDialogComponent } from '../sharing-dialog/sharing-dialog.component';
@@ -42,9 +41,8 @@ export class ContactDetailComponent {
   // Bit dialog state
   editingBit = signal<ContactBit | null>(null);
 
-  // Sharing state
-  shares = signal<PersonaShare[]>([]);
-  sharesLoading = signal(false);
+  // Sharing state — shares come embedded in the contact detail response
+  shares = computed(() => this.contact().shares ?? []);
   showSharingDialog = signal(false);
 
   // Password copy feedback
@@ -62,15 +60,6 @@ export class ContactDetailComponent {
   sortedBits = computed(() => {
     return [...this.contact().bits].sort((a, b) => a.bitSequence - b.bitSequence);
   });
-
-  constructor() {
-    effect(() => {
-      const id = this.contact().id;
-      if (id) {
-        this.loadShares();
-      }
-    });
-  }
 
   handleKeydown(event: KeyboardEvent): void {
     // Escape to exit edit mode
@@ -271,16 +260,6 @@ export class ContactDetailComponent {
   }
 
   // Sharing operations
-  async loadShares(): Promise<void> {
-    this.sharesLoading.set(true);
-    try {
-      const shares = await this.contactsService.getShares(this.contact().id);
-      this.shares.set(shares);
-    } finally {
-      this.sharesLoading.set(false);
-    }
-  }
-
   openSharingDialog(): void {
     this.showSharingDialog.set(true);
   }
@@ -290,7 +269,6 @@ export class ContactDetailComponent {
   }
 
   onSharesChanged(): void {
-    this.loadShares();
     this.contactRefresh.emit();
   }
 }
