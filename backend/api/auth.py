@@ -115,7 +115,7 @@ class AuthController(Controller):
         async with conn.cursor() as cur:
             await cur.execute(
                 sql_select_user_by_username(),
-                {"username": data.username.upper()},
+                {"username": data.username.strip().lower()},
             )
             row = await cur.fetchone()
 
@@ -209,7 +209,7 @@ class AuthController(Controller):
         async with conn.cursor() as cur:
             await cur.execute(
                 sql_select_user_primary_email(),
-                {"username": data.username.upper()},
+                {"username": data.username.strip().lower()},
             )
             row = await cur.fetchone()
 

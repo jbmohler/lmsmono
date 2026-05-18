@@ -10,6 +10,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     \i /docker-entrypoint-initdb.d/sql/databits.sql
     \i /docker-entrypoint-initdb.d/sql/lmshacc.sql
     \i /docker-entrypoint-initdb.d/sql/roscoe.sql
+    \i /docker-entrypoint-initdb.d/sql/migrate-capabilities.sql
 EOSQL
 
 echo "Schema loaded successfully."

@@ -18,8 +18,8 @@ create unique index singleton_idx on controls((true));
 create table users (
   id uuid primary key default uuid_generate_v1mc(),
   username varchar(20) not null unique,
-  pwhash varchar(60) CHECK (pwhash ~ '^[\x21-\x7F]*$'),
-  pinhash varchar(60) CHECK (pinhash ~ '^[\x21-\x7F]*$'),
+  pwhash varchar(255) CHECK (pwhash ~ '^[\x21-\x7F]*$'),
+  pinhash varchar(255) CHECK (pinhash ~ '^[\x21-\x7F]*$'),
   full_name text,
   descr text,
   avatar bytea,

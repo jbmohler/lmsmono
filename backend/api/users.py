@@ -236,7 +236,7 @@ class UsersController(Controller):
             conn,
             sql_insert_user(),
             {
-                "username": data.username,
+                "username": data.username.strip().lower(),
                 "full_name": data.full_name,
                 "descr": data.descr,
             },
@@ -258,7 +258,7 @@ class UsersController(Controller):
 
         if data.username is not None:
             fields.add("username")
-            params["username"] = data.username
+            params["username"] = data.username.strip().lower()
         if data.full_name is not None:
             fields.add("full_name")
             params["full_name"] = data.full_name
