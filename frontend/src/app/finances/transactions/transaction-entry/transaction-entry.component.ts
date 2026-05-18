@@ -173,6 +173,11 @@ export class TransactionEntryComponent {
     }
   }
 
+  applyTemplateAndFocus(result: TemplateSearchResult): void {
+    this.applyTemplate(result);
+    this.dateInput()?.nativeElement.focus();
+  }
+
   applyTemplate(result: TemplateSearchResult): void {
     // Set payee and memo
     this.payee.set(result.payee || '');
