@@ -8,21 +8,25 @@ import {
   effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ContactDetailComponent } from './contact-detail/contact-detail.component';
+import { ContactViewComponent } from './contact-view/contact-view.component';
 import { ContactsService } from './services/contacts.service';
-import { ContactBit, Persona, PersonaListItem } from './contacts.model';
+import { Persona, PersonaListItem } from './contacts.model';
 
 @Component({
   selector: 'app-contacts',
   templateUrl: './contacts.component.html',
   styleUrl: './contacts.component.scss',
-  imports: [FormsModule, ContactDetailComponent],
+  imports: [FormsModule, ContactDetailComponent, ContactViewComponent],
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },
 })
 export class ContactsComponent {
   private contactsService = inject(ContactsService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
@@ -30,10 +34,9 @@ export class ContactsComponent {
   selectedContactId = signal<string | null>(null);
   mobileShowDetail = signal(false);
 
-  // Full contact data for the selected contact (loaded on demand)
-  selectedContact = signal<Persona | null>(null);
+  // Only populated when creating a new contact (no ID yet)
+  newContact = signal<Persona | null>(null);
 
-  // Loading and error state from service
   loading = this.contactsService.loading;
   error = this.contactsService.error;
 
@@ -42,18 +45,22 @@ export class ContactsComponent {
       this.searchInput()?.nativeElement.focus();
     });
 
-    // Sync search input to service (service debounces and re-fetches from backend)
     effect(() => {
       this.contactsService.search.set(this.searchQuery());
     });
+
+    // Read ?id= from URL on load
+    const initialId = this.route.snapshot.queryParamMap.get('id');
+    if (initialId) {
+      this.selectedContactId.set(initialId);
+      this.mobileShowDetail.set(true);
+    }
   }
 
-  // Contact list from service (backend-filtered via FTS)
   contacts = this.contactsService.contactsList;
   filteredContacts = this.contactsService.contactsList;
 
   handleKeydown(event: KeyboardEvent): void {
-    // Ctrl+Shift+N - new contact
     if (event.ctrlKey && event.shiftKey && event.key === 'N') {
       event.preventDefault();
       this.createNewContact();
@@ -63,7 +70,6 @@ export class ContactsComponent {
     const target = event.target as HTMLElement;
     const isSearchFocused = target === this.searchInput()?.nativeElement;
 
-    // Arrow navigation - works from search field or when no input focused
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       const isOtherInputFocused =
         !isSearchFocused &&
@@ -77,12 +83,11 @@ export class ContactsComponent {
       }
     }
 
-    // Enter selects first contact if none selected
     if (event.key === 'Enter' && isSearchFocused) {
       event.preventDefault();
       const list = this.filteredContacts();
       if (list.length > 0 && !this.selectedContactId()) {
-        this.selectContactById(list[0].id);
+        this.selectContact(list[0]);
       }
     }
   }
@@ -98,37 +103,19 @@ export class ContactsComponent {
     if (newIndex < 0) newIndex = list.length - 1;
     if (newIndex >= list.length) newIndex = 0;
 
-    this.selectContactById(list[newIndex].id);
+    this.selectContact(list[newIndex]);
   }
 
   selectContact(contact: PersonaListItem): void {
-    this.selectContactById(contact.id);
-  }
-
-  async selectContactById(id: string): Promise<void> {
-    if (this.selectedContactId() === id) {
-      this.mobileShowDetail.set(true);
-      return;
-    }
-
-    this.selectedContactId.set(id);
-    this.selectedContact.set(null);
+    this.newContact.set(null);
+    this.selectedContactId.set(contact.id);
     this.mobileShowDetail.set(true);
-
-    try {
-      const contact = await this.contactsService.getById(id);
-      // Only set if still selected (user might have clicked elsewhere)
-      if (this.selectedContactId() === id) {
-        this.selectedContact.set(contact);
-      }
-    } catch {
-      // Error is handled by service
-    }
+    void this.router.navigate([], { queryParams: { id: contact.id }, replaceUrl: true });
   }
 
   createNewContact(): void {
-    // Create a new empty persona
-    const newPersona: Persona = {
+    this.selectedContactId.set(null);
+    this.newContact.set({
       id: '',
       firstName: '',
       lastName: '',
@@ -139,193 +126,33 @@ export class ContactsComponent {
       anniversary: null,
       isCorporate: false,
       bits: [],
-    };
-
-    // Deselect current and show new contact form
-    this.selectedContactId.set(null);
-    this.selectedContact.set(newPersona);
+    });
     this.mobileShowDetail.set(true);
+    void this.router.navigate([], { queryParams: {}, replaceUrl: true });
   }
 
-  async onContactSaved(contact: Persona): Promise<void> {
+  async onNewContactSaved(contact: Persona): Promise<void> {
     try {
-      let savedContact: Persona;
-
-      if (!contact.id) {
-        // Create new contact
-        savedContact = await this.contactsService.create(contact);
-      } else {
-        // Update existing contact
-        savedContact = await this.contactsService.update(contact.id, contact);
-
-        // Handle bits - compare with current and sync
-        const currentContact = this.selectedContact();
-        if (currentContact) {
-          await this.syncBits(contact.id, currentContact.bits, contact.bits);
-          // Reload to get fresh data
-          savedContact = await this.contactsService.getById(contact.id);
-        }
-      }
-
-      this.selectedContactId.set(savedContact.id);
-      this.selectedContact.set(savedContact);
+      const saved = await this.contactsService.create(contact);
+      this.newContact.set(null);
+      this.selectedContactId.set(saved.id);
+      void this.router.navigate([], { queryParams: { id: saved.id }, replaceUrl: true });
     } catch {
-      // Error is handled by service
+      // error handled by service
     }
   }
 
-  async onBitAdded(event: { bit: ContactBit; password?: string }): Promise<void> {
-    const contactId = this.selectedContactId();
-    if (!contactId) return;
-
-    try {
-      const updatedPersona = await this.contactsService.addBit(
-        contactId,
-        event.bit,
-        event.password
-      );
-      this.selectedContact.set(updatedPersona);
-    } catch {
-      // Error is handled by service
-    }
-  }
-
-  async onBitUpdated(event: {
-    bitId: string;
-    changes: Partial<ContactBit>;
-    password?: string;
-    clearPassword?: boolean;
-  }): Promise<void> {
-    const contactId = this.selectedContactId();
-    if (!contactId) return;
-
-    try {
-      // Pass changes directly - the service's toBitUpdate handles the transform
-      const changes: Partial<ContactBit> & { password?: string; clearPassword?: boolean } = {
-        ...event.changes,
-      };
-
-      // Add password fields if present
-      if (event.password) {
-        changes.password = event.password;
-      }
-      if (event.clearPassword) {
-        changes.clearPassword = true;
-      }
-
-      const updatedPersona = await this.contactsService.updateBit(
-        contactId,
-        event.bitId,
-        changes
-      );
-      this.selectedContact.set(updatedPersona);
-    } catch {
-      // Error is handled by service
-    }
-  }
-
-  async onBitDeleted(event: { bitId: string }): Promise<void> {
-    const contactId = this.selectedContactId();
-    if (!contactId) return;
-
-    try {
-      await this.contactsService.deleteBit(contactId, event.bitId);
-      // Reload contact to get fresh data
-      const updatedContact = await this.contactsService.getById(contactId);
-      this.selectedContact.set(updatedContact);
-    } catch {
-      // Error is handled by service
-    }
-  }
-
-  async onBitMoved(event: { bitId: string; direction: 'up' | 'down' }): Promise<void> {
-    const contact = this.selectedContact();
-    if (!contact) return;
-
-    const sorted = [...contact.bits].sort((a, b) => a.bitSequence - b.bitSequence);
-    const index = sorted.findIndex(b => b.id === event.bitId);
-    if (index < 0) return;
-
-    const swapIndex = event.direction === 'up' ? index - 1 : index + 1;
-    if (swapIndex < 0 || swapIndex >= sorted.length) return;
-
-    // Swap bit sequences
-    const current = sorted[index];
-    const other = sorted[swapIndex];
-
-    try {
-      const updatedPersona = await this.contactsService.reorderBits(contact.id, [
-        { id: current.id, bitSequence: other.bitSequence },
-        { id: other.id, bitSequence: current.bitSequence },
-      ]);
-      this.selectedContact.set(updatedPersona);
-    } catch {
-      // Error is handled by service
-    }
-  }
-
-  /**
-   * Sync bits between old and new state
-   */
-  private async syncBits(
-    contactId: string,
-    oldBits: Persona['bits'],
-    newBits: Persona['bits']
-  ): Promise<void> {
-    const oldIds = new Set(oldBits.map(b => b.id));
-    const newIds = new Set(newBits.map(b => b.id));
-
-    // Delete removed bits
-    for (const oldBit of oldBits) {
-      if (!newIds.has(oldBit.id)) {
-        await this.contactsService.deleteBit(contactId, oldBit.id);
-      }
-    }
-
-    // Add new bits (IDs starting with 'new-')
-    for (const newBit of newBits) {
-      if (newBit.id.startsWith('new-')) {
-        await this.contactsService.addBit(contactId, newBit);
-      }
-    }
-
-    // Update existing bits that changed
-    for (const newBit of newBits) {
-      if (!newBit.id.startsWith('new-') && oldIds.has(newBit.id)) {
-        const oldBit = oldBits.find(b => b.id === newBit.id);
-        if (oldBit && JSON.stringify(oldBit) !== JSON.stringify(newBit)) {
-          await this.contactsService.updateBit(contactId, newBit.id, newBit);
-        }
-      }
-    }
-  }
-
-  // Display helpers for list items
+  // Display helpers
   getDisplayName(contact: PersonaListItem): string {
     return contact.entityName;
   }
 
   getSubtitle(contact: PersonaListItem): string {
-    if (contact.isCorporate) {
-      return 'Company';
-    }
+    if (contact.isCorporate) return 'Company';
     return contact.organization || '';
   }
 
   trackById(_index: number, contact: PersonaListItem): string {
     return contact.id;
-  }
-
-  /** Refresh the currently selected contact */
-  async refreshSelectedContact(): Promise<void> {
-    const contactId = this.selectedContactId();
-    if (!contactId) return;
-
-    try {
-      const contact = await this.contactsService.getById(contactId);
-      this.selectedContact.set(contact);
-    } catch {
-      // Error is handled by service
-    }
   }
 }

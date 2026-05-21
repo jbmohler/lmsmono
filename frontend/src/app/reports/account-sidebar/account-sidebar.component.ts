@@ -1,11 +1,11 @@
 import { Component, input, output, inject, signal, effect } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
 
 import { ApiService } from '@core/api/api.service';
 import { AccountService } from '@finances/services/account.service';
 import { AccountDetail, AccountTransaction } from '@finances/models/account.model';
 import { PersonaListItem } from '../../contacts/contacts.model';
+import { ContactViewComponent } from '../../contacts/contact-view/contact-view.component';
 
 interface ApiPersonaListItem {
   id: string;
@@ -23,7 +23,7 @@ type Tab = 'info' | 'contacts' | 'transactions';
   selector: 'app-account-sidebar',
   templateUrl: './account-sidebar.component.html',
   styleUrl: './account-sidebar.component.scss',
-  imports: [CurrencyPipe, DatePipe, RouterLink],
+  imports: [CurrencyPipe, DatePipe, ContactViewComponent],
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },
@@ -43,6 +43,7 @@ export class AccountSidebarComponent {
   transactions = signal<AccountTransaction[]>([]);
   contactsLoaded = signal(false);
   transactionsLoaded = signal(false);
+  selectedContactId = signal<string | null>(null);
 
   constructor() {
     effect(() => {
@@ -53,6 +54,7 @@ export class AccountSidebarComponent {
       this.contactsLoaded.set(false);
       this.transactionsLoaded.set(false);
       this.account.set(null);
+      this.selectedContactId.set(null);
       this.loadAccount(id);
     });
   }
@@ -88,7 +90,7 @@ export class AccountSidebarComponent {
     this.api
       .getMany<ApiPersonaListItem>('/api/contacts', { search: keywords })
       .subscribe((resp) => {
-        this.contacts.set(resp.data.map(item => ({
+        const items = resp.data.map(item => ({
           id: item.id,
           entityName: item.entity_name,
           isCorporate: item.is_corporate,
@@ -96,8 +98,12 @@ export class AccountSidebarComponent {
           primaryEmail: item.primary_email ?? '',
           primaryPhone: item.primary_phone ?? '',
           isOwner: item.is_owner,
-        })));
+        }));
+        this.contacts.set(items);
         this.contactsLoaded.set(true);
+        if (items.length > 0) {
+          this.selectedContactId.set(items[0].id);
+        }
       });
   }
 

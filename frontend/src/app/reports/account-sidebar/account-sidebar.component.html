@@ -135,26 +135,22 @@
           }
         </div>
       } @else {
-        <div class="flex flex-col">
-          @for (contact of contacts(); track contact.id) {
-            <a
-              [routerLink]="['/contacts']"
-              [queryParams]="{ id: contact.id }"
-              class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 flex flex-col gap-0.5"
+        @if (contacts().length > 1) {
+          <div class="px-3 py-2 border-b border-gray-200">
+            <select
+              class="w-full text-sm"
+              [value]="selectedContactId()"
+              (change)="selectedContactId.set($any($event.target).value)"
             >
-              <span class="text-sm font-medium text-gray-900">{{ contact.entityName }}</span>
-              @if (contact.organization) {
-                <span class="text-xs text-gray-500">{{ contact.organization }}</span>
+              @for (contact of contacts(); track contact.id) {
+                <option [value]="contact.id">{{ contact.entityName }}</option>
               }
-              @if (contact.primaryEmail) {
-                <span class="text-xs text-gray-400">{{ contact.primaryEmail }}</span>
-              }
-              @if (contact.primaryPhone) {
-                <span class="text-xs text-gray-400">{{ contact.primaryPhone }}</span>
-              }
-            </a>
-          }
-        </div>
+            </select>
+          </div>
+        }
+        @if (selectedContactId(); as id) {
+          <app-contact-view [contactId]="id" />
+        }
       }
     }
 
