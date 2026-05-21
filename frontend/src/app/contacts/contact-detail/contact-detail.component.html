@@ -215,7 +215,11 @@
                   <span class="primary-star">★</span>
                 }
                 <span class="badge badge-gray shrink-0">Email</span>
-                <span class="text-sm text-blue-600 truncate">{{ email.email }}</span>
+                <a
+                  [href]="'mailto:' + email.email"
+                  (click)="$event.stopPropagation()"
+                  class="text-sm text-blue-600 truncate hover:underline"
+                >{{ email.email }}</a>
                 @if (email.label) {
                   <span class="text-xs text-gray-400 shrink-0">({{ email.label }})</span>
                 }
@@ -228,7 +232,11 @@
                   <span class="primary-star">★</span>
                 }
                 <span class="badge badge-gray shrink-0">Phone</span>
-                <span class="text-sm text-gray-900">{{ phone.number }}</span>
+                <a
+                  [href]="'tel:' + phone.number"
+                  (click)="$event.stopPropagation()"
+                  class="text-sm text-gray-900 hover:underline hover:text-blue-600"
+                >{{ phone.number }}</a>
                 @if (phone.label) {
                   <span class="text-xs text-gray-400 shrink-0">({{ phone.label }})</span>
                 }
