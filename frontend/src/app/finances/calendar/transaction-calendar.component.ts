@@ -115,6 +115,13 @@ export class TransactionCalendarComponent {
     const daysInMonth = lastDay.getDate();
     const startDayOfWeek = firstDay.getDay();
 
+    // When the 1st falls on Sun or Mon the default padding (0 or 1) leaves the
+    // calendar lopsided with many trailing next-month days.  Show the full prior
+    // week instead so the trailing days balance out.
+    const padding = (startDayOfWeek === 0 || startDayOfWeek === 1)
+      ? startDayOfWeek + 7
+      : startDayOfWeek;
+
     const days: CalendarDay[] = [];
 
     // Previous month padding
@@ -122,7 +129,7 @@ export class TransactionCalendarComponent {
     const prevYear = month === 0 ? year - 1 : year;
     const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
 
-    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+    for (let i = padding - 1; i >= 0; i--) {
       const day = daysInPrevMonth - i;
       const dateStr = this.formatDate(prevYear, prevMonth, day);
       days.push({

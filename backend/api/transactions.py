@@ -22,6 +22,7 @@ def sql_select_transactions(
     filter_account: bool = False,
     filter_from_date: bool = False,
     filter_to_date: bool = False,
+    use_limit: bool = True,
 ) -> str:
     """List transactions with optional filters."""
     conditions = []
@@ -67,7 +68,7 @@ def sql_select_transactions(
         FROM hacc.transactions t{fts_lateral}
         WHERE {where_sql}
         ORDER BY t.trandate DESC, t.tid DESC
-        LIMIT %(limit)s OFFSET %(offset)s
+        {" LIMIT %(limit)s OFFSET %(offset)s" if use_limit else ""}
     """
 
 
@@ -416,7 +417,11 @@ class TransactionsController(Controller):
         to_date: str | None = Parameter(default=None, query="to"),
     ) -> MultiRowResponse:
         """List transactions with optional filters."""
-        params: dict = {"limit": limit, "offset": offset}
+        bounded = bool(from_date and to_date)
+        params: dict = {}
+        if not bounded:
+            params["limit"] = limit
+            params["offset"] = offset
 
         if q:
             params["q"] = q
@@ -435,6 +440,7 @@ class TransactionsController(Controller):
                 filter_account=bool(account_id),
                 filter_from_date=bool(from_date),
                 filter_to_date=bool(to_date),
+                use_limit=not bounded,
             ),
             params,
             columns=TRANSACTION_COLUMNS,
