@@ -157,7 +157,7 @@
         </div>
       }
 
-      @for (bit of sortedBits(); track trackById($index, bit); let first = $first; let last = $last) {
+      @for (bit of sortedBits(); track bit.id; let first = $first; let last = $last) {
         <div class="bit-row flex items-center gap-2 md:-mx-2 md:px-2 py-1 rounded transition-colors hover:bg-gray-50 group">
           <!-- Action buttons (visible on hover, owner only) -->
           @if (contact().isOwner !== false) {
@@ -209,60 +209,68 @@
             [attr.tabindex]="contact().isOwner !== false ? 0 : null"
             [attr.role]="contact().isOwner !== false ? 'button' : null"
           >
-            @if (isEmail(bit)) {
+            @if (bit | asEmail; as email) {
               <div class="flex items-center gap-2 min-w-0 flex-wrap">
-                @if (bit.isPrimary) {
+                @if (email.isPrimary) {
                   <span class="primary-star">★</span>
                 }
                 <span class="badge badge-gray shrink-0">Email</span>
-                <span class="text-sm text-blue-600 truncate">{{ bit.email }}</span>
-                @if (bit.label) {
-                  <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
+                <span class="text-sm text-blue-600 truncate">{{ email.email }}</span>
+                @if (email.label) {
+                  <span class="text-xs text-gray-400 shrink-0">({{ email.label }})</span>
                 }
               </div>
             }
 
-            @if (isPhone(bit)) {
+            @if (bit | asPhone; as phone) {
               <div class="flex items-center gap-2 min-w-0 flex-wrap">
-                @if (bit.isPrimary) {
+                @if (phone.isPrimary) {
                   <span class="primary-star">★</span>
                 }
                 <span class="badge badge-gray shrink-0">Phone</span>
-                <span class="text-sm text-gray-900">{{ bit.number }}</span>
-                @if (bit.label) {
-                  <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
+                <span class="text-sm text-gray-900">{{ phone.number }}</span>
+                @if (phone.label) {
+                  <span class="text-xs text-gray-400 shrink-0">({{ phone.label }})</span>
                 }
               </div>
             }
 
-            @if (isAddress(bit)) {
+            @if (bit | asAddress; as address) {
               <div class="flex items-start gap-2 min-w-0 flex-wrap">
-                @if (bit.isPrimary) {
+                @if (address.isPrimary) {
                   <span class="primary-star">★</span>
                 }
                 <span class="badge badge-gray shrink-0">Address</span>
-                <div class="text-sm text-gray-900 whitespace-pre-line">{{ formatAddress(bit) }}</div>
-                @if (bit.label) {
-                  <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
+                <div class="text-sm text-gray-900 whitespace-pre-line">{{ address | formatAddress }}</div>
+                @if (address.label) {
+                  <span class="text-xs text-gray-400 shrink-0">({{ address.label }})</span>
                 }
               </div>
             }
 
-            @if (isUrl(bit)) {
+            @if (bit | asUrl; as url) {
               <div class="flex items-center gap-2 min-w-0 flex-wrap">
-                @if (bit.isPrimary) {
+                @if (url.isPrimary) {
                   <span class="primary-star">★</span>
                 }
                 <span class="badge badge-gray shrink-0">Link</span>
-                <span class="text-sm text-blue-600 truncate min-w-0">{{ bit.url }}</span>
-                @if (bit.label) {
-                  <span class="text-xs text-gray-400 shrink-0">({{ bit.label }})</span>
+                @if (url.url) {
+                  <a
+                    [href]="url.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    (click)="$event.stopPropagation()"
+                    class="text-sm text-blue-600 truncate min-w-0 hover:underline"
+                  >{{ url.url }}</a>
                 }
-                @if (bit.username) {
-                  <span class="text-xs text-gray-400 shrink-0">@{{ bit.username }}</span>
+                @if (url.label) {
+                  <span class="text-xs text-gray-400 shrink-0">({{ url.label }})</span>
                 }
-                @if (bit.hasPassword) {
-                  @if (isPasswordExpired(bit)) {
+                @if (url.username) {
+                  <span class="text-xs text-gray-400 shrink-0">@{{ url.username }}</span>
+                }
+                @if (url.hasPassword) {
+                  @if (url | isPasswordExpired) {
                     <span class="expired-indicator shrink-0" title="Password expired">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -270,11 +278,11 @@
                     </span>
                   }
                   <button
-                    (click)="copyPassword(bit); $event.stopPropagation()"
+                    (click)="copyPassword(url); $event.stopPropagation()"
                     class="copy-password-btn shrink-0"
                     title="Copy password"
                   >
-                    @if (copyingPasswordId() === bit.id) {
+                    @if (copyingPasswordId() === url.id) {
                       <span class="text-green-600">✓</span>
                     } @else {
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
