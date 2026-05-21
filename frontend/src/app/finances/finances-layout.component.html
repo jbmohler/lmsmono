@@ -61,8 +61,12 @@
             (change)="navigateToReconcile($event)"
           >
             <option value="">— Select account —</option>
-            @for (account of reconcilableAccounts(); track account.id) {
-              <option [value]="account.id">{{ account.acc_name }}</option>
+            @for (group of reconcilableAccountsByType(); track group[0]) {
+              <optgroup [label]="group[0]">
+                @for (account of group[1]; track account.id) {
+                  <option [value]="account.id">{{ account.acc_name }}</option>
+                }
+              </optgroup>
             }
           </select>
         </div>

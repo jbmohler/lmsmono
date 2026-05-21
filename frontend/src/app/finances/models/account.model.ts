@@ -22,6 +22,7 @@ export interface Account {
   account_type: ItemRef;
   journal: ItemRef;
   retained_earnings: ItemRef | null;
+  last_activity: string | null;
 }
 
 /** Account detail with extra fields from the detail endpoint */

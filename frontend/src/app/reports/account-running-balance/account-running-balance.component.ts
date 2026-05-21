@@ -57,13 +57,20 @@ export class AccountRunningBalanceComponent {
     new Set(this.accountTypes().filter((t) => t.balance_sheet).map((t) => t.id)),
   );
 
-  // All accounts grouped by type name, filtered to balance sheet only
+  private oneYearAgo = (() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  // Balance sheet accounts active in the last year, grouped by type name
   balanceSheetAccountsByType = computed(() => {
     const bsIds = this.balanceSheetTypeIds();
     const accounts = this.accountService.accounts();
     const grouped = new Map<string, typeof accounts>();
     for (const account of accounts) {
       if (!bsIds.has(account.account_type.id)) continue;
+      if (!account.last_activity || account.last_activity < this.oneYearAgo) continue;
       const typeName = account.account_type.name;
       const group = grouped.get(typeName) ?? [];
       group.push(account);

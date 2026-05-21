@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs/operators';
 
 import { AccountService } from '@finances/services/account.service';
+import { Account } from '@finances/models/account.model';
 
 @Component({
   selector: 'app-finances-layout',
@@ -17,14 +18,29 @@ export class FinancesLayoutComponent {
 
   setupExpanded = signal(false);
 
-  /** Balance-sheet accounts excluding retained-earnings types — shown in the Reconcile dropdown. */
-  reconcilableAccounts = computed(() => {
+  private oneYearAgo = (() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  /** Reconcilable accounts (balance sheet, non-retained-earnings, active last year) grouped by type. */
+  reconcilableAccountsByType = computed(() => {
     const accounts = this.accountService.accounts();
     const types = this.accountService.accountTypes();
     const eligibleTypeIds = new Set(
       types.filter(t => t.balance_sheet && !t.retained_earnings).map(t => t.id)
     );
-    return accounts.filter(a => eligibleTypeIds.has(a.account_type.id));
+    const grouped = new Map<string, Account[]>();
+    for (const account of accounts) {
+      if (!eligibleTypeIds.has(account.account_type.id)) continue;
+      if (!account.last_activity || account.last_activity < this.oneYearAgo) continue;
+      const typeName = account.account_type.name;
+      const group = grouped.get(typeName) ?? [];
+      group.push(account);
+      grouped.set(typeName, group);
+    }
+    return [...grouped.entries()];
   });
 
   /** Account ID currently shown in the reconcile route, for dropdown sync. */

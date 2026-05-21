@@ -38,11 +38,18 @@ def sql_select_accounts() -> str:
             j.id AS journal_id,
             j.jrn_name AS journal_name,
             a.retearn_id AS retearn_id,
-            r.acc_name AS retearn_name
+            r.acc_name AS retearn_name,
+            act.last_activity
         FROM hacc.accounts a
         JOIN hacc.accounttypes t ON a.type_id = t.id
         JOIN hacc.journals j ON a.journal_id = j.id
         LEFT JOIN hacc.accounts r ON r.id = a.retearn_id
+        LEFT JOIN (
+            SELECT s.account_id, MAX(t2.trandate) AS last_activity
+            FROM hacc.splits s
+            JOIN hacc.transactions t2 ON t2.tid = s.stid
+            GROUP BY s.account_id
+        ) act ON act.account_id = a.id
         ORDER BY t.sort, a.acc_name
     """
 
@@ -148,6 +155,7 @@ ACCOUNT_COLUMNS = [
     ColumnMeta(key="account_type", label="Type", type="ref"),
     ColumnMeta(key="journal", label="Journal", type="ref"),
     ColumnMeta(key="retained_earnings", label="Retained Earnings", type="ref"),
+    ColumnMeta(key="last_activity", label="Last Activity", type="date"),
 ]
 
 ACCOUNT_DETAIL_COLUMNS = [
@@ -183,6 +191,7 @@ def transform_account_row(row: dict) -> dict:
         "description": row["description"],
         "account_type": make_ref(str(row["account_type_id"]), row["account_type_name"]),
         "journal": make_ref(str(row["journal_id"]), row["journal_name"]),
+        "last_activity": row["last_activity"].isoformat() if row.get("last_activity") else None,
     }
     if row.get("retearn_id"):
         result["retained_earnings"] = make_ref(str(row["retearn_id"]), row["retearn_name"])
