@@ -44,6 +44,9 @@ export interface AccountCreate {
   journal_id: string;
   description?: string | null;
   retearn_id?: string | null;
+  acc_note?: string | null;
+  rec_note?: string | null;
+  contact_keywords?: string | null;
 }
 
 /** Data for updating an account */
@@ -53,6 +56,9 @@ export interface AccountUpdate {
   type_id?: string;
   journal_id?: string;
   retearn_id?: string | null;
+  acc_note?: string | null;
+  rec_note?: string | null;
+  contact_keywords?: string | null;
 }
 
 /** Transaction from account's perspective (includes debit/credit for that account) */

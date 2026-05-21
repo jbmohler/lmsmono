@@ -108,15 +108,15 @@ def sql_select_account_splits_count() -> str:
 def sql_insert_account() -> str:
     """Create a new account."""
     return """
-        INSERT INTO hacc.accounts (acc_name, type_id, journal_id, description, retearn_id)
-        VALUES (%(acc_name)s, %(type_id)s, %(journal_id)s, %(description)s, %(retearn_id)s)
+        INSERT INTO hacc.accounts (acc_name, type_id, journal_id, description, retearn_id, acc_note, rec_note, contact_keywords)
+        VALUES (%(acc_name)s, %(type_id)s, %(journal_id)s, %(description)s, %(retearn_id)s, %(acc_note)s, %(rec_note)s, %(contact_keywords)s)
         RETURNING id
     """
 
 
 def sql_update_account(fields: set[str]) -> str:
     """Update account fields dynamically."""
-    valid_fields = {"acc_name", "description", "type_id", "journal_id", "retearn_id"}
+    valid_fields = {"acc_name", "description", "type_id", "journal_id", "retearn_id", "acc_note", "rec_note", "contact_keywords"}
     updates = [f"{f} = %({f})s" for f in fields if f in valid_fields]
     if not updates:
         raise ValueError("No valid fields to update")
@@ -226,6 +226,9 @@ class AccountCreate:
     journal_id: str  # UUID
     description: str | None = None
     retearn_id: str | None = None
+    acc_note: str | None = None
+    rec_note: str | None = None
+    contact_keywords: str | None = None
 
 
 @dataclass
@@ -235,6 +238,9 @@ class AccountUpdate:
     type_id: str | None = None
     journal_id: str | None = None
     retearn_id: str | None = None
+    acc_note: str | None = None
+    rec_note: str | None = None
+    contact_keywords: str | None = None
 
 
 async def _get_account_by_id(
@@ -346,6 +352,9 @@ class AccountsController(Controller):
                 "journal_id": data.journal_id,
                 "description": data.description,
                 "retearn_id": data.retearn_id,
+                "acc_note": data.acc_note,
+                "rec_note": data.rec_note,
+                "contact_keywords": data.contact_keywords,
             },
         )
         if not row:
@@ -378,6 +387,12 @@ class AccountsController(Controller):
             fields.add("retearn_id")
             # Empty string means clear the field
             params["retearn_id"] = data.retearn_id if data.retearn_id != "" else None
+
+        # Always update these text fields — None from the client means clear
+        fields.update({"acc_note", "rec_note", "contact_keywords"})
+        params["acc_note"] = data.acc_note
+        params["rec_note"] = data.rec_note
+        params["contact_keywords"] = data.contact_keywords
 
         if not fields:
             return await _get_account_by_id(conn, account_id)

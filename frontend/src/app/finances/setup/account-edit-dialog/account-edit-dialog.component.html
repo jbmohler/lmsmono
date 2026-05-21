@@ -109,6 +109,45 @@
             </select>
           </div>
         }
+
+        <!-- Contact Keywords -->
+        <div>
+          <label for="acc-keywords" class="label-compact">Contact Keywords</label>
+          <input
+            id="acc-keywords"
+            type="text"
+            [ngModel]="contactKeywords()"
+            (ngModelChange)="contactKeywords.set($event)"
+            placeholder="Keywords to match contacts"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Account Note -->
+        <div>
+          <label for="acc-note" class="label-compact">Account Note</label>
+          <textarea
+            id="acc-note"
+            rows="4"
+            [ngModel]="accNote()"
+            (ngModelChange)="accNote.set($event)"
+            placeholder="Notes about this account"
+            class="w-full"
+          ></textarea>
+        </div>
+
+        <!-- Reconciliation Note -->
+        <div>
+          <label for="rec-note" class="label-compact">Reconciliation Note</label>
+          <textarea
+            id="rec-note"
+            rows="4"
+            [ngModel]="recNote()"
+            (ngModelChange)="recNote.set($event)"
+            placeholder="Notes for reconciliation"
+            class="w-full"
+          ></textarea>
+        </div>
       </div>
 
       <!-- Error message -->

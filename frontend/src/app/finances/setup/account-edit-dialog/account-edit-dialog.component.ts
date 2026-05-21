@@ -32,6 +32,9 @@ export class AccountEditDialogComponent {
   typeId = signal('');
   journalId = signal('');
   retearnId = signal('');
+  accNote = signal('');
+  recNote = signal('');
+  contactKeywords = signal('');
 
   // State
   loading = signal(false);
@@ -106,6 +109,9 @@ export class AccountEditDialogComponent {
         this.typeId.set(acct.account_type.id);
         this.journalId.set(acct.journal.id);
         this.retearnId.set(acct.retained_earnings?.id || '');
+        this.accNote.set(acct.acc_note || '');
+        this.recNote.set(acct.rec_note || '');
+        this.contactKeywords.set(acct.contact_keywords || '');
         this.loading.set(false);
         afterNextRender(() => {
           this.nameInput()?.nativeElement.focus();
@@ -138,6 +144,9 @@ export class AccountEditDialogComponent {
           type_id: this.typeId(),
           journal_id: this.journalId(),
           retearn_id: retearnValue || '',
+          acc_note: this.accNote().trim() || null,
+          rec_note: this.recNote().trim() || null,
+          contact_keywords: this.contactKeywords().trim() || null,
         })
       : this.accountService.create({
           acc_name: this.accName().trim(),
@@ -145,6 +154,9 @@ export class AccountEditDialogComponent {
           journal_id: this.journalId(),
           description: this.description().trim() || null,
           retearn_id: retearnValue || null,
+          acc_note: this.accNote().trim() || null,
+          rec_note: this.recNote().trim() || null,
+          contact_keywords: this.contactKeywords().trim() || null,
         });
 
     request$.subscribe({
