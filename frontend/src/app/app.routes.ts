@@ -1,8 +1,39 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { CanActivateFn, Router, Routes } from '@angular/router';
+import { map } from 'rxjs';
+import { AuthService } from './core/auth/auth.service';
 import { authGuard } from './core/auth/auth.guard';
+import { NAV_TABS } from './nav-tabs';
+
+const homeGuard: CanActivateFn = () => {
+  const router = inject(Router);
+  const auth = inject(AuthService);
+
+  const redirect = () => {
+    if (!auth.isLoggedIn()) return router.createUrlTree(['/login']);
+    const first = NAV_TABS.find(t => t.hasAccess(auth.capabilities()));
+    return router.createUrlTree([first?.path ?? '/no-access']);
+  };
+
+  if (auth.initialized()) return redirect();
+
+  return auth.checkSession().pipe(map(redirect));
+};
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'finances/transactions', pathMatch: 'full' },
+  {
+    path: '',
+    pathMatch: 'full',
+    canActivate: [homeGuard],
+    children: [],
+  },
+
+  // No roles assigned — shown inside the shell so the user can sign out
+  {
+    path: 'no-access',
+    canActivate: [authGuard],
+    loadComponent: () => import('./no-access/no-access.component').then(m => m.NoAccessComponent),
+  },
 
   // Login (public route)
   {

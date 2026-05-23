@@ -1,6 +1,7 @@
 import { Component, inject, computed } from '@angular/core';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from './core/auth/auth.service';
+import { NAV_TABS } from './nav-tabs';
 
 @Component({
   selector: 'app-root',
@@ -18,14 +19,9 @@ export class AppComponent {
   isLoggedIn = this.auth.isLoggedIn;
   user = this.auth.user;
 
-  showFinances = computed(() => this.auth.capabilities().has('transactions:read'));
-  showReports = computed(() => this.auth.capabilities().has('reports:read'));
-  showDatabits = computed(() => this.auth.capabilities().has('databits:read'));
-
-  // Show Admin tab if user has either admin capability
-  showAdmin = computed(() => {
+  visibleTabs = computed(() => {
     const caps = this.auth.capabilities();
-    return caps.has('admin:users') || caps.has('admin:roles');
+    return NAV_TABS.filter(t => t.hasAccess(caps));
   });
 
   logout(): void {

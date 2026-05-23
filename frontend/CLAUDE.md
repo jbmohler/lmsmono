@@ -97,6 +97,24 @@ export const routes: Routes = [
 ];
 ```
 
+### Navigation Tabs and Default Redirect
+
+**`src/app/nav-tabs.ts` is the single source of truth** for the header tab strip and the home redirect. Adding a new top-level tab means adding one entry there — both the `AppComponent` template and the `homeGuard` in `app.routes.ts` derive from it automatically.
+
+### Guards Run in Parallel (Angular 15+)
+
+**`canActivate` guards in an array run in parallel.** A synchronous guard will always win the race against an async one:
+
+```typescript
+// BAD - firstTabGuard runs immediately, reads empty caps before checkSession() returns
+canActivate: [authGuard, firstTabGuard]
+
+// GOOD - merge into one guard so the session check happens before the redirect decision
+canActivate: [homeGuard]  // homeGuard awaits checkSession() then picks the first tab
+```
+
+When a guard needs to act on data that another guard fetches asynchronously, combine them into a single guard rather than chaining them.
+
 ### Component File Structure
 
 **Always use 3 separate files for each component:**

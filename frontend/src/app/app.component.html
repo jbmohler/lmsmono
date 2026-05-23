@@ -21,49 +21,15 @@
     <!-- Tab bar -->
     <div class="bg-slate-700 px-4 overflow-x-auto min-w-0">
       <nav class="flex items-end gap-1 -mb-px min-w-0">
+        @for (tab of visibleTabs(); track tab.path) {
           <a
-            routerLink="/contacts"
+            [routerLink]="tab.path"
             routerLinkActive="tab-active"
             class="tab-link"
           >
-            Contacts
+            {{ tab.label }}
           </a>
-          @if (showDatabits()) {
-            <a
-              routerLink="/databits"
-              routerLinkActive="tab-active"
-              class="tab-link"
-            >
-              Data Bits
-            </a>
-          }
-          @if (showFinances()) {
-            <a
-              routerLink="/finances"
-              routerLinkActive="tab-active"
-              class="tab-link"
-            >
-              Finances
-            </a>
-          }
-          @if (showReports()) {
-            <a
-              routerLink="/reports"
-              routerLinkActive="tab-active"
-              class="tab-link"
-            >
-              Reports
-            </a>
-          }
-          @if (showAdmin()) {
-            <a
-              routerLink="/admin"
-              routerLinkActive="tab-active"
-              class="tab-link"
-            >
-              Admin
-            </a>
-          }
+        }
       </nav>
     </div>
   </header>
