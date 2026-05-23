@@ -73,12 +73,16 @@ INSERT INTO capabilities (cap_name) VALUES
   ('contacts:read'),
   ('contacts:write'),
   ('contacts:passwords'),
+  ('databits:read'),
+  ('databits:write'),
   ('accounts:read'),
   ('accounts:write'),
   ('transactions:read'),
   ('transactions:write'),
   ('journals:read'),
   ('journals:write'),
+  ('reports:read'),
+  ('reports:write'),
   ('admin:roles'),
   ('admin:users');
 
@@ -107,9 +111,17 @@ WHERE r.role_name = 'Accounting'
   AND c.cap_name IN (
     'accounts:read', 'accounts:write',
     'transactions:read', 'transactions:write',
-    'journals:read', 'journals:write'
+    'journals:read', 'journals:write',
+    'reports:read', 'reports:write'
   );
 
--- Login, User, Data Bits, Roscoe User: no capabilities yet
+-- Data Bits role
+INSERT INTO rolecapabilities (roleid, capabilityid)
+SELECT r.id, c.id
+FROM roles r, capabilities c
+WHERE r.role_name = 'Data Bits'
+  AND c.cap_name IN ('databits:read', 'databits:write');
+
+-- Login, User, Roscoe User: no capabilities yet
 
 COMMIT;
