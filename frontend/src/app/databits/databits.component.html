@@ -1,0 +1,95 @@
+<div class="h-full flex overflow-hidden">
+  <!-- Left Panel: List -->
+  <div
+    class="flex-1 md:flex-none md:w-80 md:border-r border-gray-200 flex flex-col bg-white"
+    [class.hidden]="mobileShowDetail() && showDetail()"
+    [class.md:flex]="true"
+  >
+    <div class="p-4 border-b border-gray-200 flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <h1 class="text-lg font-semibold text-gray-900">Data Bits</h1>
+        <button
+          (click)="createNew()"
+          class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
+          title="New Data Bit (Ctrl+Shift+N)"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+      <input
+        #searchInput
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Search data bits..."
+      />
+    </div>
+
+    @if (error()) {
+      <div class="px-4 py-2 bg-red-50 border-b border-red-200 text-red-700 text-sm">
+        {{ error() }}
+      </div>
+    }
+
+    <div class="flex-1 overflow-y-auto">
+      @if (loading() && bits().length === 0) {
+        <div class="p-4 text-center text-gray-500 text-sm">Loading...</div>
+      } @else {
+        @for (bit of bits(); track trackById($index, bit)) {
+          <div
+            (click)="selectBit(bit)"
+            class="px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50"
+            [class.bg-blue-50]="selectedBitId() === bit.id && !creatingNew()"
+            [class.border-l-2]="selectedBitId() === bit.id && !creatingNew()"
+            [class.border-l-blue-500]="selectedBitId() === bit.id && !creatingNew()"
+          >
+            <div class="font-medium text-gray-900 text-sm">{{ bit.caption || '(untitled)' }}</div>
+            @if (bit.website) {
+              <div class="text-xs text-gray-500 mt-0.5 truncate">{{ bit.website }}</div>
+            } @else if (bit.uname) {
+              <div class="text-xs text-gray-500 mt-0.5">{{ bit.uname }}</div>
+            }
+          </div>
+        } @empty {
+          <div class="p-4 text-center text-gray-500 text-sm">
+            @if (searchQuery()) {
+              No data bits match "{{ searchQuery() }}"
+            } @else {
+              No data bits yet
+            }
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- Right Panel: Detail -->
+  <div
+    class="flex-1 bg-gray-50 overflow-hidden"
+    [class.hidden]="!mobileShowDetail()"
+    [class.md:block]="true"
+  >
+    @if (showDetail()) {
+      <app-databit-detail
+        [bitId]="activeDetailId()"
+        (back)="onBack()"
+        (saved)="onBitSaved($event)"
+        (deleted)="onBitDeleted()"
+      />
+    } @else {
+      <div class="h-full flex items-center justify-center text-gray-400">
+        <div class="text-center flex flex-col items-center gap-4">
+          <svg class="w-16 h-16 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+          <div class="flex flex-col gap-1">
+            <p class="text-sm">Select a data bit to view details</p>
+            <p class="text-xs">or press Ctrl+Shift+N to create one</p>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

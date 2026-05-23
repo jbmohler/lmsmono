@@ -8,6 +8,8 @@ CAPABILITIES = [
     ("contacts:read", "View contacts"),
     ("contacts:write", "Create, update, delete contacts"),
     ("contacts:passwords", "View encrypted passwords"),
+    ("databits:read", "View data bits"),
+    ("databits:write", "Create, update, delete data bits"),
     ("transactions:read", "View transactions"),
     ("transactions:write", "Create, update, delete transactions"),
     ("journals:read", "View journals"),

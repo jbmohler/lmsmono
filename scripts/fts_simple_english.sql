@@ -7,6 +7,9 @@
 --
 -- The backend query also adds a prefix branch using to_tsquery('simple', 'word:*')
 -- so that partial typing ("Smi" matches "Smith") works at search-as-you-type speed.
+--
+-- Covers: contacts.perfts_search, contacts.personas_calc, contacts.bits,
+--         databits.perfts_search
 
 CREATE OR REPLACE VIEW contacts.perfts_search AS
 SELECT id,
@@ -39,6 +42,18 @@ SELECT personas.*,
         CASE WHEN personas.f_name = '' THEN NULL ELSE personas.f_name END,
         CASE WHEN personas.l_name = '' THEN NULL ELSE personas.l_name END) AS entity_name
 FROM contacts.personas;
+
+-- databits.perfts_search: upgrade from default (english-only) tsvector to
+-- dual simple+english, matching the 3-branch backend search pattern.
+CREATE OR REPLACE VIEW databits.perfts_search AS
+SELECT id,
+    to_tsvector('simple',  coalesce(caption, ''))||
+    to_tsvector('simple',  coalesce(data, ''))||
+    to_tsvector('simple',  coalesce(website, ''))||
+    to_tsvector('english', coalesce(caption, ''))||
+    to_tsvector('english', coalesce(data, ''))||
+    to_tsvector('english', coalesce(website, '')) AS fts_search
+FROM databits.bits;
 
 CREATE OR REPLACE VIEW contacts.bits AS
 (

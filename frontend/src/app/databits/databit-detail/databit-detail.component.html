@@ -1,0 +1,175 @@
+<div class="h-full flex flex-col overflow-hidden">
+  @if (loading()) {
+    <div class="flex-1 flex items-center justify-center text-gray-400 text-sm">Loading...</div>
+  } @else if (isEditing()) {
+    <!-- Edit / New Mode -->
+    <div class="dialog-header bg-white">
+      <div class="flex items-center gap-2">
+        <button (click)="cancelEdit()" class="md:hidden icon-btn" aria-label="Back">
+          <svg class="w-5 h-5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#chevron-left"/></svg>
+        </button>
+        <h2 class="dialog-header-title">{{ isNew() ? 'New Data Bit' : 'Edit Data Bit' }}</h2>
+      </div>
+      <div class="dialog-actions">
+        <button (click)="cancelEdit()" class="btn btn-secondary">Cancel</button>
+        <button (click)="saveEdit()" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+      <div class="card p-4 flex flex-col gap-4">
+        <div>
+          <label class="label-compact">Caption</label>
+          <input
+            type="text"
+            [ngModel]="editData().caption"
+            (ngModelChange)="updateField('caption', $event)"
+            placeholder="Name or title for this entry"
+            autofocus
+          />
+        </div>
+        <div>
+          <label class="label-compact">Website</label>
+          <input
+            type="text"
+            [ngModel]="editData().website"
+            (ngModelChange)="updateField('website', $event)"
+            placeholder="https://example.com"
+          />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="label-compact">Username</label>
+            <input
+              type="text"
+              [ngModel]="editData().uname"
+              (ngModelChange)="updateField('uname', $event)"
+              autocomplete="off"
+            />
+          </div>
+          <div>
+            <label class="label-compact">Password</label>
+            <input
+              type="text"
+              [ngModel]="editData().pword"
+              (ngModelChange)="updateField('pword', $event)"
+              autocomplete="new-password"
+              maxlength="20"
+            />
+          </div>
+        </div>
+        <div>
+          <label class="label-compact">Notes</label>
+          <textarea
+            [ngModel]="editData().data"
+            (ngModelChange)="updateField('data', $event)"
+            rows="4"
+            placeholder="Additional notes..."
+          ></textarea>
+        </div>
+      </div>
+      <div class="mt-2 text-xs text-gray-400 dialog-shortcuts">
+        <kbd class="px-1 py-0.5 bg-gray-100 rounded">Ctrl+S</kbd> save &nbsp;
+        <kbd class="px-1 py-0.5 bg-gray-100 rounded">Esc</kbd> cancel
+      </div>
+    </div>
+  } @else if (bit(); as b) {
+    <!-- View Mode -->
+    <div class="dialog-header bg-white">
+      <div class="flex items-center gap-2">
+        <button (click)="back.emit()" class="md:hidden icon-btn" aria-label="Back">
+          <svg class="w-5 h-5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#chevron-left"/></svg>
+        </button>
+        <h2 class="dialog-header-title">{{ b.caption || '(untitled)' }}</h2>
+      </div>
+      <div class="dialog-actions">
+        <button (click)="confirmDelete()" class="btn btn-secondary text-red-600 hover:bg-red-50">
+          Delete
+        </button>
+        <button (click)="enterEditMode()" class="btn btn-primary">
+          Edit
+        </button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+      <div class="card p-4 flex flex-col gap-4">
+        @if (b.website) {
+          <div>
+            <div class="label-compact">Website</div>
+            <a
+              [href]="b.website"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-blue-600 hover:underline break-all text-sm"
+            >{{ b.website }}</a>
+          </div>
+        }
+
+        @if (b.uname) {
+          <div>
+            <div class="label-compact">Username</div>
+            <div class="text-sm text-gray-900">{{ b.uname }}</div>
+          </div>
+        }
+
+        @if (b.pword) {
+          <div>
+            <div class="label-compact">Password</div>
+            <div class="flex items-center gap-2">
+              @if (showPassword()) {
+                <span class="font-mono text-sm text-gray-900 select-all">{{ b.pword }}</span>
+              } @else {
+                <span class="text-gray-400 text-sm tracking-widest">••••••••</span>
+              }
+              <div class="icon-btn-group">
+                <button
+                  (click)="showPassword.set(!showPassword())"
+                  class="icon-btn"
+                  [title]="showPassword() ? 'Hide password' : 'Show password'"
+                >
+                  @if (showPassword()) {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  } @else {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  }
+                </button>
+                <button
+                  (click)="copyPassword()"
+                  class="icon-btn"
+                  [title]="copied() ? 'Copied!' : 'Copy password'"
+                >
+                  @if (copied()) {
+                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  } @else {
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                    </svg>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (b.data) {
+          <div>
+            <div class="label-compact">Notes</div>
+            <div class="text-sm text-gray-900 whitespace-pre-wrap">{{ b.data }}</div>
+          </div>
+        }
+
+        @if (!b.website && !b.uname && !b.pword && !b.data) {
+          <div class="text-sm text-gray-400 text-center py-2">No details recorded</div>
+        }
+      </div>
+    </div>
+  }
+</div>

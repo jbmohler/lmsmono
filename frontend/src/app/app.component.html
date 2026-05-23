@@ -28,6 +28,15 @@
           >
             Contacts
           </a>
+          @if (showDatabits()) {
+            <a
+              routerLink="/databits"
+              routerLinkActive="tab-active"
+              class="tab-link"
+            >
+              Data Bits
+            </a>
+          }
           @if (showFinances()) {
             <a
               routerLink="/finances"
@@ -69,6 +78,7 @@
     <div class="max-w-7xl mx-auto flex items-center gap-6 text-xs text-slate-400">
       <span><kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">Ctrl+Shift+R</kbd> Transactions</span>
       <span><kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">Ctrl+Shift+K</kbd> Contacts</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">Ctrl+Shift+D</kbd> Data Bits</span>
     </div>
   </footer>
 </div>

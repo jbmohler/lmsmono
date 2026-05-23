@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# migrate-fts-simple-english.sh - Update contacts FTS views to use both
-# 'simple' and 'english' tsvector configs for better search recall.
+# migrate-fts-simple-english.sh - Update FTS views to use both 'simple' and
+# 'english' tsvector configs for better search recall.
 #
-# This replaces the default-config (english-only) tsvectors in
-# contacts.perfts_search, contacts.personas_calc, and contacts.bits
-# with dual simple+english vectors, and the backend query gains a
-# prefix branch so partial typing ("Smi" matches "Smith") works.
+# Covers: contacts.perfts_search, contacts.personas_calc, contacts.bits,
+#         databits.perfts_search
+#
+# Replaces default-config (english-only) tsvectors with dual simple+english
+# vectors. The backend query gains a prefix branch so partial typing
+# ("Smi" matches "Smith") works.
 #
 # Safe to run multiple times (uses CREATE OR REPLACE VIEW).
 #

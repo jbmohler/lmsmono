@@ -18,6 +18,7 @@ from api.accounts import AccountTypesController, AccountsController
 from api.journals import JournalsController
 from api.transactions import TransactionsController
 from api.contacts import ContactsController
+from api.databits import DataBitsController
 from api.roles import CapabilitiesController, RolesController
 from api.users import UsersController
 from api.financials import FinancialsController
@@ -110,6 +111,7 @@ app = Litestar(
         JournalsController,
         TransactionsController,
         ContactsController,
+        DataBitsController,
         CapabilitiesController,
         RolesController,
         UsersController,

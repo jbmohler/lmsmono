@@ -20,6 +20,7 @@ export class AppComponent {
 
   showFinances = computed(() => this.auth.capabilities().has('transactions:read'));
   showReports = computed(() => this.auth.capabilities().has('reports:read'));
+  showDatabits = computed(() => this.auth.capabilities().has('databits:read'));
 
   // Show Admin tab if user has either admin capability
   showAdmin = computed(() => {
@@ -43,6 +44,10 @@ export class AppComponent {
         case 'K':
           event.preventDefault();
           this.router.navigate(['/contacts']);
+          break;
+        case 'D':
+          event.preventDefault();
+          this.router.navigate(['/databits']);
           break;
       }
     }

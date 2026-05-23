@@ -8,7 +8,7 @@
 
 DO $$
 DECLARE
-  schemas TEXT[] := ARRAY['public', 'contacts', 'hacc', 'yenotsys'];
+  schemas TEXT[] := ARRAY['public', 'contacts', 'databits', 'hacc', 'yenotsys'];
   s TEXT;
 BEGIN
   FOREACH s IN ARRAY schemas LOOP
@@ -33,6 +33,11 @@ ALTER DEFAULT PRIVILEGES FOR ROLE lms_owner IN SCHEMA public
 ALTER DEFAULT PRIVILEGES FOR ROLE lms_owner IN SCHEMA contacts
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO lms_server;
 ALTER DEFAULT PRIVILEGES FOR ROLE lms_owner IN SCHEMA contacts
+  GRANT USAGE, SELECT ON SEQUENCES TO lms_server;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE lms_owner IN SCHEMA databits
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO lms_server;
+ALTER DEFAULT PRIVILEGES FOR ROLE lms_owner IN SCHEMA databits
   GRANT USAGE, SELECT ON SEQUENCES TO lms_server;
 
 ALTER DEFAULT PRIVILEGES FOR ROLE lms_owner IN SCHEMA hacc

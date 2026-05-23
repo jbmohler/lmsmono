@@ -18,6 +18,7 @@ import core.crypto as crypto
 from core.config import AppConfig
 from seed.users import seed_users, clear_users
 from seed.contacts import seed_contacts, clear_contacts
+from seed.databits import seed_databits, clear_databits
 from seed.capabilities import seed_capabilities, clear_capabilities
 from seed.roles import seed_roles, clear_roles
 
@@ -47,6 +48,7 @@ async def main(clear: bool = False) -> int:
 
         if clear:
             print("\n=== Clearing seed data ===")
+            await clear_databits(conn)
             await clear_contacts(conn)
             await clear_users(conn)
             await clear_roles(conn)
@@ -63,6 +65,9 @@ async def main(clear: bool = False) -> int:
 
         print("\n=== Seeding contacts ===")
         await seed_contacts(conn)
+
+        print("\n=== Seeding databits ===")
+        await seed_databits(conn)
 
         print("\n=== Seed complete ===")
         return 0

@@ -65,6 +65,13 @@ export const routes: Routes = [
     loadComponent: () => import('./contacts/contacts.component').then(m => m.ContactsComponent),
   },
 
+  // Data Bits section
+  {
+    path: 'databits',
+    canActivate: [authGuard],
+    loadComponent: () => import('./databits/databits.component').then(m => m.DatabitsComponent),
+  },
+
   // Reports section
   {
     path: 'reports',
