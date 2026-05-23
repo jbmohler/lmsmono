@@ -79,6 +79,7 @@
     } @else if (newContact(); as contact) {
       <app-contact-detail
         [contact]="contact"
+        [startInEditMode]="true"
         (back)="mobileShowDetail.set(false)"
         (contactSaved)="onNewContactSaved($event)"
       />

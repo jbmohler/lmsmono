@@ -69,15 +69,16 @@ export class ContactsComponent {
 
     const target = event.target as HTMLElement;
     const isSearchFocused = target === this.searchInput()?.nativeElement;
+    const isInInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+
+    if (event.key === 's' && !event.ctrlKey && !event.altKey && !event.metaKey && !isInInput) {
+      event.preventDefault();
+      this.searchInput()?.nativeElement.focus();
+      return;
+    }
 
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      const isOtherInputFocused =
-        !isSearchFocused &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT');
-
-      if (!isOtherInputFocused) {
+      if (!isInInput || isSearchFocused) {
         event.preventDefault();
         this.navigateList(event.key === 'ArrowDown' ? 1 : -1);
       }

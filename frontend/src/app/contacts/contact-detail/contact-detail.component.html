@@ -6,9 +6,7 @@
       <div class="dialog-header bg-white">
         <div class="flex items-center gap-2">
           <button (click)="cancelEdit(); back.emit()" class="md:hidden icon-btn" aria-label="Back">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
+            <svg class="w-5 h-5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#chevron-left"/></svg>
           </button>
           <h2 class="dialog-header-title">Edit Contact</h2>
         </div>
@@ -93,9 +91,7 @@
     <div class="dialog-header bg-white">
       <div class="flex items-center gap-2 min-w-0">
         <button (click)="back.emit()" class="md:hidden icon-btn shrink-0" aria-label="Back">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
+          <svg class="w-5 h-5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#chevron-left"/></svg>
         </button>
         <div class="min-w-0">
           <h2 class="text-xl font-semibold text-gray-900 truncate">{{ displayName() }}</h2>
@@ -121,10 +117,7 @@
           @if (share.isOwner) {
             <span class="text-yellow-500">★</span>
           } @else {
-            <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
+            <svg class="w-3 h-3 text-gray-400" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#share"/></svg>
           }
           {{ share.user.name }}
         </span>
@@ -158,146 +151,104 @@
       }
 
       @for (bit of sortedBits(); track bit.id; let first = $first; let last = $last) {
-        <div class="bit-row flex items-center gap-2 md:-mx-2 md:px-2 py-1 rounded transition-colors hover:bg-gray-50 group">
-          <!-- Action buttons (visible on hover, owner only) -->
+        <div class="bit-row flex items-start gap-3 py-1 rounded">
+
+          <!-- Left: large edit & delete + small move buttons (owner only) -->
           @if (contact().isOwner !== false) {
-            <div class="icon-btn-group opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
-              <!-- Move up/down -->
+            <div class="flex items-center gap-1 shrink-0 pt-0.5">
               <div class="icon-btn-vertical">
                 <button
-                  (click)="moveBitFromView(bit.id, 'up'); $event.stopPropagation()"
+                  (click)="moveBitFromView(bit.id, 'up')"
                   [disabled]="first"
                   class="icon-btn icon-btn-move p-0.5"
                   title="Move up"
                 >▲</button>
                 <button
-                  (click)="moveBitFromView(bit.id, 'down'); $event.stopPropagation()"
+                  (click)="moveBitFromView(bit.id, 'down')"
                   [disabled]="last"
                   class="icon-btn icon-btn-move p-0.5"
                   title="Move down"
                 >▼</button>
               </div>
-              <!-- Edit -->
               <button
-                (click)="openBitDialog(bit); $event.stopPropagation()"
-                class="icon-btn icon-btn-edit"
+                (click)="openBitDialog(bit)"
+                class="icon-btn icon-btn-edit p-1.5"
                 title="Edit"
               >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
+                <svg class="w-5 h-5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#pencil"/></svg>
               </button>
-              <!-- Delete -->
               <button
-                (click)="confirmDeleteBit(bit); $event.stopPropagation()"
-                class="icon-btn icon-btn-delete"
+                (click)="confirmDeleteBit(bit)"
+                class="icon-btn icon-btn-delete p-1.5"
                 title="Delete"
               >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                <svg class="w-5 h-5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#trash"/></svg>
               </button>
             </div>
           }
 
-          <!-- Bit content (clickable for owners) -->
-          <div
-            class="flex-1 min-w-0"
-            [class.cursor-pointer]="contact().isOwner !== false"
-            (click)="contact().isOwner !== false && openBitDialog(bit)"
-            (keydown.enter)="contact().isOwner !== false && openBitDialog(bit)"
-            [attr.tabindex]="contact().isOwner !== false ? 0 : null"
-            [attr.role]="contact().isOwner !== false ? 'button' : null"
-          >
+          <!-- Bit content: 2-col grid [icon-width | content] -->
+          <div class="flex-1 min-w-0 grid grid-cols-[1rem_1fr] gap-x-2 gap-y-0.5 items-start">
+
+            @if (bit.isPrimary || bit.label) {
+              <span class="primary-star text-sm leading-5">@if (bit.isPrimary) {★}</span>
+              <p class="text-sm font-semibold text-gray-800 leading-5">{{ bit.label }}</p>
+            }
+
             @if (bit | asEmail; as email) {
-              <div class="flex items-center gap-2 min-w-0 flex-wrap">
-                @if (email.isPrimary) {
-                  <span class="primary-star">★</span>
-                }
-                <span class="badge badge-gray shrink-0">Email</span>
-                <a
-                  [href]="'mailto:' + email.email"
-                  (click)="$event.stopPropagation()"
-                  class="text-sm text-blue-600 truncate hover:underline"
-                >{{ email.email }}</a>
-                @if (email.label) {
-                  <span class="text-xs text-gray-400 shrink-0">({{ email.label }})</span>
-                }
-              </div>
+              <svg class="w-4 h-4 text-gray-400 mt-0.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#envelope"/></svg>
+              <a [href]="'mailto:' + email.email" class="text-sm text-blue-600 truncate hover:underline">{{ email.email }}</a>
             }
 
             @if (bit | asPhone; as phone) {
-              <div class="flex items-center gap-2 min-w-0 flex-wrap">
-                @if (phone.isPrimary) {
-                  <span class="primary-star">★</span>
-                }
-                <span class="badge badge-gray shrink-0">Phone</span>
-                <a
-                  [href]="'tel:' + phone.number"
-                  (click)="$event.stopPropagation()"
-                  class="text-sm text-gray-900 hover:underline hover:text-blue-600"
-                >{{ phone.number }}</a>
-                @if (phone.label) {
-                  <span class="text-xs text-gray-400 shrink-0">({{ phone.label }})</span>
-                }
-              </div>
+              <svg class="w-4 h-4 text-gray-400 mt-0.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#phone"/></svg>
+              <a [href]="'tel:' + phone.number" class="text-sm text-gray-900 hover:underline hover:text-blue-600">{{ phone.number }}</a>
             }
 
             @if (bit | asAddress; as address) {
-              <div class="flex items-start gap-2 min-w-0 flex-wrap">
-                @if (address.isPrimary) {
-                  <span class="primary-star">★</span>
+              <svg class="w-4 h-4 text-gray-400 mt-0.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#map-pin"/></svg>
+              <div class="text-sm text-gray-900 whitespace-pre-line">{{ address | formatAddress }}</div>
+            }
+
+            @if (bit | asUrl; as url) {
+              <svg class="w-4 h-4 text-gray-400 mt-0.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#link"/></svg>
+              <div class="flex flex-col gap-1 min-w-0">
+                @if (url.url) {
+                  <a [href]="url.url" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 truncate min-w-0 hover:underline">{{ url.url }}</a>
                 }
-                <span class="badge badge-gray shrink-0">Address</span>
-                <div class="text-sm text-gray-900 whitespace-pre-line">{{ address | formatAddress }}</div>
-                @if (address.label) {
-                  <span class="text-xs text-gray-400 shrink-0">({{ address.label }})</span>
+                @if (url.username || url.hasPassword) {
+                  <div class="flex items-center gap-2 flex-wrap">
+                    @if (url.username) {
+                      <span class="text-xs text-gray-500">@{{ url.username }}</span>
+                    }
+                    @if (url.hasPassword) {
+                      @if (url | isPasswordExpired) {
+                        <span class="expired-indicator shrink-0" title="Password expired">
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#warning-triangle"/></svg>
+                        </span>
+                      }
+                      <button
+                        (click)="copyPassword(url)"
+                        class="badge badge-gray hover:bg-gray-200 cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#key"/></svg>
+                        @if (copyingPasswordId() === url.id) {
+                          <span class="text-green-700">Copied!</span>
+                        } @else {
+                          Copy password
+                        }
+                      </button>
+                    }
+                  </div>
                 }
               </div>
             }
 
-            @if (bit | asUrl; as url) {
-              <div class="flex items-center gap-2 min-w-0 flex-wrap">
-                @if (url.isPrimary) {
-                  <span class="primary-star">★</span>
-                }
-                <span class="badge badge-gray shrink-0">Link</span>
-                @if (url.url) {
-                  <a
-                    [href]="url.url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    (click)="$event.stopPropagation()"
-                    class="text-sm text-blue-600 truncate min-w-0 hover:underline"
-                  >{{ url.url }}</a>
-                }
-                @if (url.label) {
-                  <span class="text-xs text-gray-400 shrink-0">({{ url.label }})</span>
-                }
-                @if (url.username) {
-                  <span class="text-xs text-gray-400 shrink-0">@{{ url.username }}</span>
-                }
-                @if (url.hasPassword) {
-                  @if (url | isPasswordExpired) {
-                    <span class="expired-indicator shrink-0" title="Password expired">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                    </span>
-                  }
-                  <button
-                    (click)="copyPassword(url); $event.stopPropagation()"
-                    class="copy-password-btn shrink-0"
-                    title="Copy password"
-                  >
-                    @if (copyingPasswordId() === url.id) {
-                      <span class="text-green-600">✓</span>
-                    } @else {
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                      </svg>
-                    }
-                  </button>
+            @if (bit.memo) {
+              <div class="col-span-2">
+                <p class="text-xs text-gray-500 line-clamp-3 whitespace-pre-line">{{ bit.memo }}</p>
+                @if (bit.memo | memoNeedsExpand) {
+                  <button (click)="openBitDialog(bit)" class="text-xs text-blue-600 hover:underline mt-0.5">View full note…</button>
                 }
               </div>
             }
@@ -310,7 +261,7 @@
 
     <!-- Footer -->
     <div class="hidden md:block px-4 md:px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
-      Hover for actions | Click to edit
+      Ctrl+S to save | Escape to cancel
     </div>
   }
 </div>

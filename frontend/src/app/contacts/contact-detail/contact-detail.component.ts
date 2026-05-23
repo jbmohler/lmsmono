@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed, inject, Pipe, PipeTransform } from '@angular/core';
+import { Component, input, output, signal, computed, inject, effect, Pipe, PipeTransform } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Persona,
@@ -63,6 +63,13 @@ class IsPasswordExpiredPipe implements PipeTransform {
   }
 }
 
+@Pipe({ name: 'memoNeedsExpand' })
+class MemoNeedsExpandPipe implements PipeTransform {
+  transform(memo: string): boolean {
+    return memo.split('\n').length > 3 || memo.length > 150;
+  }
+}
+
 @Component({
   selector: 'app-contact-detail',
   templateUrl: './contact-detail.component.html',
@@ -77,6 +84,7 @@ class IsPasswordExpiredPipe implements PipeTransform {
     AsUrlPipe,
     FormatAddressPipe,
     IsPasswordExpiredPipe,
+    MemoNeedsExpandPipe,
   ],
   host: {
     '(keydown)': 'handleKeydown($event)',
@@ -86,6 +94,7 @@ export class ContactDetailComponent {
   private contactsService = inject(ContactsService);
 
   contact = input.required<Persona>();
+  startInEditMode = input(false);
   back = output<void>();
   contactSaved = output<Persona>();
   contactRefresh = output<void>();
@@ -96,6 +105,12 @@ export class ContactDetailComponent {
 
   isEditing = signal(false);
   editData = signal<Persona | null>(null);
+
+  constructor() {
+    effect(() => {
+      if (this.startInEditMode()) this.enterEditMode();
+    });
+  }
   editingBit = signal<ContactBit | null>(null);
   shares = computed(() => this.contact().shares ?? []);
   showSharingDialog = signal(false);
