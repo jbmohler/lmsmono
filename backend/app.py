@@ -14,7 +14,6 @@ from core.auth import provide_current_user
 from core.db import init_pool, close_pool, provide_connection
 from api.auth import AuthController
 from api.health import HealthController, PingController
-from api.eventlog import EventLogController
 from api.accounts import AccountTypesController, AccountsController
 from api.journals import JournalsController
 from api.transactions import TransactionsController
@@ -106,7 +105,6 @@ app = Litestar(
         AuthController,
         HealthController,
         PingController,
-        EventLogController,
         AccountTypesController,
         AccountsController,
         JournalsController,

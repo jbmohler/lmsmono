@@ -22,26 +22,30 @@
     <div class="bg-slate-700 px-4 overflow-x-auto min-w-0">
       <nav class="flex items-end gap-1 -mb-px min-w-0">
           <a
-            routerLink="/finances"
-            routerLinkActive="tab-active"
-            class="tab-link"
-          >
-            Finances
-          </a>
-          <a
             routerLink="/contacts"
             routerLinkActive="tab-active"
             class="tab-link"
           >
             Contacts
           </a>
-          <a
-            routerLink="/reports"
-            routerLinkActive="tab-active"
-            class="tab-link"
-          >
-            Reports
-          </a>
+          @if (showFinances()) {
+            <a
+              routerLink="/finances"
+              routerLinkActive="tab-active"
+              class="tab-link"
+            >
+              Finances
+            </a>
+          }
+          @if (showReports()) {
+            <a
+              routerLink="/reports"
+              routerLinkActive="tab-active"
+              class="tab-link"
+            >
+              Reports
+            </a>
+          }
           @if (showAdmin()) {
             <a
               routerLink="/admin"
@@ -51,13 +55,6 @@
               Admin
             </a>
           }
-          <a
-            routerLink="/diagnostics"
-            routerLinkActive="tab-active"
-            class="tab-link"
-          >
-            Diagnostics
-          </a>
       </nav>
     </div>
   </header>

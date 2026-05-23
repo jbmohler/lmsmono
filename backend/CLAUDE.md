@@ -16,7 +16,6 @@ backend/
 │   └── guards.py       # Capability-based auth guards
 ├── api/
 │   ├── health.py       # Health/ping controllers
-│   ├── eventlog.py     # Event log controller
 │   └── ...             # Add new controllers here
 └── queries/            # SQL files (optional, for complex queries)
 ```

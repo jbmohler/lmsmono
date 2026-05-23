@@ -1,77 +1,65 @@
 import { Component, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
-import { Subject } from 'rxjs';
-import { switchMap, startWith } from 'rxjs/operators';
+import { Subject, range, defer } from 'rxjs';
+import { switchMap, startWith, concatMap, map, toArray } from 'rxjs/operators';
 
 interface HealthResponse {
   status: string;
   config_loaded: boolean;
   database_host: string | null;
   database_connected: boolean;
+  database_version: string | null;
 }
 
-interface EventLogEntry {
-  id: number;
-  logtype: string;
-  logtime: string;
-  descr: string | null;
+interface PingStats {
+  avg: number;
+  max: number;
 }
+
+const PING_COUNT = 25;
 
 @Component({
   selector: 'app-diagnostics',
   templateUrl: './diagnostics.component.html',
   styleUrl: './diagnostics.component.scss',
-  imports: [FormsModule, DatePipe],
+  imports: [],
 })
 export class DiagnosticsComponent {
   private http = inject(HttpClient);
+  private refresh$ = new Subject<void>();
 
-  // Health status with refresh trigger
-  private refreshHealth$ = new Subject<void>();
   health = toSignal(
-    this.refreshHealth$.pipe(
+    this.refresh$.pipe(
       startWith(undefined),
       switchMap(() => this.http.get<HealthResponse>('/api/health'))
     )
   );
 
-  // Event log with refresh trigger
-  private refreshEventLog$ = new Subject<void>();
-  eventLog = toSignal(
-    this.refreshEventLog$.pipe(
+  pingStats = toSignal<PingStats | null>(
+    this.refresh$.pipe(
       startWith(undefined),
-      switchMap(() => this.http.get<EventLogEntry[]>('/api/eventlog'))
-    )
+      switchMap(() =>
+        range(PING_COUNT).pipe(
+          concatMap(() =>
+            defer(() => {
+              const start = Date.now();
+              return this.http.get('/api/ping').pipe(map(() => Date.now() - start));
+            })
+          ),
+          toArray(),
+          map(times => ({
+            avg: Math.round(times.reduce((a, b) => a + b) / times.length),
+            max: Math.max(...times),
+          })),
+          startWith(null)
+        )
+      )
+    ),
+    { initialValue: null }
   );
 
-  // Form state
-  newLogType = '';
-  newDescr = '';
-
-  refreshHealth(): void {
-    this.refreshHealth$.next();
-  }
-
-  refreshEventLog(): void {
-    this.refreshEventLog$.next();
-  }
-
-  addEntry(): void {
-    if (!this.newLogType) return;
-
-    this.http.post<EventLogEntry>('/api/eventlog', {
-      logtype: this.newLogType,
-      descr: this.newDescr || null
-    }).subscribe({
-      next: () => {
-        this.newLogType = '';
-        this.newDescr = '';
-        this.refreshEventLog();
-      },
-      error: (err) => console.error('Failed to add entry:', err),
-    });
+  refresh(): void {
+    this.refresh$.next();
   }
 }

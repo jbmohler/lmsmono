@@ -11,6 +11,7 @@ class HealthResponse:
     config_loaded: bool
     database_host: str | None = None
     database_connected: bool = False
+    database_version: str | None = None
 
 
 class HealthController(Controller):
@@ -22,12 +23,16 @@ class HealthController(Controller):
         from app import config
 
         db_connected = False
+        db_version = None
         if db.pool:
             try:
                 async with db.pool.connection() as conn:
                     async with conn.cursor() as cur:
-                        await cur.execute("SELECT 1")
-                        db_connected = True
+                        await cur.execute("SELECT version()")
+                        row = await cur.fetchone()
+                        if row:
+                            db_connected = True
+                            db_version = row[0]
             except Exception:
                 pass
 
@@ -36,6 +41,7 @@ class HealthController(Controller):
             config_loaded=config is not None,
             database_host=config.database.host if config else None,
             database_connected=db_connected,
+            database_version=db_version,
         )
 
 

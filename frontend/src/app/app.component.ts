@@ -18,6 +18,9 @@ export class AppComponent {
   isLoggedIn = this.auth.isLoggedIn;
   user = this.auth.user;
 
+  showFinances = computed(() => this.auth.capabilities().has('transactions:read'));
+  showReports = computed(() => this.auth.capabilities().has('reports:read'));
+
   // Show Admin tab if user has either admin capability
   showAdmin = computed(() => {
     const caps = this.auth.capabilities();

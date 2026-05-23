@@ -109,13 +109,6 @@ export const routes: Routes = [
     loadComponent: () => import('./reports/report-viewer.component').then(m => m.ReportViewerComponent),
   },
 
-  // Diagnostics (dev tool)
-  {
-    path: 'diagnostics',
-    canActivate: [authGuard],
-    loadComponent: () => import('./diagnostics/diagnostics.component').then(m => m.DiagnosticsComponent),
-  },
-
   // Admin section
   {
     path: 'admin',
@@ -133,6 +126,11 @@ export const routes: Routes = [
         path: 'roles',
         loadComponent: () =>
           import('./admin/roles/roles.component').then(m => m.RolesComponent),
+      },
+      {
+        path: 'diagnostics',
+        loadComponent: () =>
+          import('./diagnostics/diagnostics.component').then(m => m.DiagnosticsComponent),
       },
     ],
   },
