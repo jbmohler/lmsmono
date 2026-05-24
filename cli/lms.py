@@ -162,32 +162,49 @@ def _write_balance_sheet_xlsx(
     right = Alignment(horizontal="right")
     center = Alignment(horizontal="center")
 
+    gray_font = Font(color="808080", size=10)
+
     # Row 1: title
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
     ws.cell(1, 1, "Balance Sheet").font = title_font
 
-    # Row 2: column headers
-    ws.cell(2, 1, "Journal").font = header_font
-    ws.cell(2, 2, "Account").font = header_font
-    ws.cell(2, 3, "Account Name").font = header_font
+    # Row 2: generated timestamp
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=total_cols)
+    generated = datetime.datetime.now().strftime("Generated %Y-%m-%d %H:%M")
+    ws.cell(2, 1, generated).font = gray_font
+
+    # Row 3: blank
+
+    # Row 4: column headers
+    ws.cell(4, 1, "Journal").font = header_font
+    ws.cell(4, 2, "Account").font = header_font
+    ws.cell(4, 3, "Account Name").font = header_font
     for i, d in enumerate(period_dates):
-        c = ws.cell(2, BAL_COL + i, d)
+        c = ws.cell(4, BAL_COL + i, d)
         c.font = header_font
         c.alignment = center
 
-    ws.freeze_panes = "A3"
+    ws.freeze_panes = "A5"
 
-    row_num = 3
+    row_num = 5
     current_atype: str | None = None
     current_is_debit: bool = True
-    section_totals: list[float] = [0.0] * n
-    asset_totals: list[float] = [0.0] * n
-    liab_equity_totals: list[float] = [0.0] * n
+    section_data_start: int = 5
+    asset_subtotal_rows: list[int] = []
+    liab_subtotal_rows: list[int] = []
     total_assets_written = False
 
     def _fill_row(fill: PatternFill) -> None:
         for col in range(1, total_cols + 1):
             ws.cell(row_num, col).fill = fill
+
+    def _bal_formula(col_idx: int, first: int, last: int) -> str:
+        col = get_column_letter(BAL_COL + col_idx)
+        return f"=SUM({col}{first}:{col}{last})"
+
+    def _ref_formula(col_idx: int, ref_rows: list[int]) -> str:
+        col = get_column_letter(BAL_COL + col_idx)
+        return "=" + "+".join(f"{col}{r}" for r in ref_rows) if ref_rows else "=0"
 
     def flush_section() -> None:
         nonlocal row_num
@@ -195,20 +212,24 @@ def _write_balance_sheet_xlsx(
             return
         _fill_row(subtotal_fill)
         ws.cell(row_num, 1, f"Total {current_atype}").font = Font(bold=True)
-        for i, val in enumerate(section_totals):
-            c = ws.cell(row_num, BAL_COL + i, val)
+        for i in range(n):
+            c = ws.cell(row_num, BAL_COL + i, _bal_formula(i, section_data_start, row_num - 1))
             c.number_format = currency_fmt
             c.font = Font(bold=True)
             c.alignment = right
+        if current_is_debit:
+            asset_subtotal_rows.append(row_num)
+        else:
+            liab_subtotal_rows.append(row_num)
         row_num += 1
         row_num += 1  # blank row after each section
 
-    def write_summary_row(label: str, totals: list[float], fill: PatternFill) -> None:
+    def write_summary_row(label: str, ref_rows: list[int], fill: PatternFill) -> None:
         nonlocal row_num
         _fill_row(fill)
         ws.cell(row_num, 1, label).font = Font(bold=True, size=11)
-        for i, val in enumerate(totals):
-            c = ws.cell(row_num, BAL_COL + i, val)
+        for i in range(n):
+            c = ws.cell(row_num, BAL_COL + i, _ref_formula(i, ref_rows))
             c.number_format = currency_fmt
             c.font = Font(bold=True, size=11)
             c.alignment = right
@@ -222,12 +243,11 @@ def _write_balance_sheet_xlsx(
             flush_section()
             # Insert Total Assets row when transitioning from assets to liabilities
             if current_atype is not None and current_is_debit and not is_debit:
-                write_summary_row("Total Assets", asset_totals, assets_fill)
+                write_summary_row("Total Assets", asset_subtotal_rows, assets_fill)
                 row_num += 1  # blank row before liability sections
                 total_assets_written = True
             current_atype = atype
             current_is_debit = is_debit
-            section_totals = [0.0] * n
             ws.merge_cells(
                 start_row=row_num, start_column=1,
                 end_row=row_num, end_column=total_cols,
@@ -236,29 +256,24 @@ def _write_balance_sheet_xlsx(
             c.font = section_font
             c.fill = section_fill
             row_num += 1
+            section_data_start = row_num  # first data row of this section
 
         ws.cell(row_num, 1, data_row["journal"]["name"])
         ws.cell(row_num, 2, data_row["acc_name"])
         ws.cell(row_num, 3, data_row.get("description") or "")
         for i, bal in enumerate(data_row["balances"]):
-            val = float(bal or 0.0)
-            c = ws.cell(row_num, BAL_COL + i, val)
+            c = ws.cell(row_num, BAL_COL + i, float(bal or 0.0))
             c.number_format = currency_fmt
             c.alignment = right
-            section_totals[i] += val
-            if is_debit:
-                asset_totals[i] += val
-            else:
-                liab_equity_totals[i] += val
         row_num += 1
 
     flush_section()
 
     if not total_assets_written:
-        write_summary_row("Total Assets", asset_totals, assets_fill)
+        write_summary_row("Total Assets", asset_subtotal_rows, assets_fill)
         row_num += 1
 
-    write_summary_row("Total Liabilities + Equity", liab_equity_totals, liab_fill)
+    write_summary_row("Total Liabilities + Equity", liab_subtotal_rows, liab_fill)
 
     # Column widths
     ws.column_dimensions["A"].width = 20
