@@ -349,6 +349,98 @@ def _write_profit_loss_xlsx(
 
 
 # ---------------------------------------------------------------------------
+# Profit & loss transactions export
+# ---------------------------------------------------------------------------
+
+
+def cmd_pl_transactions(args: argparse.Namespace) -> None:
+    today = datetime.date.today()
+    end_of_last_month = today.replace(day=1) - datetime.timedelta(days=1)
+    start_of_last_month = end_of_last_month.replace(day=1)
+
+    d1: str = args.d1 or start_of_last_month.isoformat()
+    d2: str = args.d2 or end_of_last_month.isoformat()
+
+    client = ensure_auth(args.url)
+    resp = client.get("/api/reports/profit-loss-transactions", params={"d1": d1, "d2": d2})
+    client.close()
+
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("detail", f"HTTP {resp.status_code}")
+        except Exception:
+            detail = f"HTTP {resp.status_code}"
+        print(f"Error: {detail}", file=sys.stderr)
+        sys.exit(1)
+
+    rows = resp.json()["data"]
+    output: str = args.output or f"pl_transactions_{d1[:7]}.xlsx"
+    _write_pl_transactions_xlsx(output, d1, d2, rows)
+    print(f"Written: {output}")
+
+
+def _write_pl_transactions_xlsx(
+    path: str,
+    d1: str,
+    d2: str,
+    rows: list[dict],
+) -> None:
+    # Sort by type order, then date within each type
+    rows = sorted(rows, key=lambda r: (r["atype_sort"], r["trandate"]))
+
+    rs = ReportSheet("P&L Transactions", n_text=5, n_val=1)
+    rs.write_title("Profit & Loss — Transactions")
+    rs.write_generated()
+    rs.write_note(f"{d1}  through  {d2}")
+    rs.write_blank()
+    rs.write_headers(["Journal", "Account", "Date", "Payee", "Memo"], ["Amount"])
+    rs.set_col_widths([16, 22, 12, 30, 30, 14])
+
+    current_atype: str | None = None
+    current_is_debit: bool = False
+    section_data_start: int = rs.row
+    income_type_rows: list[int] = []
+    expense_type_rows: list[int] = []
+
+    def flush_type() -> None:
+        if current_atype is None:
+            return
+        type_row = rs.write_subtotal_row(f"Total {current_atype}", section_data_start)
+        if current_is_debit:
+            expense_type_rows.append(type_row)
+        else:
+            income_type_rows.append(type_row)
+        rs.write_blank()
+
+    for row in rows:
+        atype = row["atype_name"]
+        is_debit: bool = row["debit_account"]
+
+        if atype != current_atype:
+            flush_type()
+            current_atype = atype
+            current_is_debit = is_debit
+            rs.write_section_header(atype)
+            section_data_start = rs.row
+
+        rs.write_data_row(
+            [row["journal"]["name"], row["acc_name"], row["trandate"],
+             row.get("payee") or "", row.get("memo") or ""],
+            [float(row.get("amount") or 0.0)],
+        )
+
+    flush_type()
+
+    rs.write_signed_ref_row(
+        "Net Income",
+        add_rows=income_type_rows,
+        sub_rows=expense_type_rows,
+        fill=FILL_SUBTOTAL,
+    )
+    rs.save(path)
+
+
+# ---------------------------------------------------------------------------
 # Logout
 # ---------------------------------------------------------------------------
 
@@ -409,6 +501,16 @@ def main() -> None:
     pl.add_argument("--years", type=int, default=2, metavar="N", help="Number of years of half-periods (default: 2 → 4 columns)")
     pl.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .xlsx file (default: profit_loss_YYYY_MM.xlsx)")
     pl.set_defaults(func=cmd_profit_loss)
+
+    # pl-transactions command
+    plt = subparsers.add_parser(
+        "pl-transactions",
+        help="Export profit & loss transaction detail to Excel",
+    )
+    plt.add_argument("--d1", default=None, metavar="DATE", help="Start date YYYY-MM-DD (default: first of last month)")
+    plt.add_argument("--d2", default=None, metavar="DATE", help="End date YYYY-MM-DD (default: last of last month)")
+    plt.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .xlsx file (default: pl_transactions_YYYY-MM.xlsx)")
+    plt.set_defaults(func=cmd_pl_transactions)
 
     # logout command
     lo = subparsers.add_parser("logout", help="Clear saved session")

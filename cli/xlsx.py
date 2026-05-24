@@ -16,6 +16,7 @@ FILL_SECTION = PatternFill("solid", fgColor="D9E1F2")   # blue-gray section head
 FILL_SUBTOTAL = PatternFill("solid", fgColor="E2EFDA")  # green subtotal
 FILL_ASSETS = PatternFill("solid", fgColor="BDD7EE")    # blue  — total assets
 FILL_LIAB = PatternFill("solid", fgColor="FCE4D6")      # peach — total liabilities
+FILL_GROUP = PatternFill("solid", fgColor="EBEBEB")     # light gray sub-group header
 
 CURRENCY_FMT = '#,##0.00;[Red]-#,##0.00'
 
@@ -73,6 +74,12 @@ class ReportSheet:
         self.ws.cell(self.row, 1, stamp).font = self._gray_font
         self.row += 1
 
+    def write_note(self, text: str) -> None:
+        """Row: gray italic note spanning all columns."""
+        self._merge_row(self.row)
+        self.ws.cell(self.row, 1, text).font = self._gray_font
+        self.row += 1
+
     def write_blank(self) -> None:
         """Advance one blank row."""
         self.row += 1
@@ -115,6 +122,13 @@ class ReportSheet:
         c.fill = FILL_SECTION
         c.alignment = Alignment(vertical="center")
         self.ws.row_dimensions[self.row].height = 20
+        self.row += 1
+
+    def write_group_header(self, texts: list[str]) -> None:
+        """Row: lightly shaded sub-group label within a section (e.g. account name)."""
+        self._fill_row(FILL_GROUP)
+        for col, text in enumerate(texts, start=1):
+            self.ws.cell(self.row, col, text).font = Font(name=REPORT_FONT, bold=True, size=10)
         self.row += 1
 
     def write_data_row(self, texts: list[str], values: list[float]) -> int:
