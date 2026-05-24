@@ -7,8 +7,10 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 # ---------------------------------------------------------------------------
-# Shared fills — import these by name in report modules
+# Shared constants — import these by name in report modules
 # ---------------------------------------------------------------------------
+
+REPORT_FONT = "Nimbus Sans"
 
 FILL_SECTION = PatternFill("solid", fgColor="D9E1F2")   # blue-gray section header
 FILL_SUBTOTAL = PatternFill("solid", fgColor="E2EFDA")  # green subtotal
@@ -46,10 +48,10 @@ class ReportSheet:
         self.val_col = n_text + 1   # 1-based index of first value column
         self.row = 1
 
-        self._title_font = Font(bold=True, size=14)
-        self._gray_font = Font(color="808080", size=10)
-        self._header_font = Font(bold=True, size=11)
-        self._section_font = Font(bold=True, size=11)
+        self._title_font = Font(name=REPORT_FONT, bold=True, size=14)
+        self._gray_font = Font(name=REPORT_FONT, color="808080", size=10)
+        self._header_font = Font(name=REPORT_FONT, bold=True, size=11)
+        self._section_font = Font(name=REPORT_FONT, bold=True, size=11)
 
     # ------------------------------------------------------------------
     # Preamble
@@ -58,7 +60,10 @@ class ReportSheet:
     def write_title(self, text: str) -> None:
         """Row: bold large title spanning all columns."""
         self._merge_row(self.row)
-        self.ws.cell(self.row, 1, text).font = self._title_font
+        c = self.ws.cell(self.row, 1, text)
+        c.font = self._title_font
+        c.alignment = Alignment(vertical="center")
+        self.ws.row_dimensions[self.row].height = 28
         self.row += 1
 
     def write_generated(self) -> None:
@@ -79,17 +84,22 @@ class ReportSheet:
                 start_row=self.row, start_column=self.val_col,
                 end_row=self.row, end_column=self.val_col + self.n_val - 1,
             )
-        self.ws.cell(self.row, self.val_col, label).font = Font(italic=True, color="808080", size=10)
+        self.ws.cell(self.row, self.val_col, label).font = Font(name=REPORT_FONT, italic=True, color="808080", size=10)
         self.row += 1
 
     def write_headers(self, text_headers: list[str], val_headers: list[str]) -> None:
         """Row: bold column headers; freeze pane set below this row."""
+        vcenter = Alignment(vertical="center")
+        hcenter = Alignment(horizontal="center", vertical="center")
         for col, label in enumerate(text_headers, start=1):
-            self.ws.cell(self.row, col, label).font = self._header_font
+            c = self.ws.cell(self.row, col, label)
+            c.font = self._header_font
+            c.alignment = vcenter
         for i, label in enumerate(val_headers):
             c = self.ws.cell(self.row, self.val_col + i, label)
             c.font = self._header_font
-            c.alignment = Alignment(horizontal="center")
+            c.alignment = hcenter
+        self.ws.row_dimensions[self.row].height = 20
         self.ws.freeze_panes = f"A{self.row + 1}"
         self.row += 1
 
@@ -103,6 +113,8 @@ class ReportSheet:
         c = self.ws.cell(self.row, 1, label)
         c.font = self._section_font
         c.fill = FILL_SECTION
+        c.alignment = Alignment(vertical="center")
+        self.ws.row_dimensions[self.row].height = 20
         self.row += 1
 
     def write_data_row(self, texts: list[str], values: list[float]) -> int:
@@ -129,12 +141,12 @@ class ReportSheet:
     ) -> int:
         """Row: =SUM over [first_data_row .. row-1]. Returns row number."""
         self._fill_row(fill)
-        self.ws.cell(self.row, 1, label).font = Font(bold=True)
+        self.ws.cell(self.row, 1, label).font = Font(name=REPORT_FONT, bold=True)
         for i in range(self.n_val):
             col = get_column_letter(self.val_col + i)
             c = self.ws.cell(self.row, self.val_col + i, f"=SUM({col}{first_data_row}:{col}{self.row - 1})")
             c.number_format = CURRENCY_FMT
-            c.font = Font(bold=True)
+            c.font = Font(name=REPORT_FONT, bold=True)
             c.alignment = Alignment(horizontal="right")
         written = self.row
         self.row += 1
@@ -158,14 +170,14 @@ class ReportSheet:
     ) -> int:
         """Row: values = sum(add_rows) - sum(sub_rows). Returns row number."""
         self._fill_row(fill)
-        self.ws.cell(self.row, 1, label).font = Font(bold=True, size=11)
+        self.ws.cell(self.row, 1, label).font = Font(name=REPORT_FONT, bold=True, size=11)
         for i in range(self.n_val):
             col = get_column_letter(self.val_col + i)
             parts = [f"{col}{r}" for r in add_rows] + [f"-{col}{r}" for r in sub_rows]
             formula = ("=" + "+".join(parts)) if parts else "=0"
             c = self.ws.cell(self.row, self.val_col + i, formula)
             c.number_format = CURRENCY_FMT
-            c.font = Font(bold=True, size=11)
+            c.font = Font(name=REPORT_FONT, bold=True, size=11)
             c.alignment = Alignment(horizontal="right")
         written = self.row
         self.row += 1
