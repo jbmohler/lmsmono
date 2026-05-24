@@ -107,8 +107,9 @@ def ensure_auth(base_url: str | None) -> httpx.Client:
 
 def cmd_balance_sheet(args: argparse.Namespace) -> None:
     today = datetime.date.today()
-    year: int = args.year or today.year
-    month: int = args.month or today.month
+    prior_month_end = today.replace(day=1) - datetime.timedelta(days=1)
+    year: int = args.year or prior_month_end.year
+    month: int = args.month or prior_month_end.month
     periods: int = args.periods
 
     client = ensure_auth(args.url)
@@ -145,7 +146,9 @@ def _write_balance_sheet_xlsx(
     ws.title = "Balance Sheet"
 
     n = len(period_dates)
-    total_cols = 2 + n
+    # Columns: Journal, Account, Account Name, <period> ...
+    total_cols = 3 + n
+    BAL_COL = 4  # first balance column
 
     # Styles
     title_font = Font(bold=True, size=14)
@@ -153,21 +156,22 @@ def _write_balance_sheet_xlsx(
     section_font = Font(bold=True, size=11)
     section_fill = PatternFill("solid", fgColor="D9E1F2")
     subtotal_fill = PatternFill("solid", fgColor="E2EFDA")
-    grand_fill = PatternFill("solid", fgColor="FFF2CC")
+    assets_fill = PatternFill("solid", fgColor="BDD7EE")
+    liab_fill = PatternFill("solid", fgColor="FCE4D6")
     currency_fmt = '#,##0.00;[Red]-#,##0.00'
     right = Alignment(horizontal="right")
     center = Alignment(horizontal="center")
 
     # Row 1: title
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
-    c = ws.cell(1, 1, "Balance Sheet")
-    c.font = title_font
+    ws.cell(1, 1, "Balance Sheet").font = title_font
 
     # Row 2: column headers
     ws.cell(2, 1, "Journal").font = header_font
     ws.cell(2, 2, "Account").font = header_font
+    ws.cell(2, 3, "Account Name").font = header_font
     for i, d in enumerate(period_dates):
-        c = ws.cell(2, 3 + i, d)
+        c = ws.cell(2, BAL_COL + i, d)
         c.font = header_font
         c.alignment = center
 
@@ -175,32 +179,55 @@ def _write_balance_sheet_xlsx(
 
     row_num = 3
     current_atype: str | None = None
+    current_is_debit: bool = True
     section_totals: list[float] = [0.0] * n
-    grand_totals: list[float] = [0.0] * n
+    asset_totals: list[float] = [0.0] * n
+    liab_equity_totals: list[float] = [0.0] * n
+    total_assets_written = False
+
+    def _fill_row(fill: PatternFill) -> None:
+        for col in range(1, total_cols + 1):
+            ws.cell(row_num, col).fill = fill
 
     def flush_section() -> None:
         nonlocal row_num
         if current_atype is None:
             return
+        _fill_row(subtotal_fill)
         ws.cell(row_num, 1, f"Total {current_atype}").font = Font(bold=True)
-        ws.cell(row_num, 1).fill = subtotal_fill
-        ws.cell(row_num, 2).fill = subtotal_fill
         for i, val in enumerate(section_totals):
-            c = ws.cell(row_num, 3 + i, val)
+            c = ws.cell(row_num, BAL_COL + i, val)
             c.number_format = currency_fmt
             c.font = Font(bold=True)
-            c.fill = subtotal_fill
+            c.alignment = right
+        row_num += 1
+        row_num += 1  # blank row after each section
+
+    def write_summary_row(label: str, totals: list[float], fill: PatternFill) -> None:
+        nonlocal row_num
+        _fill_row(fill)
+        ws.cell(row_num, 1, label).font = Font(bold=True, size=11)
+        for i, val in enumerate(totals):
+            c = ws.cell(row_num, BAL_COL + i, val)
+            c.number_format = currency_fmt
+            c.font = Font(bold=True, size=11)
             c.alignment = right
         row_num += 1
 
     for data_row in rows:
         atype = data_row["atype_name"]
+        is_debit: bool = data_row["debit_account"]
 
         if atype != current_atype:
             flush_section()
+            # Insert Total Assets row when transitioning from assets to liabilities
+            if current_atype is not None and current_is_debit and not is_debit:
+                write_summary_row("Total Assets", asset_totals, assets_fill)
+                row_num += 1  # blank row before liability sections
+                total_assets_written = True
             current_atype = atype
+            current_is_debit = is_debit
             section_totals = [0.0] * n
-            # Section header spanning all columns
             ws.merge_cells(
                 start_row=row_num, start_column=1,
                 end_row=row_num, end_column=total_cols,
@@ -212,34 +239,33 @@ def _write_balance_sheet_xlsx(
 
         ws.cell(row_num, 1, data_row["journal"]["name"])
         ws.cell(row_num, 2, data_row["acc_name"])
+        ws.cell(row_num, 3, data_row.get("description") or "")
         for i, bal in enumerate(data_row["balances"]):
             val = float(bal or 0.0)
-            c = ws.cell(row_num, 3 + i, val)
+            c = ws.cell(row_num, BAL_COL + i, val)
             c.number_format = currency_fmt
             c.alignment = right
             section_totals[i] += val
-            grand_totals[i] += val
-
+            if is_debit:
+                asset_totals[i] += val
+            else:
+                liab_equity_totals[i] += val
         row_num += 1
 
     flush_section()
 
-    # Grand total row
-    ws.cell(row_num, 1, "TOTAL").font = Font(bold=True, size=11)
-    ws.cell(row_num, 1).fill = grand_fill
-    ws.cell(row_num, 2).fill = grand_fill
-    for i, val in enumerate(grand_totals):
-        c = ws.cell(row_num, 3 + i, val)
-        c.number_format = currency_fmt
-        c.font = Font(bold=True, size=11)
-        c.alignment = right
-        c.fill = grand_fill
+    if not total_assets_written:
+        write_summary_row("Total Assets", asset_totals, assets_fill)
+        row_num += 1
+
+    write_summary_row("Total Liabilities + Equity", liab_equity_totals, liab_fill)
 
     # Column widths
-    ws.column_dimensions["A"].width = 22
-    ws.column_dimensions["B"].width = 32
+    ws.column_dimensions["A"].width = 20
+    ws.column_dimensions["B"].width = 24
+    ws.column_dimensions["C"].width = 32
     for i in range(n):
-        ws.column_dimensions[get_column_letter(3 + i)].width = 16
+        ws.column_dimensions[get_column_letter(BAL_COL + i)].width = 16
 
     wb.save(path)
 
