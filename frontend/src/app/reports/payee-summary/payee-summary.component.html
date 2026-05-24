@@ -1,0 +1,121 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="flex items-center justify-between w-full">
+      <div class="flex items-center gap-4">
+        <a
+          routerLink="/reports"
+          class="inline-flex items-center text-gray-400 hover:text-gray-900"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <h1 class="text-xl font-semibold text-gray-900">
+          Payee Summary
+          @if (accountName()) {
+            <span class="text-gray-400 font-normal text-base ml-2">— {{ accountName() }}</span>
+          }
+        </h1>
+      </div>
+      <div class="hidden md:flex items-center gap-3">
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="account-select">Account:</label>
+          <select id="account-select" [value]="selectedAccountId()" (change)="onAccountChange($event)">
+            <option value="">— select account —</option>
+            @for (entry of accountsByType() | keyvalue; track entry.key) {
+              <optgroup [label]="entry.key">
+                @for (account of entry.value; track account.id) {
+                  <option [value]="account.id">{{ account.acc_name }}</option>
+                }
+              </optgroup>
+            }
+          </select>
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="date1">From:</label>
+          <input id="date1" type="date" [value]="date1()" (change)="onDate1Change($event)" />
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="date2">To:</label>
+          <input id="date2" type="date" [value]="date2()" (change)="onDate2Change($event)" />
+        </div>
+        <button class="btn btn-primary" (click)="generate()">Generate</button>
+      </div>
+      <button
+        class="md:hidden p-2 text-gray-500 hover:text-gray-900"
+        (click)="filtersOpen.set(!filtersOpen())"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+      </button>
+    </div>
+    @if (filtersOpen()) {
+      <div class="flex flex-wrap items-center gap-3 md:hidden pt-3">
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="account-select-mobile">Account:</label>
+          <select id="account-select-mobile" [value]="selectedAccountId()" (change)="onAccountChange($event)">
+            <option value="">— select account —</option>
+            @for (entry of accountsByType() | keyvalue; track entry.key) {
+              <optgroup [label]="entry.key">
+                @for (account of entry.value; track account.id) {
+                  <option [value]="account.id">{{ account.acc_name }}</option>
+                }
+              </optgroup>
+            }
+          </select>
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="date1-mobile">From:</label>
+          <input id="date1-mobile" type="date" [value]="date1()" (change)="onDate1Change($event)" />
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="date2-mobile">To:</label>
+          <input id="date2-mobile" type="date" [value]="date2()" (change)="onDate2Change($event)" />
+        </div>
+        <button class="btn btn-primary" (click)="generate()">Generate</button>
+      </div>
+    }
+  </div>
+
+  <div class="page-content">
+    @if (rows().length > 0) {
+      <div class="card overflow-hidden">
+        <table>
+          <thead>
+            <tr>
+              <th>Payee</th>
+              <th class="text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.payee) {
+              <tr class="row-hover">
+                <td class="cell-primary">
+                  <div>{{ row.payee ?? '(no payee)' }}</div>
+                  @for (item of row.items; track item) {
+                    <div class="text-xs text-gray-400 mt-0.5">{{ item }}</div>
+                  }
+                </td>
+                <td class="text-right tabular-nums whitespace-nowrap">{{ row.debit | currency }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="font-semibold text-gray-700">Total</td>
+              <td class="text-right tabular-nums font-semibold whitespace-nowrap">{{ total() | currency }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    }
+
+    @if (rows().length === 0) {
+      <div class="card p-6 text-center text-gray-500 flex flex-col gap-1">
+        <p class="text-sm">No transactions for this account and date range.</p>
+        <p class="text-xs text-gray-400">Select an account and date range, then click Generate.</p>
+      </div>
+    }
+  </div>
+</div>

@@ -80,6 +80,20 @@ export interface MultiPeriodAccountTypeGroup {
   subtotals: number[];
 }
 
+export interface PayeeSummaryRow {
+  payee: string | null;
+  debit: number;
+  items: string[];
+}
+
+export interface PayeeSummaryResponse {
+  account_name: string;
+  date1: string;
+  date2: string;
+  debit_account: boolean;
+  data: PayeeSummaryRow[];
+}
+
 export interface AccountRunningBalanceRow {
   tid: string | null;
   trandate: string;

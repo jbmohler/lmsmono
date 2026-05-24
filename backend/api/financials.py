@@ -353,6 +353,34 @@ def transform_pl_txn_row(row: dict) -> dict:
     }
 
 
+def sql_payee_summary() -> str:
+    """Payee summary for a single account over a date range."""
+    return """
+        WITH memo_grouped AS (
+            SELECT
+                transactions.payee,
+                transactions.memo,
+                SUM(splits.sum) AS debit
+            FROM hacc.transactions
+            JOIN hacc.splits ON splits.stid = transactions.tid
+            JOIN hacc.accounts ON splits.account_id = accounts.id
+            WHERE accounts.id = %(account_id)s
+              AND transactions.trandate BETWEEN %(date1)s AND %(date2)s
+            GROUP BY transactions.payee, transactions.memo
+        )
+        SELECT
+            payee,
+            SUM(debit) AS debit,
+            array_agg(
+                format('%%s (%%s)', memo, to_char(debit, 'FM999,999.90'))
+                ORDER BY debit DESC
+            ) AS items
+        FROM memo_grouped
+        GROUP BY payee
+        ORDER BY payee
+    """
+
+
 def sql_account_running_balance() -> str:
     """Ledger-style running balance for a single balance sheet account with speculative future rows."""
     return """
@@ -586,6 +614,51 @@ class FinancialsController(Controller):
             return MultiRowResponse(
                 columns=PL_TRANSACTION_COLUMNS, data=data
             )
+
+    @get("/payee-summary", guards=[require_capability("transactions:read")])
+    async def payee_summary(
+        self,
+        conn: psycopg.AsyncConnection,
+        account_id: str = Parameter(description="Account UUID"),
+        date1: str = Parameter(description="Start date (ISO 8601)"),
+        date2: str = Parameter(description="End date (ISO 8601)"),
+    ) -> dict[str, Any]:
+        """Payee summary for a single account over a date range."""
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                "SELECT accounts.acc_name, accounttypes.debit AS debit_account "
+                "FROM hacc.accounts "
+                "JOIN hacc.accounttypes ON accounttypes.id = accounts.type_id "
+                "WHERE accounts.id = %(account_id)s",
+                {"account_id": account_id},
+            )
+            meta = await cur.fetchone()
+        if meta is None:
+            raise NotFoundException(detail="Account not found")
+
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                sql_payee_summary(),
+                {"account_id": account_id, "date1": date1, "date2": date2},
+            )
+            rows = await cur.fetchall()
+
+        data = [
+            {
+                "payee": row["payee"],
+                "debit": float(row["debit"] or 0.0),
+                "items": row["items"] or [],
+            }
+            for row in rows
+        ]
+
+        return {
+            "account_name": meta["acc_name"],
+            "date1": date1,
+            "date2": date2,
+            "debit_account": meta["debit_account"],
+            "data": data,
+        }
 
     @get("/account-running-balance", guards=[require_capability("transactions:read")])
     async def account_running_balance(

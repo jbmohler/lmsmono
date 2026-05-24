@@ -7,6 +7,7 @@ import {
   AccountRunningBalanceRow,
   BalanceSheetRow,
   MultiPeriodBalanceSheetResponse,
+  PayeeSummaryResponse,
   ProfitLossRow,
   ProfitLossTransactionRow,
 } from './report.models';
@@ -39,6 +40,14 @@ export class ReportService {
       account_id: accountId,
       d,
     });
+  }
+
+  paySummary(accountId: string, date1: string, date2: string): Observable<PayeeSummaryResponse> {
+    const params = new HttpParams()
+      .set('account_id', accountId)
+      .set('date1', date1)
+      .set('date2', date2);
+    return this.http.get<PayeeSummaryResponse>('/api/reports/payee-summary', { params });
   }
 
   multiPeriodBalanceSheet(

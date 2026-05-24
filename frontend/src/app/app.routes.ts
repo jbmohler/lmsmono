@@ -142,6 +142,12 @@ export const routes: Routes = [
       import('./reports/account-running-balance/account-running-balance.component').then(m => m.AccountRunningBalanceComponent),
   },
   {
+    path: 'reports/payee-summary',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./reports/payee-summary/payee-summary.component').then(m => m.PayeeSummaryComponent),
+  },
+  {
     path: 'reports/:reportType',
     canActivate: [authGuard],
     loadComponent: () => import('./reports/report-viewer.component').then(m => m.ReportViewerComponent),

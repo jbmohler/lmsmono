@@ -441,6 +441,110 @@ def _write_pl_transactions_xlsx(
 
 
 # ---------------------------------------------------------------------------
+# Account name resolution
+# ---------------------------------------------------------------------------
+
+
+def resolve_account_id(client: httpx.Client, name: str) -> str:
+    """Resolve an account name to its UUID.
+
+    Tries exact match first (case-insensitive), then falls back to
+    substring match.  Exits with an error if the result is ambiguous
+    or not found.
+    """
+    resp = client.get("/api/accounts")
+    if resp.status_code != 200:
+        print("Error: could not fetch account list", file=sys.stderr)
+        sys.exit(1)
+
+    accounts: list[dict] = resp.json().get("data", [])
+    needle = name.lower()
+
+    exact = [a for a in accounts if a["acc_name"].lower() == needle]
+    if len(exact) == 1:
+        return exact[0]["id"]
+    if len(exact) > 1:
+        print(f"Error: multiple accounts named '{name}':", file=sys.stderr)
+        for a in exact:
+            print(f"  {a['id']}  {a['acc_name']}", file=sys.stderr)
+        sys.exit(1)
+
+    partial = [a for a in accounts if needle in a["acc_name"].lower()]
+    if len(partial) == 1:
+        return partial[0]["id"]
+    if len(partial) > 1:
+        print(f"Error: '{name}' matches multiple accounts — be more specific:", file=sys.stderr)
+        for a in partial:
+            print(f"  {a['acc_name']}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Error: no account found matching '{name}'", file=sys.stderr)
+    sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Payee summary export
+# ---------------------------------------------------------------------------
+
+
+def cmd_payee_summary(args: argparse.Namespace) -> None:
+    today = datetime.date.today()
+    end_of_last_month = today.replace(day=1) - datetime.timedelta(days=1)
+    start_of_last_month = end_of_last_month.replace(day=1)
+
+    d1: str = args.d1 or start_of_last_month.isoformat()
+    d2: str = args.d2 or end_of_last_month.isoformat()
+
+    client = ensure_auth(args.url)
+    account_id: str = resolve_account_id(client, args.account)
+    resp = client.get(
+        "/api/reports/payee-summary",
+        params={"account_id": account_id, "date1": d1, "date2": d2},
+    )
+    client.close()
+
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("detail", f"HTTP {resp.status_code}")
+        except Exception:
+            detail = f"HTTP {resp.status_code}"
+        print(f"Error: {detail}", file=sys.stderr)
+        sys.exit(1)
+
+    payload = resp.json()
+    account_name: str = payload.get("account_name", account_id)
+    safe_name = account_name.replace(" ", "_").replace("/", "-")[:30]
+    output: str = args.output or f"payee_summary_{safe_name}_{d1[:7]}.xlsx"
+    _write_payee_summary_xlsx(output, payload)
+    print(f"Written: {output}")
+
+
+def _write_payee_summary_xlsx(path: str, payload: dict) -> None:
+    account_name: str = payload.get("account_name", "")
+    d1: str = payload["date1"]
+    d2: str = payload["date2"]
+    rows: list[dict] = payload["data"]
+
+    rs = ReportSheet("Payee Summary", n_text=2, n_val=1)
+    rs.write_title(f"Payee Summary — {account_name}")
+    rs.write_generated()
+    rs.write_note(f"{d1}  through  {d2}")
+    rs.write_blank()
+    rs.write_headers(["Payee", "Memo Details"], ["Amount"])
+    rs.set_col_widths([32, 48, 16])
+
+    data_start = rs.row
+    for row in rows:
+        payee = row.get("payee") or "(no payee)"
+        items: list[str] = row.get("items") or []
+        details = " | ".join(items)
+        rs.write_data_row([payee, details], [float(row.get("debit") or 0.0)])
+
+    rs.write_subtotal_row("Total", data_start)
+    rs.save(path)
+
+
+# ---------------------------------------------------------------------------
 # Logout
 # ---------------------------------------------------------------------------
 
@@ -511,6 +615,17 @@ def main() -> None:
     plt.add_argument("--d2", default=None, metavar="DATE", help="End date YYYY-MM-DD (default: last of last month)")
     plt.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .xlsx file (default: pl_transactions_YYYY-MM.xlsx)")
     plt.set_defaults(func=cmd_pl_transactions)
+
+    # payee-summary command
+    ps = subparsers.add_parser(
+        "payee-summary",
+        help="Export payee spending summary for a single account to Excel",
+    )
+    ps.add_argument("--account", required=True, metavar="NAME", help="Account name (partial match supported)")
+    ps.add_argument("--d1", default=None, metavar="DATE", help="Start date YYYY-MM-DD (default: first of last month)")
+    ps.add_argument("--d2", default=None, metavar="DATE", help="End date YYYY-MM-DD (default: last of last month)")
+    ps.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .xlsx file")
+    ps.set_defaults(func=cmd_payee_summary)
 
     # logout command
     lo = subparsers.add_parser("logout", help="Clear saved session")
