@@ -211,6 +211,10 @@ Common UI patterns are defined in `src/styles.css` using `@apply`. Use these cla
 - `.dialog-shortcuts` - hidden on mobile, shows keyboard shortcut hints
 - `.dialog-actions` - flex container for action buttons
 
+**Sub-navigation:**
+- `.subtab-link` / `.subtab-link-active` - horizontal underline tabs (used in admin tab bar and finances mobile strip); pair with `routerLinkActive="subtab-link-active"`
+- `.sidebar-link` / `.sidebar-link-active` - sidebar nav links with icon support (used in finances desktop sidebar); pair with `routerLinkActive="sidebar-link-active"`
+
 **Badges:**
 - `.badge` - base badge style (use with a color variant)
 - `.badge-gray` - gray badge for type labels

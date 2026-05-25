@@ -7,6 +7,7 @@
   transition: all 150ms ease-in-out;
   color: rgb(203 213 225); /* slate-300 */
   border: 1px solid transparent;
+  white-space: nowrap;
 
   &:hover {
     color: white;
