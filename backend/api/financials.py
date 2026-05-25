@@ -660,6 +660,53 @@ class FinancialsController(Controller):
             "data": data,
         }
 
+    @get("/transaction-detail", guards=[require_capability("transactions:read")])
+    async def transaction_detail(
+        self,
+        conn: psycopg.AsyncConnection,
+        d1: str = Parameter(description="Start date (ISO 8601)"),
+        d2: str = Parameter(description="End date (ISO 8601)"),
+    ) -> dict[str, Any]:
+        """All splits in a date range with sibling accounts, sorted by date/payee/memo/sum."""
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT
+                    t.trandate,
+                    t.tranref AS reference,
+                    a.acc_name,
+                    t.payee,
+                    t.memo,
+                    s.sum,
+                    (
+                        SELECT string_agg(a2.acc_name, '; ' ORDER BY a2.acc_name)
+                        FROM hacc.splits s2
+                        JOIN hacc.accounts a2 ON a2.id = s2.account_id
+                        WHERE s2.stid = t.tid
+                    ) AS accounts
+                FROM hacc.transactions t
+                JOIN hacc.splits s ON s.stid = t.tid
+                JOIN hacc.accounts a ON a.id = s.account_id
+                WHERE t.trandate BETWEEN %(d1)s AND %(d2)s
+                ORDER BY t.trandate, t.payee, t.memo, s.sum
+                """,
+                {"d1": d1, "d2": d2},
+            )
+            rows = await cur.fetchall()
+        data = [
+            {
+                "trandate": row["trandate"].isoformat() if hasattr(row["trandate"], "isoformat") else row["trandate"],
+                "reference": row["reference"],
+                "acc_name": row["acc_name"],
+                "payee": row["payee"],
+                "memo": row["memo"],
+                "sum": float(row["sum"] or 0.0),
+                "accounts": row["accounts"],
+            }
+            for row in rows
+        ]
+        return {"d1": d1, "d2": d2, "data": data}
+
     @get("/account-running-balance", guards=[require_capability("transactions:read")])
     async def account_running_balance(
         self,

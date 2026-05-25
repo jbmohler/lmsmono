@@ -265,6 +265,145 @@ def _write_balance_sheet_html(path: str, date: str, rows: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Transaction detail HTML export
+# ---------------------------------------------------------------------------
+
+
+def cmd_transaction_detail_html(args: argparse.Namespace) -> None:
+    today = datetime.date.today()
+    end_of_last_month = today.replace(day=1) - datetime.timedelta(days=1)
+    start_of_last_month = end_of_last_month.replace(day=1)
+
+    d1: str = args.d1 or start_of_last_month.isoformat()
+    d2: str = args.d2 or end_of_last_month.isoformat()
+
+    client = ensure_auth(args.url)
+    resp = client.get("/api/reports/transaction-detail", params={"d1": d1, "d2": d2})
+    client.close()
+
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("detail", f"HTTP {resp.status_code}")
+        except Exception:
+            detail = f"HTTP {resp.status_code}"
+        print(f"Error: {detail}", file=sys.stderr)
+        sys.exit(1)
+
+    payload = resp.json()
+    output: str = args.output or f"transactions_{d1[:7]}.html"
+    _write_transaction_detail_html(output, payload)
+    print(f"Written: {output}")
+
+
+def _write_transaction_detail_html(path: str, payload: dict) -> None:
+    d1: str = payload["d1"]
+    d2: str = payload["d2"]
+    rows: list[dict] = payload["data"]
+
+    lines = [
+        "<html>",
+        " <head>",
+        "  <title>Transaction Detail</title>",
+        "  <meta name=\"GENERATOR\" content=\"LMS CLI\" />",
+        "  <meta name=\"DESCRIPTION\" content=\"TransactionList\" />",
+        " </head>",
+        " <body>",
+        "  <h1>Transaction Detail</h1>",
+        f"  <p>Between {d1} and {d2}</p>",
+        "  <table>",
+        "<tr><th>Date</th><th>Reference</th><th>Account</th><th>Payee</th><th>Memo</th><th>Debit</th><th>Credit</th><th>Accounts</th></tr>",
+    ]
+    for row in rows:
+        # Reformat ISO date to MM/DD/YYYY
+        iso = row["trandate"]
+        date_fmt = f"{iso[5:7]}/{iso[8:10]}/{iso[:4]}"
+        s = row["sum"]
+        debit = f"{s:,.2f}" if s > 0 else ""
+        credit = f"{-s:,.2f}" if s < 0 else ""
+        lines.append(
+            f"<tr><td>{date_fmt}</td>"
+            f"<td>{row.get('reference') or ''}</td>"
+            f"<td>{row['acc_name']}</td>"
+            f"<td>{row.get('payee') or ''}</td>"
+            f"<td>{row.get('memo') or ''}</td>"
+            f"<td>{debit}</td>"
+            f"<td>{credit}</td>"
+            f"<td>{row.get('accounts') or ''}</td></tr>"
+        )
+    lines += [
+        "  </table>",
+        " </body>",
+        "</html>",
+    ]
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+# ---------------------------------------------------------------------------
+# P&L transactions HTML export
+# ---------------------------------------------------------------------------
+
+
+def cmd_pl_transactions_html(args: argparse.Namespace) -> None:
+    year: int = args.year or (datetime.date.today().year - 1)
+    d1 = f"{year}-01-01"
+    d2 = f"{year}-12-31"
+
+    client = ensure_auth(args.url)
+    resp = client.get("/api/reports/profit-loss-transactions", params={"d1": d1, "d2": d2})
+    client.close()
+
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("detail", f"HTTP {resp.status_code}")
+        except Exception:
+            detail = f"HTTP {resp.status_code}"
+        print(f"Error: {detail}", file=sys.stderr)
+        sys.exit(1)
+
+    rows: list[dict] = resp.json()["data"]
+    output: str = args.output or f"pl_transactions_{year}.html"
+    _write_pl_transactions_html(output, year, rows)
+    print(f"Written: {output}")
+
+
+def _write_pl_transactions_html(path: str, year: int, rows: list[dict]) -> None:
+    lines = [
+        "<html>",
+        " <head>",
+        "  <title>P&amp;L Transactions</title>",
+        "  <meta name=\"GENERATOR\" content=\"LMS CLI\" />",
+        "  <meta name=\"DESCRIPTION\" content=\"PLTransactions\" />",
+        " </head>",
+        " <body>",
+        "  <h1>P&amp;L Transactions</h1>",
+        f"  <p>Year: {year}</p>",
+        "  <table>",
+        "<tr><th>Account Type</th><th>Journal</th><th>Account</th><th>Date</th><th>Payee</th><th>Memo</th><th>Amount</th></tr>",
+    ]
+    for row in rows:
+        iso = row["trandate"]
+        date_fmt = f"{iso[5:7]}/{iso[8:10]}/{iso[:4]}"
+        amount = f"{float(row.get('amount') or 0.0):,.2f}"
+        lines.append(
+            f"<tr><td>{row['atype_name']}</td>"
+            f"<td>{row['journal']['name']}</td>"
+            f"<td>{row['acc_name']}</td>"
+            f"<td>{date_fmt}</td>"
+            f"<td>{row.get('payee') or ''}</td>"
+            f"<td>{row.get('memo') or ''}</td>"
+            f"<td>{amount}</td></tr>"
+        )
+    lines += [
+        "  </table>",
+        " </body>",
+        "</html>",
+    ]
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+# ---------------------------------------------------------------------------
 # Profit & loss export
 # ---------------------------------------------------------------------------
 
@@ -664,6 +803,25 @@ def main() -> None:
     bs.add_argument("--periods", type=int, default=3, metavar="N", help="Number of annual periods (default: 3)")
     bs.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .xlsx file (default: balance_sheet_YYYY_MM.xlsx)")
     bs.set_defaults(func=cmd_balance_sheet)
+
+    # transaction-detail-html command
+    tdh = subparsers.add_parser(
+        "transaction-detail-html",
+        help="Export transaction detail to HTML",
+    )
+    tdh.add_argument("--d1", default=None, metavar="DATE", help="Start date YYYY-MM-DD (default: first of last month)")
+    tdh.add_argument("--d2", default=None, metavar="DATE", help="End date YYYY-MM-DD (default: last of last month)")
+    tdh.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .html file (default: transactions_YYYY-MM.html)")
+    tdh.set_defaults(func=cmd_transaction_detail_html)
+
+    # pl-transactions-html command
+    plth = subparsers.add_parser(
+        "pl-transactions-html",
+        help="Export P&L transaction detail for a full year to HTML",
+    )
+    plth.add_argument("--year", type=int, default=None, metavar="YEAR", help="Calendar year (default: prior year)")
+    plth.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .html file (default: pl_transactions_YYYY.html)")
+    plth.set_defaults(func=cmd_pl_transactions_html)
 
     # balance-sheet-html command
     bsh = subparsers.add_parser(
