@@ -24,6 +24,7 @@ export interface Transaction {
 /** Transaction with splits (detail view) */
 export interface TransactionDetail extends Transaction {
   splits: TransactionSplit[];
+  receipt: string | null;
 }
 
 /** Split data for create/update (account_id instead of ref) */
@@ -40,6 +41,7 @@ export interface TransactionCreate {
   tranref?: string | null;
   payee?: string | null;
   memo?: string | null;
+  receipt?: string | null;
 }
 
 /** Data for updating a transaction */
@@ -48,6 +50,7 @@ export interface TransactionUpdate {
   tranref?: string | null;
   payee?: string | null;
   memo?: string | null;
+  receipt?: string | null;
   splits?: SplitInput[] | null;
 }
 

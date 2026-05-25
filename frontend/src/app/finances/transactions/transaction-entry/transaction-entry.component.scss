@@ -1,3 +1,33 @@
+/* Quill full-width layout */
+.receipt-editor quill-editor,
+.receipt-editor ::ng-deep .ql-container,
+.receipt-editor ::ng-deep .ql-editor {
+  display: block;
+  width: 100%;
+}
+
+/* Hide Quill toolbar on mobile; paste still works without it */
+.receipt-editor ::ng-deep .ql-toolbar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .receipt-editor ::ng-deep .ql-toolbar {
+    display: block;
+  }
+}
+
+/* Remove double border between toolbar and editor */
+.receipt-editor ::ng-deep .ql-container {
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (min-width: 768px) {
+  .receipt-editor ::ng-deep .ql-container {
+    border-top: none;
+  }
+}
+
 /* Hide number input spinners */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

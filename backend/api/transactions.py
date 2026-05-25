@@ -80,7 +80,8 @@ def sql_select_transaction_by_id() -> str:
             t.trandate,
             t.tranref,
             t.payee,
-            t.memo
+            t.memo,
+            t.receipt
         FROM hacc.transactions t
         WHERE t.tid = %(id)s
     """
@@ -189,8 +190,8 @@ def sql_select_transaction_templates() -> str:
 def sql_insert_transaction() -> str:
     """Create a new transaction."""
     return """
-        INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-        VALUES (%(trandate)s, %(tranref)s, %(payee)s, %(memo)s)
+        INSERT INTO hacc.transactions (trandate, tranref, payee, memo, receipt)
+        VALUES (%(trandate)s, %(tranref)s, %(payee)s, %(memo)s, %(receipt)s)
         RETURNING tid
     """
 
@@ -205,7 +206,7 @@ def sql_insert_split() -> str:
 
 def sql_update_transaction(fields: set[str]) -> str:
     """Update transaction fields dynamically."""
-    valid_fields = {"trandate", "tranref", "payee", "memo"}
+    valid_fields = {"trandate", "tranref", "payee", "memo", "receipt"}
     updates = [f"{f} = %({f})s" for f in fields if f in valid_fields]
     if not updates:
         raise ValueError("No valid fields to update")
@@ -270,6 +271,7 @@ TRANSACTION_COLUMNS = [
     ColumnMeta(key="tranref", label="Reference", type="string"),
     ColumnMeta(key="payee", label="Payee", type="string"),
     ColumnMeta(key="memo", label="Memo", type="string"),
+    ColumnMeta(key="receipt", label="Receipt", type="string"),
 ]
 
 SPLIT_COLUMNS = [
@@ -317,6 +319,7 @@ class TransactionCreate:
     tranref: str | None = None
     payee: str | None = None
     memo: str | None = None
+    receipt: str | None = None
 
 
 @dataclass
@@ -325,6 +328,7 @@ class TransactionUpdate:
     tranref: str | None = None
     payee: str | None = None
     memo: str | None = None
+    receipt: str | None = None
     splits: list[SplitInput] | None = None
 
 
@@ -473,6 +477,7 @@ class TransactionsController(Controller):
                 "tranref": data.tranref,
                 "payee": data.payee,
                 "memo": data.memo,
+                "receipt": data.receipt,
             },
         )
         if not row:
@@ -527,6 +532,9 @@ class TransactionsController(Controller):
         if data.memo is not None:
             fields.add("memo")
             params["memo"] = data.memo
+        if data.receipt is not None:
+            fields.add("receipt")
+            params["receipt"] = data.receipt
 
         if fields:
             await db.execute(

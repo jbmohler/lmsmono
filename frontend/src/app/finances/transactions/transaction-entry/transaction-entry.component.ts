@@ -4,6 +4,7 @@ import { KeyValuePipe } from '@angular/common';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, filter, switchMap, tap } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { QuillEditorComponent } from 'ngx-quill';
 import { AccountService } from '@finances/services/account.service';
 import { TransactionService } from '@finances/services/transaction.service';
 import { SplitInput, TemplateSearchResult } from '@finances/models/transaction.model';
@@ -19,7 +20,7 @@ interface TransactionLine {
   selector: 'app-transaction-entry',
   templateUrl: './transaction-entry.component.html',
   styleUrl: './transaction-entry.component.scss',
-  imports: [FormsModule, KeyValuePipe],
+  imports: [FormsModule, KeyValuePipe, QuillEditorComponent],
 })
 export class TransactionEntryComponent {
   private accountService = inject(AccountService);
@@ -70,6 +71,12 @@ export class TransactionEntryComponent {
   reference = signal('');
   payee = signal('');
   memo = signal('');
+  receipt = signal<string | null>(null);
+  receiptOpen = signal(false);
+
+  quillModules = {
+    toolbar: [['bold', 'italic'], [{ list: 'bullet' }, { list: 'ordered' }], ['link', 'clean']],
+  };
 
   // Loading and saving state
   loading = signal(false);
@@ -216,6 +223,7 @@ export class TransactionEntryComponent {
         this.reference.set(txn.tranref || '');
         this.payee.set(txn.payee || '');
         this.memo.set(txn.memo || '');
+        this.receipt.set(txn.receipt || null);
 
         // Convert splits to lines
         const newLines: TransactionLine[] = txn.splits.map((split) => ({
@@ -351,12 +359,16 @@ export class TransactionEntryComponent {
       }));
 
     const id = this.transactionId();
+    const rawReceipt = this.receipt();
+    // Quill emits '<p><br></p>' for an empty editor — treat that as no receipt
+    const receiptHtml = rawReceipt && rawReceipt !== '<p><br></p>' ? rawReceipt : null;
     const request$ = id
       ? this.transactionService.update(id, {
           trandate: this.date(),
           tranref: this.reference() || null,
           payee: this.payee() || null,
           memo: this.memo() || null,
+          receipt: receiptHtml,
           splits,
         })
       : this.transactionService.create({
@@ -364,6 +376,7 @@ export class TransactionEntryComponent {
           tranref: this.reference() || undefined,
           payee: this.payee() || undefined,
           memo: this.memo() || undefined,
+          receipt: receiptHtml ?? undefined,
           splits,
         });
 
@@ -378,6 +391,10 @@ export class TransactionEntryComponent {
         this.errorMessage.set(err.message || 'Failed to save transaction');
       },
     });
+  }
+
+  toggleReceipt(): void {
+    this.receiptOpen.update(open => !open);
   }
 
   onCancel(): void {

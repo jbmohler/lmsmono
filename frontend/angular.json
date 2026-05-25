@@ -17,7 +17,7 @@
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.app.json",
-            "styles": ["src/styles.built.css"],
+            "styles": ["src/styles.built.css", "node_modules/quill/dist/quill.snow.css"],
             "scripts": [],
             "assets": [
               {

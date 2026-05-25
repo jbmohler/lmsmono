@@ -127,6 +127,41 @@
       </div>
     </div>
 
+    <!-- Receipt (collapsible) -->
+    <div>
+      <button
+        type="button"
+        (click)="toggleReceipt()"
+        class="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+      >
+        <svg
+          class="w-3.5 h-3.5 transition-transform"
+          [class.rotate-90]="receiptOpen()"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+        Receipt
+        @if (receipt() && !receiptOpen()) {
+          <span class="text-xs text-blue-600 ml-1">(attached)</span>
+        }
+      </button>
+      @if (receiptOpen()) {
+        <div class="mt-2 border border-gray-200 rounded-md overflow-y-auto max-h-[50vh] receipt-editor">
+          <quill-editor
+            class="w-full"
+            [ngModel]="receipt()"
+            (ngModelChange)="receipt.set($event)"
+            [modules]="quillModules"
+            placeholder="Paste receipt here..."
+            [styles]="{ 'min-height': '120px', 'font-size': '13px' }"
+          />
+        </div>
+      }
+    </div>
+
     <!-- Line items table -->
     <div class="border border-gray-200 rounded-md overflow-y-auto max-h-72 input-compact">
       <table>
