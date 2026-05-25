@@ -195,6 +195,76 @@ def _write_balance_sheet_xlsx(
 
 
 # ---------------------------------------------------------------------------
+# Balance sheet HTML export
+# ---------------------------------------------------------------------------
+
+
+def cmd_balance_sheet_html(args: argparse.Namespace) -> None:
+    today = datetime.date.today()
+    prior_month_end = today.replace(day=1) - datetime.timedelta(days=1)
+
+    if args.date:
+        d = datetime.date.fromisoformat(args.date)
+    else:
+        d = prior_month_end
+
+    client = ensure_auth(args.url)
+    resp = client.get(
+        "/api/reports/multi-period-balance-sheet",
+        params={"year": d.year, "month": d.month, "periods": 1},
+    )
+    client.close()
+
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("detail", f"HTTP {resp.status_code}")
+        except Exception:
+            detail = f"HTTP {resp.status_code}"
+        print(f"Error: {detail}", file=sys.stderr)
+        sys.exit(1)
+
+    payload = resp.json()
+    period_date: str = payload["periods"][0]
+    rows: list[dict] = payload["data"]
+
+    output: str = args.output or f"balance_sheet_{period_date}.html"
+    _write_balance_sheet_html(output, period_date, rows)
+    print(f"Written: {output}")
+
+
+def _write_balance_sheet_html(path: str, date: str, rows: list[dict]) -> None:
+    lines = [
+        "<html>",
+        " <head>",
+        "  <title>Balance Sheet</title>",
+        "  <meta name=\"GENERATOR\" content=\"LMS CLI\" />",
+        "  <meta name=\"DESCRIPTION\" content=\"BalanceSheet\" />",
+        " </head>",
+        " <body>",
+        "  <h1>Balance Sheet</h1>",
+        f"  <p>Date:  {date}</p>",
+        "  <table>",
+        "<tr><th>Account Type</th><th>Journal</th><th>Account</th><th>Description</th><th>Balance</th></tr>",
+    ]
+    for row in rows:
+        balance = f"{float(row['balances'][0] or 0.0):,.2f}"
+        lines.append(
+            f"<tr><td>{row['atype_name']}</td>"
+            f"<td>{row['journal']['name']}</td>"
+            f"<td>{row['acc_name']}</td>"
+            f"<td>{row.get('description') or ''}</td>"
+            f"<td>{balance}</td></tr>"
+        )
+    lines += [
+        "  </table>",
+        " </body>",
+        "</html>",
+    ]
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+# ---------------------------------------------------------------------------
 # Profit & loss export
 # ---------------------------------------------------------------------------
 
@@ -594,6 +664,15 @@ def main() -> None:
     bs.add_argument("--periods", type=int, default=3, metavar="N", help="Number of annual periods (default: 3)")
     bs.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .xlsx file (default: balance_sheet_YYYY_MM.xlsx)")
     bs.set_defaults(func=cmd_balance_sheet)
+
+    # balance-sheet-html command
+    bsh = subparsers.add_parser(
+        "balance-sheet-html",
+        help="Export balance sheet to HTML",
+    )
+    bsh.add_argument("--date", default=None, metavar="DATE", help="Report date YYYY-MM-DD (default: end of prior month)")
+    bsh.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .html file (default: balance_sheet_YYYY-MM-DD.html)")
+    bsh.set_defaults(func=cmd_balance_sheet_html)
 
     # profit-loss command
     pl = subparsers.add_parser(
