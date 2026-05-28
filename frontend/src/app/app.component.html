@@ -5,7 +5,10 @@
     <div class="max-w-7xl mx-auto px-4 min-w-0">
       <!-- Top bar with logo and user menu -->
       <div class="flex items-center justify-between h-12">
-        <a routerLink="/" class="text-lg font-semibold text-white tracking-tight">LMS</a>
+        <a routerLink="/" class="flex items-center gap-2 text-lg font-semibold text-white tracking-tight">
+          <img src="/assets/logo.svg" alt="LMS logo" class="h-7 w-7">
+          LMS
+        </a>
         <div class="flex items-center gap-4">
           <span class="text-sm text-slate-300">{{ user()?.username }}</span>
           <button

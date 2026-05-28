@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Main limb, bottom-left to upper-right -->
+  <path d="M 7 27 Q 13 19 19 11" stroke="#7c4a1a" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <!-- Branch left -->
+  <path d="M 13 19 Q 9 14 7 10" stroke="#7c4a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Branch right -->
+  <path d="M 17 14 Q 21 11 25 8" stroke="#7c4a1a" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Small twig off left branch -->
+  <path d="M 9 14 Q 7 12 6 9" stroke="#7c4a1a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</svg>

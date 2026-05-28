@@ -1,5 +1,20 @@
 # Frontend Development Guidelines
 
+## Assets
+
+### SVG Files
+
+Always serve SVG files from the Angular assets folder (`src/assets/`), never inline SVG markup in templates. Reference them with a standard `<img>` tag:
+
+```html
+<img src="/assets/logo.svg" alt="description" class="h-7 w-7">
+```
+
+Current assets:
+- `logo.svg` — branch/limb logo, tan on transparent (for dark backgrounds)
+- `favicon.svg` — branch/limb favicon, dark brown on transparent (for light browser tabs)
+- `icons/sprite.svg` — icon sprite sheet
+
 ## Angular Patterns
 
 ### Signals and Reactivity
