@@ -149,7 +149,7 @@
             <div class="flex flex-col gap-3">
               <!-- Full Name -->
               <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">Full Name</label>
+                <label class="form-label text-gray-600">Full Name</label>
                 @if (editMode()) {
                   <input
                     type="text"
@@ -166,7 +166,7 @@
 
               <!-- Description -->
               <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1">Description</label>
+                <label class="form-label text-gray-600">Description</label>
                 @if (editMode()) {
                   <textarea
                     [ngModel]="editDescr()"
