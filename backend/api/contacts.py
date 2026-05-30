@@ -792,9 +792,9 @@ async def _update_bit(
             detail=f"Field 'clear_password' is not valid for {bit_type} contact bits",
         )
 
-    # Common nullable fields: always update (None saves as NULL)
+    # Common nullable string fields: always update (empty string normalized to NULL)
     updates = ["name = %(name)s", "memo = %(memo)s"]
-    params: dict = {"id": bit_id, "name": data.name, "memo": data.memo}
+    params: dict = {"id": bit_id, "name": data.name or None, "memo": data.memo or None}
 
     # Non-nullable common fields: only update if provided
     if data.is_primary is not None:
@@ -1039,8 +1039,14 @@ class ContactsController(Controller):
             fields.add("last_name")
             params["last_name"] = data.last_name
 
-        # Nullable fields: always update (None saves as NULL)
-        for field in ("first_name", "title", "organization", "memo", "birthday", "anniversary"):
+        # Nullable string fields: always update (empty string normalized to NULL)
+        for field in ("first_name", "title", "organization", "memo"):
+            fields.add(field)
+            val = getattr(data, field)
+            params[field] = val or None
+
+        # Nullable date fields: always update (None saves as NULL)
+        for field in ("birthday", "anniversary"):
             fields.add(field)
             params[field] = getattr(data, field)
 
