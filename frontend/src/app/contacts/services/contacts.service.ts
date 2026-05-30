@@ -247,10 +247,10 @@ function toPersonaUpdate(persona: Partial<Persona>): PersonaUpdate {
   const update: PersonaUpdate = {};
   if (persona.isCorporate !== undefined) update.is_corporate = persona.isCorporate;
   if (persona.lastName !== undefined) update.last_name = persona.lastName;
-  if (persona.firstName !== undefined) update.first_name = persona.firstName || null;
-  if (persona.title !== undefined) update.title = persona.title || null;
-  if (persona.organization !== undefined) update.organization = persona.organization || null;
-  if (persona.memo !== undefined) update.memo = persona.memo || null;
+  if (persona.firstName !== undefined) update.first_name = persona.firstName ?? null;
+  if (persona.title !== undefined) update.title = persona.title ?? null;
+  if (persona.organization !== undefined) update.organization = persona.organization ?? null;
+  if (persona.memo !== undefined) update.memo = persona.memo ?? null;
   if (persona.birthday !== undefined) update.birthday = persona.birthday;
   if (persona.anniversary !== undefined) update.anniversary = persona.anniversary;
   return update;
@@ -297,35 +297,49 @@ function toBitCreate(bit: ContactBit): BitCreate {
 }
 
 /**
- * Transform frontend ContactBit to API bit update request
+ * Transform frontend ContactBit to API bit update request.
+ * Only fields valid for the bit's type are sent; cross-type fields are excluded.
  */
 function toBitUpdate(
-  bit: Partial<ContactBit> & { bitType?: string; password?: string; clearPassword?: boolean }
+  bit: Partial<ContactBit> & { password?: string; clearPassword?: boolean }
 ): BitUpdate {
   const update: BitUpdate = {};
 
-  if ('label' in bit) update.name = bit.label || null;
-  if ('memo' in bit) update.memo = bit.memo || null;
+  // Common nullable fields: always include, null saves as NULL
+  if ('label' in bit) update.name = bit.label ?? null;
+  if ('memo' in bit) update.memo = bit.memo ?? null;
   if ('isPrimary' in bit) update.is_primary = bit.isPrimary;
   if ('bitSequence' in bit) update.bit_sequence = bit.bitSequence;
 
-  // Type-specific fields
-  if ('email' in bit) update.email = (bit as ContactEmail).email;
-  if ('number' in bit) update.number = (bit as ContactPhone).number;
-  if ('address1' in bit) update.address1 = (bit as ContactAddress).address1;
-  if ('address2' in bit) update.address2 = (bit as ContactAddress).address2;
-  if ('city' in bit) update.city = (bit as ContactAddress).city;
-  if ('state' in bit) update.state = (bit as ContactAddress).state;
-  if ('zip' in bit) update.zip = (bit as ContactAddress).zip;
-  if ('country' in bit) update.country = (bit as ContactAddress).country;
-  if ('url' in bit) update.url = (bit as ContactUrl).url;
-  if ('username' in bit) update.username = (bit as ContactUrl).username;
-
-  // Password fields
-  if ('password' in bit && bit.password) update.password = bit.password;
-  if ('clearPassword' in bit && bit.clearPassword) update.clear_password = true;
-  if ('pwResetDt' in bit) update.pw_reset_dt = (bit as ContactUrl).pwResetDt;
-  if ('pwNextResetDt' in bit) update.pw_next_reset_dt = (bit as ContactUrl).pwNextResetDt;
+  // Type-specific: only send fields that belong to this bit type
+  switch ((bit as ContactBit).bitType) {
+    case 'email':
+      if ('email' in bit) update.email = (bit as ContactEmail).email;
+      break;
+    case 'phone':
+      if ('number' in bit) update.number = (bit as ContactPhone).number;
+      break;
+    case 'address': {
+      const addr = bit as ContactAddress;
+      if ('address1' in bit) update.address1 = addr.address1;
+      if ('address2' in bit) update.address2 = addr.address2;
+      if ('city' in bit) update.city = addr.city;
+      if ('state' in bit) update.state = addr.state;
+      if ('zip' in bit) update.zip = addr.zip;
+      if ('country' in bit) update.country = addr.country;
+      break;
+    }
+    case 'url': {
+      const urlBit = bit as ContactUrl;
+      if ('url' in bit) update.url = urlBit.url;
+      if ('username' in bit) update.username = urlBit.username;
+      if (bit.password) update.password = bit.password;
+      if (bit.clearPassword) update.clear_password = true;
+      if ('pwResetDt' in bit) update.pw_reset_dt = urlBit.pwResetDt;
+      if ('pwNextResetDt' in bit) update.pw_next_reset_dt = urlBit.pwNextResetDt;
+      break;
+    }
+  }
 
   return update;
 }

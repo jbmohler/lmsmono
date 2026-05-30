@@ -403,6 +403,14 @@ VIEW_BIT_TYPE_MAP = {
     "urls": "url",
 }
 
+# Fields that are specific to each bit type (all others are cross-type errors)
+BIT_TYPE_FIELDS: dict[str, set[str]] = {
+    "email": {"email"},
+    "phone": {"number"},
+    "address": {"address1", "address2", "city", "state", "zip", "country"},
+    "url": {"url", "username", "password", "pw_reset_dt", "pw_next_reset_dt"},
+}
+
 
 # Column definitions for persona list (summary view)
 PERSONA_LIST_COLUMNS = [
@@ -768,17 +776,27 @@ async def _update_bit(
     """Update an existing contact bit."""
     table = BIT_TYPE_TABLES[bit_type]
 
-    # Build dynamic update
-    updates = []
-    params: dict = {"id": bit_id}
+    # Reject fields that belong to a different bit type
+    for other_type, type_fields in BIT_TYPE_FIELDS.items():
+        if other_type == bit_type:
+            continue
+        for field in type_fields:
+            if getattr(data, field, None) is not None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Field '{field}' is not valid for {bit_type} contact bits",
+                )
+    if bit_type != "url" and data.clear_password:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Field 'clear_password' is not valid for {bit_type} contact bits",
+        )
 
-    # Common fields
-    if data.name is not None:
-        updates.append("name = %(name)s")
-        params["name"] = data.name
-    if data.memo is not None:
-        updates.append("memo = %(memo)s")
-        params["memo"] = data.memo
+    # Common nullable fields: always update (None saves as NULL)
+    updates = ["name = %(name)s", "memo = %(memo)s"]
+    params: dict = {"id": bit_id, "name": data.name, "memo": data.memo}
+
+    # Non-nullable common fields: only update if provided
     if data.is_primary is not None:
         updates.append("is_primary = %(is_primary)s")
         params["is_primary"] = data.is_primary
@@ -787,13 +805,15 @@ async def _update_bit(
         params["bit_sequence"] = data.bit_sequence
 
     # Type-specific fields
-    if bit_type == "email" and data.email is not None:
-        updates.append("email = %(email)s")
-        params["email"] = data.email
+    if bit_type == "email":
+        if data.email is not None:
+            updates.append("email = %(email)s")
+            params["email"] = data.email
 
-    elif bit_type == "phone" and data.number is not None:
-        updates.append("number = %(number)s")
-        params["number"] = data.number
+    elif bit_type == "phone":
+        if data.number is not None:
+            updates.append("number = %(number)s")
+            params["number"] = data.number
 
     elif bit_type == "address":
         if data.address1 is not None:
@@ -823,7 +843,6 @@ async def _update_bit(
             updates.append("username = %(username)s")
             params["username"] = data.username
         if data.password is not None:
-            # Setting a new password
             if not crypto.is_initialized():
                 raise HTTPException(
                     status_code=500,
@@ -836,17 +855,13 @@ async def _update_bit(
                 updates.append("pw_reset_dt = %(pw_reset_dt)s")
                 params["pw_reset_dt"] = date.today()
         elif data.clear_password:
-            # Clearing the password (only if not setting a new one)
             updates.append("password_enc = NULL")
         if data.pw_reset_dt is not None:
             updates.append("pw_reset_dt = %(pw_reset_dt)s")
             params["pw_reset_dt"] = data.pw_reset_dt
-        if data.pw_next_reset_dt is not None:
-            updates.append("pw_next_reset_dt = %(pw_next_reset_dt)s")
-            params["pw_next_reset_dt"] = data.pw_next_reset_dt
-
-    if not updates:
-        return 1  # Nothing to update, but not an error
+        # pw_next_reset_dt is nullable: always update (None saves as NULL)
+        updates.append("pw_next_reset_dt = %(pw_next_reset_dt)s")
+        params["pw_next_reset_dt"] = data.pw_next_reset_dt
 
     return await db.execute(
         conn,
@@ -1013,37 +1028,21 @@ class ContactsController(Controller):
         """Update an existing contact. Only the owner can update."""
         await _verify_persona_access(conn, contact_id, current_user.id, require_owner=True)
 
-        # Build dynamic update query
         fields: set[str] = set()
         params: dict = {"id": contact_id}
 
+        # Non-nullable fields: only update if provided
         if data.is_corporate is not None:
             fields.add("is_corporate")
             params["is_corporate"] = data.is_corporate
         if data.last_name is not None:
             fields.add("last_name")
             params["last_name"] = data.last_name
-        if data.first_name is not None:
-            fields.add("first_name")
-            params["first_name"] = data.first_name
-        if data.title is not None:
-            fields.add("title")
-            params["title"] = data.title
-        if data.organization is not None:
-            fields.add("organization")
-            params["organization"] = data.organization
-        if data.memo is not None:
-            fields.add("memo")
-            params["memo"] = data.memo
-        if data.birthday is not None:
-            fields.add("birthday")
-            params["birthday"] = data.birthday
-        if data.anniversary is not None:
-            fields.add("anniversary")
-            params["anniversary"] = data.anniversary
 
-        if not fields:
-            return await _get_persona_by_id(conn, contact_id, current_user.id)
+        # Nullable fields: always update (None saves as NULL)
+        for field in ("first_name", "title", "organization", "memo", "birthday", "anniversary"):
+            fields.add(field)
+            params[field] = getattr(data, field)
 
         await db.execute(
             conn,
