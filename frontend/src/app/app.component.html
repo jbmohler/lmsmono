@@ -2,23 +2,21 @@
 <div class="h-screen w-full grid grid-rows-[auto_1fr_auto] bg-gray-100 overflow-x-hidden">
   <!-- Header -->
   <header class="bg-slate-800 min-w-0">
-    <div class="max-w-7xl mx-auto px-4 min-w-0">
-      <!-- Top bar with logo and user menu -->
-      <div class="flex items-center justify-between h-12">
-        <a routerLink="/" class="flex items-center gap-2 text-lg font-semibold text-white tracking-tight">
-          <img src="/assets/logo.svg" alt="LMS logo" class="h-7 w-7">
-          LMS
-        </a>
-        <div class="flex items-center gap-4">
-          <span class="text-sm text-slate-300">{{ user()?.username }}</span>
-          <button
-            type="button"
-            (click)="logout()"
-            class="text-sm text-slate-400 hover:text-white"
-          >
-            Sign out
-          </button>
-        </div>
+    <!-- Top bar with logo and user menu -->
+    <div class="flex items-center justify-between h-12 px-4">
+      <a routerLink="/" class="flex items-center gap-2 text-lg font-semibold text-white tracking-tight">
+        <img src="/assets/logo.svg" alt="LMS logo" class="h-7 w-7">
+        LMS
+      </a>
+      <div class="flex items-center gap-4">
+        <span class="text-sm text-slate-300">{{ user()?.username }}</span>
+        <button
+          type="button"
+          (click)="logout()"
+          class="text-sm text-slate-400 hover:text-white"
+        >
+          Sign out
+        </button>
       </div>
     </div>
     <!-- Tab bar -->
