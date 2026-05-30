@@ -7,10 +7,12 @@ import {
   ContactPhone,
   ContactAddress,
   ContactUrl,
+  ContactTag,
 } from '../contacts.model';
 import { BitEditDialogComponent, BitEditResult } from '../bit-edit-dialog/bit-edit-dialog.component';
 import { SharingDialogComponent } from '../sharing-dialog/sharing-dialog.component';
 import { ContactsService } from '../services/contacts.service';
+import { TagSelectorComponent } from '@shared/components/tag-selector/tag-selector.component';
 
 @Pipe({ name: 'asEmail' })
 class AsEmailPipe implements PipeTransform {
@@ -78,6 +80,7 @@ class MemoNeedsExpandPipe implements PipeTransform {
     FormsModule,
     BitEditDialogComponent,
     SharingDialogComponent,
+    TagSelectorComponent,
     AsEmailPipe,
     AsPhonePipe,
     AsAddressPipe,
@@ -106,14 +109,41 @@ export class ContactDetailComponent {
   isEditing = signal(false);
   editData = signal<Persona | null>(null);
 
+  localContactTags = signal<ContactTag[]>([]);
+
   constructor() {
     effect(() => {
       if (this.startInEditMode()) this.enterEditMode();
     });
+    effect(() => {
+      // Sync local tag state when contact changes
+      this.localContactTags.set(this.contact().tags ?? []);
+    });
+    void this.contactsService.loadTagTree();
   }
   editingBit = signal<ContactBit | null>(null);
   shares = computed(() => this.contact().shares ?? []);
   showSharingDialog = signal(false);
+
+  allTags = this.contactsService.tagTree;
+  contactTagIds = computed(() => this.localContactTags().map(t => t.id));
+  showTagPopover = signal(false);
+
+  sortedContactTags = computed(() => {
+    const selected = this.localContactTags();
+    const allMap = new Map((this.allTags() ?? []).map(t => [t.id, t]));
+    const depth = (id: string, seen = new Set<string>()): number => {
+      if (seen.has(id)) return 0;
+      const t = allMap.get(id);
+      if (!t?.parentId) return 0;
+      seen.add(id);
+      return 1 + depth(t.parentId, seen);
+    };
+    return [...selected].sort((a, b) => {
+      const diff = depth(a.id) - depth(b.id);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    });
+  });
   copyingPasswordId = signal<string | null>(null);
 
   displayName = computed(() => {
@@ -246,5 +276,22 @@ export class ContactDetailComponent {
 
   onSharesChanged(): void {
     this.contactRefresh.emit();
+  }
+
+  async onTagToggled(event: { tagIds: string[]; action: 'add' | 'remove' }): Promise<void> {
+    const contactId = this.contact().id;
+    try {
+      let updatedTags: ContactTag[] = this.localContactTags();
+      if (event.action === 'add') {
+        updatedTags = await this.contactsService.addContactTag(contactId, event.tagIds[0]);
+      } else {
+        for (const tagId of event.tagIds) {
+          updatedTags = await this.contactsService.removeContactTag(contactId, tagId);
+        }
+      }
+      this.localContactTags.set(updatedTags);
+    } catch {
+      // error handled by service
+    }
   }
 }

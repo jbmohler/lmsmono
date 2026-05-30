@@ -127,6 +127,7 @@ export class ContactsComponent {
       anniversary: null,
       isCorporate: false,
       bits: [],
+      tags: [],
     });
     this.mobileShowDetail.set(true);
     void this.router.navigate([], { queryParams: {}, replaceUrl: true });

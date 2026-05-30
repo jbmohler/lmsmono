@@ -8,7 +8,13 @@ import {
 
 import { ApiService } from '@core/api/api.service';
 import { AuthService } from '@core/auth/auth.service';
-import { DataBit, DataBitListItem } from '../databits.model';
+import { DataBit, DataBitListItem, DataBitTag } from '../databits.model';
+
+interface ApiDataBitTag {
+  id: string;
+  name: string;
+  description: string;
+}
 
 interface ApiDataBit {
   id: string;
@@ -17,6 +23,7 @@ interface ApiDataBit {
   website: string | null;
   uname: string | null;
   pword: string | null;
+  tags?: ApiDataBitTag[];
 }
 
 interface ApiDataBitListItem {
@@ -42,6 +49,7 @@ function transformBit(api: ApiDataBit): DataBit {
     website: api.website ?? '',
     uname: api.uname ?? '',
     pword: api.pword ?? '',
+    tags: (api.tags ?? []).map(t => ({ id: t.id, name: t.name, description: t.description })),
   };
 }
 
@@ -169,6 +177,61 @@ export class DataBitsService {
     } catch (err: unknown) {
       this.loading.set(false);
       const message = err instanceof Error ? err.message : 'Failed to delete data bit';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Tag Methods
+  // -------------------------------------------------------------------------
+
+  private _tagList = signal<DataBitTag[] | null>(null);
+
+  /** All databit tags (lazy-loaded, cached for the session). */
+  tagList = this._tagList.asReadonly();
+
+  async loadTagList(): Promise<DataBitTag[]> {
+    const cached = this._tagList();
+    if (cached) return cached;
+
+    try {
+      const response = await this.api
+        .getMany<ApiDataBitTag>('/api/databits/tags')
+        .toPromise();
+      const tags = (response?.data ?? []).map(t => ({ id: t.id, name: t.name, description: t.description }));
+      this._tagList.set(tags);
+      return tags;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load databit tags';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  /** Add a tag to a data bit. Returns updated tag list. */
+  async addBitTag(bitId: string, tagId: string): Promise<DataBitTag[]> {
+    try {
+      const response = await this.api
+        .createMany<ApiDataBitTag, Record<string, never>>(`/api/databits/${bitId}/tags/${tagId}`, {})
+        .toPromise();
+      return (response?.data ?? []).map(t => ({ id: t.id, name: t.name, description: t.description }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to add tag';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  /** Remove a tag from a data bit. Returns updated tag list. */
+  async removeBitTag(bitId: string, tagId: string): Promise<DataBitTag[]> {
+    try {
+      const response = await this.api
+        .deleteMany<ApiDataBitTag>(`/api/databits/${bitId}/tags/${tagId}`)
+        .toPromise();
+      return (response?.data ?? []).map(t => ({ id: t.id, name: t.name, description: t.description }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to remove tag';
       this.error.set(message);
       throw err;
     }

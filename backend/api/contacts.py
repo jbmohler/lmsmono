@@ -338,6 +338,51 @@ def sql_delete_bit(table: str) -> str:
     return f"DELETE FROM {table} WHERE id = %(id)s AND persona_id = %(persona_id)s"
 
 
+def sql_select_all_contact_tags() -> str:
+    return """
+        SELECT id, name, parent_id
+        FROM contacts.tags
+        ORDER BY name
+    """
+
+
+def sql_select_persona_tags() -> str:
+    return """
+        SELECT DISTINCT t.id, t.name, t.parent_id
+        FROM contacts.tagpersona tp
+        JOIN contacts.tags t ON t.id = tp.tag_id
+        WHERE tp.persona_id = %(persona_id)s
+        ORDER BY t.name
+    """
+
+
+def sql_insert_persona_tag_with_ancestors() -> str:
+    """Insert a tag and all its ancestors into tagpersona, skipping any already present."""
+    return """
+        WITH RECURSIVE ancestors AS (
+            SELECT id, parent_id FROM contacts.tags WHERE id = %(tag_id)s
+            UNION ALL
+            SELECT t.id, t.parent_id
+            FROM contacts.tags t
+            JOIN ancestors a ON t.id = a.parent_id
+            WHERE a.parent_id IS NOT NULL
+        )
+        INSERT INTO contacts.tagpersona (tag_id, persona_id)
+        SELECT a.id, %(persona_id)s FROM ancestors a
+        WHERE NOT EXISTS (
+            SELECT 1 FROM contacts.tagpersona tp
+            WHERE tp.tag_id = a.id AND tp.persona_id = %(persona_id)s
+        )
+    """
+
+
+def sql_delete_persona_tag() -> str:
+    return """
+        DELETE FROM contacts.tagpersona
+        WHERE persona_id = %(persona_id)s AND tag_id = %(tag_id)s
+    """
+
+
 # Valid bit types
 BitType = Literal["email", "phone", "address", "url"]
 BIT_TYPES: set[str] = {"email", "phone", "address", "url"}
@@ -384,8 +429,15 @@ PERSONA_DETAIL_COLUMNS = [
     ColumnMeta(key="entity_name", label="Display Name", type="string"),
     ColumnMeta(key="bits", label="Contact Info", type="array"),
     ColumnMeta(key="shares", label="Shares", type="array"),
+    ColumnMeta(key="tags", label="Tags", type="array"),
     ColumnMeta(key="owner_id", label="Owner ID", type="uuid"),
     ColumnMeta(key="is_owner", label="Owner", type="boolean"),
+]
+
+CONTACT_TAG_COLUMNS = [
+    ColumnMeta(key="id", label="ID", type="uuid"),
+    ColumnMeta(key="name", label="Name", type="string"),
+    ColumnMeta(key="parent_id", label="Parent", type="uuid"),
 ]
 
 
@@ -523,6 +575,18 @@ async def _get_bits_for_persona(
         return bits
 
 
+async def _get_tags_for_persona(
+    conn: psycopg.AsyncConnection, persona_id: UUID
+) -> list[dict]:
+    async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        await cur.execute(sql_select_persona_tags(), {"persona_id": persona_id})
+        rows = await cur.fetchall()
+    return [
+        {"id": str(row["id"]), "name": row["name"], "parent_id": str(row["parent_id"]) if row["parent_id"] else None}
+        for row in rows
+    ]
+
+
 async def _get_persona_by_id(
     conn: psycopg.AsyncConnection, persona_id: UUID, user_id: str
 ) -> SingleRowResponse:
@@ -542,6 +606,7 @@ async def _get_persona_by_id(
         data = dict(row)
         data["bits"] = await _get_bits_for_persona(conn, persona_id)
         data["shares"] = await _get_shares_list(conn, persona_id)
+        data["tags"] = await _get_tags_for_persona(conn, persona_id)
 
         return SingleRowResponse(columns=PERSONA_DETAIL_COLUMNS, data=data)
 
@@ -1242,6 +1307,74 @@ class ContactsController(Controller):
             columns=[ColumnMeta(key="password", label="Password", type="string")],
             data={"password": password},
         )
+
+    # -------------------------------------------------------------------------
+    # Tag Endpoints
+    # -------------------------------------------------------------------------
+
+    @get("/tags", guards=[require_capability("contacts:read")])
+    async def list_contact_tags(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+    ) -> MultiRowResponse:
+        """Return all available contact tags (the full tree)."""
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(sql_select_all_contact_tags())
+            rows = await cur.fetchall()
+        return MultiRowResponse(
+            columns=CONTACT_TAG_COLUMNS,
+            data=[
+                {"id": str(r["id"]), "name": r["name"], "parent_id": str(r["parent_id"]) if r["parent_id"] else None}
+                for r in rows
+            ],
+        )
+
+    @post("/{contact_id:uuid}/tags/{tag_id:uuid}", status_code=200, guards=[require_capability("contacts:write")])
+    async def add_contact_tag(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+        contact_id: UUID,
+        tag_id: UUID,
+    ) -> MultiRowResponse:
+        """Add a tag (and all its ancestors) to a contact."""
+        await _verify_persona_access(conn, contact_id, current_user.id)
+
+        # Verify the tag exists
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT id FROM contacts.tags WHERE id = %(id)s", {"id": tag_id})
+            if not await cur.fetchone():
+                raise HTTPException(status_code=404, detail="Tag not found")
+
+        await db.execute(
+            conn,
+            sql_insert_persona_tag_with_ancestors(),
+            {"tag_id": tag_id, "persona_id": contact_id},
+        )
+
+        tags = await _get_tags_for_persona(conn, contact_id)
+        return MultiRowResponse(columns=CONTACT_TAG_COLUMNS, data=tags)
+
+    @delete("/{contact_id:uuid}/tags/{tag_id:uuid}", status_code=200, guards=[require_capability("contacts:write")])
+    async def remove_contact_tag(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+        contact_id: UUID,
+        tag_id: UUID,
+    ) -> MultiRowResponse:
+        """Remove a single tag from a contact (does not remove ancestors)."""
+        await _verify_persona_access(conn, contact_id, current_user.id)
+
+        await db.execute(
+            conn,
+            sql_delete_persona_tag(),
+            {"persona_id": contact_id, "tag_id": tag_id},
+        )
+
+        tags = await _get_tags_for_persona(conn, contact_id)
+        return MultiRowResponse(columns=CONTACT_TAG_COLUMNS, data=tags)
 
     # -------------------------------------------------------------------------
     # Sharing Endpoints

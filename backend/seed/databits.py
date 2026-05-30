@@ -74,6 +74,23 @@ SEED_BITS = [
 ]
 
 
+SEED_DATABIT_TAGS = ["Admin", "Cloud", "Dev", "Home", "Network"]
+
+# caption → tag names
+SEED_DATABIT_TAG_ASSIGNMENTS = {
+    "Gmail":                ["Dev"],
+    "GitHub":               ["Dev", "Admin"],
+    "AWS Console":          ["Dev", "Cloud", "Admin"],
+    "Namecheap":            ["Dev", "Cloud"],
+    "Cloudflare":           ["Dev", "Cloud"],
+    "DockerHub":            ["Dev", "Cloud"],
+    "Postgres Admin (prod)": ["Dev", "Admin"],
+    "Fly.io":               ["Dev", "Cloud"],
+    "Router Admin":         ["Network", "Admin", "Home"],
+    "Wi-Fi password":       ["Network", "Home"],
+}
+
+
 async def seed_databits(conn) -> None:
     """Insert databits if table is empty."""
     async with conn.cursor() as cur:
@@ -94,6 +111,48 @@ async def seed_databits(conn) -> None:
             print(f"  Created: {bit['caption']}")
 
     print(f"Seeded {len(SEED_BITS)} data bits")
+
+
+async def seed_databit_tags(conn) -> None:
+    """Insert databit tags and assign them to seeded bits."""
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT COUNT(*) FROM databits.tags")
+        row = await cur.fetchone()
+        if row and row[0] > 0:
+            print(f"Databit tags already seeded ({row[0]} rows), skipping")
+            return
+
+        tag_ids: dict[str, object] = {}
+        for tag_name in SEED_DATABIT_TAGS:
+            await cur.execute(
+                "INSERT INTO databits.tags (name) VALUES (%(name)s) RETURNING id",
+                {"name": tag_name},
+            )
+            row = await cur.fetchone()
+            tag_ids[tag_name] = row[0]
+            print(f"  Created tag: {tag_name}")
+
+        for caption, tag_names in SEED_DATABIT_TAG_ASSIGNMENTS.items():
+            await cur.execute(
+                "SELECT id FROM databits.bits WHERE caption = %(caption)s",
+                {"caption": caption},
+            )
+            bit_row = await cur.fetchone()
+            if not bit_row:
+                print(f"  Bit not found: {caption}, skipping tags")
+                continue
+            bit_id = bit_row[0]
+            for tag_name in tag_names:
+                tag_id = tag_ids.get(tag_name)
+                if not tag_id:
+                    continue
+                await cur.execute(
+                    "INSERT INTO databits.tagbits (tag_id, bit_id) VALUES (%(tag_id)s, %(bit_id)s) ON CONFLICT DO NOTHING",
+                    {"tag_id": tag_id, "bit_id": bit_id},
+                )
+            print(f"  Tagged '{caption}': {', '.join(tag_names)}")
+
+    print(f"Seeded {len(SEED_DATABIT_TAGS)} databit tags")
 
 
 async def clear_databits(conn) -> None:

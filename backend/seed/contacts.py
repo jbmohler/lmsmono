@@ -314,6 +314,99 @@ async def seed_contacts(conn) -> None:
             persona_data["bits"] = bits
 
 
+SEED_CONTACT_TAGS = [
+    # Root tags
+    {"name": "Personal", "parent": None},
+    {"name": "Professional", "parent": None},
+    {"name": "Services", "parent": None},
+    # Personal children
+    {"name": "Family", "parent": "Personal"},
+    {"name": "Friends", "parent": "Personal"},
+    {"name": "Neighbors", "parent": "Personal"},
+    # Professional children
+    {"name": "Vendor", "parent": "Professional"},
+    {"name": "Client", "parent": "Professional"},
+    {"name": "Colleague", "parent": "Professional"},
+    # Services children
+    {"name": "Medical", "parent": "Services"},
+    {"name": "Financial", "parent": "Services"},
+    {"name": "Utilities", "parent": "Services"},
+]
+
+# persona last_name → list of leaf tag names to assign
+# (ancestors are implied but we insert them explicitly here for seed clarity)
+SEED_CONTACT_TAG_ASSIGNMENTS = {
+    "Johnson":          ["Vendor", "Professional"],
+    "Williams":         ["Colleague", "Professional"],
+    "Martinez":         ["Medical", "Services"],
+    "Chen":             ["Colleague", "Professional"],
+    "Thompson":         ["Financial", "Services"],
+    "Acme Corporation": ["Vendor", "Professional"],
+    "City Electric Utility":    ["Utilities", "Services"],
+    "Mountain View Insurance":  ["Financial", "Services"],
+}
+
+
+async def seed_contact_tags(conn) -> None:
+    """Insert contact tag tree and assign tags to seeded personas."""
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT COUNT(*) FROM contacts.tags")
+        row = await cur.fetchone()
+        if row and row[0] > 0:
+            print(f"Contact tags already seeded ({row[0]} rows), skipping")
+            return
+
+        # Insert tags, resolve parent IDs
+        tag_ids: dict[str, object] = {}
+        for tag in SEED_CONTACT_TAGS:
+            parent_id = tag_ids.get(tag["parent"]) if tag["parent"] else None
+            await cur.execute(
+                "INSERT INTO contacts.tags (name, parent_id) VALUES (%(name)s, %(parent_id)s) RETURNING id",
+                {"name": tag["name"], "parent_id": parent_id},
+            )
+            row = await cur.fetchone()
+            tag_ids[tag["name"]] = row[0]
+            print(f"  Created tag: {tag['name']}")
+
+        # Assign tags to personas
+        for last_name, tag_names in SEED_CONTACT_TAG_ASSIGNMENTS.items():
+            await cur.execute(
+                "SELECT id FROM contacts.personas WHERE l_name = %(name)s AND owner_id = %(owner_id)s",
+                {"name": last_name, "owner_id": DEV_USER_ID},
+            )
+            persona_row = await cur.fetchone()
+            if not persona_row:
+                print(f"  Persona not found: {last_name}, skipping tags")
+                continue
+            persona_id = persona_row[0]
+            for tag_name in tag_names:
+                tag_id = tag_ids.get(tag_name)
+                if not tag_id:
+                    continue
+                await cur.execute(
+                    """
+                    INSERT INTO contacts.tagpersona (tag_id, persona_id)
+                    SELECT %(tag_id)s, %(persona_id)s
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM contacts.tagpersona
+                        WHERE tag_id = %(tag_id)s AND persona_id = %(persona_id)s
+                    )
+                    """,
+                    {"tag_id": tag_id, "persona_id": persona_id},
+                )
+            print(f"  Tagged {last_name}: {', '.join(tag_names)}")
+
+    print(f"Seeded {len(SEED_CONTACT_TAGS)} contact tags")
+
+
+async def clear_contact_tags(conn) -> None:
+    """Remove all contact tags and assignments."""
+    async with conn.cursor() as cur:
+        await cur.execute("DELETE FROM contacts.tagpersona")
+        await cur.execute("DELETE FROM contacts.tags")
+    print("Cleared contact tags")
+
+
 async def clear_contacts(conn) -> None:
     """Remove all seeded contacts for dev user."""
     async with conn.cursor() as cur:

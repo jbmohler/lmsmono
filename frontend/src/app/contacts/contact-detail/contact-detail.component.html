@@ -78,6 +78,7 @@
             rows="3"
           ></textarea>
         </div>
+
       </div>
 
       <!-- Footer -->
@@ -131,7 +132,50 @@
 
     <!-- View Content -->
     <div class="flex-1 overflow-auto p-4 md:p-6 flex flex-col gap-4">
-      <!-- Notes (shown first) -->
+      <!-- Tags -->
+      @if (sortedContactTags().length > 0 || (contact().isOwner !== false && allTags() && allTags()!.length > 0)) {
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center gap-2">
+            <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Tags</h3>
+            @if (contact().isOwner !== false && allTags() && allTags()!.length > 0) {
+              <div class="relative ml-auto">
+                @if (showTagPopover()) {
+                  <div class="fixed inset-0 z-40" (click)="showTagPopover.set(false)"></div>
+                }
+                <button
+                  class="icon-btn icon-btn-edit p-1"
+                  title="Edit tags"
+                  (click)="showTagPopover.set(!showTagPopover()); $event.stopPropagation()"
+                >
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#pencil"/></svg>
+                </button>
+                @if (showTagPopover()) {
+                  <div
+                    class="absolute right-0 top-full z-50 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-h-72 overflow-y-auto"
+                    (click)="$event.stopPropagation()"
+                  >
+                    <app-tag-selector
+                      [allTags]="allTags()!"
+                      [selectedIds]="contactTagIds()"
+                      [mode]="'tree'"
+                      (tagToggled)="onTagToggled($event)"
+                    />
+                  </div>
+                }
+              </div>
+            }
+          </div>
+          @if (sortedContactTags().length > 0) {
+            <div class="flex flex-wrap gap-1.5">
+              @for (tag of sortedContactTags(); track tag.id) {
+                <span class="badge badge-blue text-xs">{{ tag.name }}</span>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Notes -->
       @if (contact().memo) {
         <div class="flex flex-col gap-2">
           <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</h3>

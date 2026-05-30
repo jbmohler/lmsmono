@@ -14,11 +14,18 @@ import {
   ContactPhone,
   ContactAddress,
   ContactUrl,
+  ContactTag,
 } from '@contacts/contacts.model';
 
 /**
  * API response types (snake_case from backend)
  */
+interface ApiContactTag {
+  id: string;
+  name: string;
+  parent_id: string | null;
+}
+
 interface ApiPersona {
   id: string;
   is_corporate: boolean;
@@ -31,6 +38,7 @@ interface ApiPersona {
   anniversary: string | null;
   entity_name: string;
   bits?: ApiBit[];
+  tags?: ApiContactTag[];
   shares?: ApiPersonaShare[];
   owner_id?: string;
   is_owner?: boolean;
@@ -209,6 +217,7 @@ function transformPersona(api: ApiPersona): Persona {
     birthday: api.birthday,
     anniversary: api.anniversary,
     bits: (api.bits ?? []).map(transformBit),
+    tags: (api.tags ?? []).map(t => ({ id: t.id, name: t.name, parentId: t.parent_id })),
     shares: (api.shares ?? []).map(s => ({ user: s.user, isOwner: s.is_owner })),
     ownerId: api.owner_id,
     isOwner: api.is_owner,
@@ -635,6 +644,61 @@ export class ContactsService {
       return transformPersona(response!.data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to transfer ownership';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Tag Methods
+  // -------------------------------------------------------------------------
+
+  private _tagTree = signal<ContactTag[] | null>(null);
+
+  /** All contact tags (lazy-loaded, cached for the session). */
+  tagTree = this._tagTree.asReadonly();
+
+  async loadTagTree(): Promise<ContactTag[]> {
+    const cached = this._tagTree();
+    if (cached) return cached;
+
+    try {
+      const response = await this.api
+        .getMany<ApiContactTag>('/api/contacts/tags')
+        .toPromise();
+      const tags = (response?.data ?? []).map(t => ({ id: t.id, name: t.name, parentId: t.parent_id }));
+      this._tagTree.set(tags);
+      return tags;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load contact tags';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  /** Add a tag (and its ancestors) to a contact. Returns updated tag list. */
+  async addContactTag(contactId: string, tagId: string): Promise<ContactTag[]> {
+    try {
+      const response = await this.api
+        .createMany<ApiContactTag, Record<string, never>>(`/api/contacts/${contactId}/tags/${tagId}`, {})
+        .toPromise();
+      return (response?.data ?? []).map(t => ({ id: t.id, name: t.name, parentId: t.parent_id }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to add tag';
+      this.error.set(message);
+      throw err;
+    }
+  }
+
+  /** Remove a tag from a contact. Returns updated tag list. */
+  async removeContactTag(contactId: string, tagId: string): Promise<ContactTag[]> {
+    try {
+      const response = await this.api
+        .deleteMany<ApiContactTag>(`/api/contacts/${contactId}/tags/${tagId}`)
+        .toPromise();
+      return (response?.data ?? []).map(t => ({ id: t.id, name: t.name, parentId: t.parent_id }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to remove tag';
       this.error.set(message);
       throw err;
     }

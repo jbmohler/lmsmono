@@ -76,6 +76,39 @@ def sql_delete_bit() -> str:
     return "DELETE FROM databits.bits WHERE id = %(id)s"
 
 
+def sql_select_all_databit_tags() -> str:
+    return """
+        SELECT id, name, description
+        FROM databits.tags
+        ORDER BY name
+    """
+
+
+def sql_select_bit_tags() -> str:
+    return """
+        SELECT t.id, t.name, t.description
+        FROM databits.tagbits tb
+        JOIN databits.tags t ON t.id = tb.tag_id
+        WHERE tb.bit_id = %(bit_id)s
+        ORDER BY t.name
+    """
+
+
+def sql_insert_bit_tag() -> str:
+    return """
+        INSERT INTO databits.tagbits (tag_id, bit_id)
+        VALUES (%(tag_id)s, %(bit_id)s)
+        ON CONFLICT DO NOTHING
+    """
+
+
+def sql_delete_bit_tag() -> str:
+    return """
+        DELETE FROM databits.tagbits
+        WHERE bit_id = %(bit_id)s AND tag_id = %(tag_id)s
+    """
+
+
 # ---------------------------------------------------------------------------
 # Column definitions
 # ---------------------------------------------------------------------------
@@ -93,6 +126,13 @@ DATABIT_DETAIL_COLUMNS = [
     ColumnMeta(key="data", label="Notes", type="string"),
     ColumnMeta(key="website", label="Website", type="string"),
     ColumnMeta(key="uname", label="Username", type="string"),
+    ColumnMeta(key="tags", label="Tags", type="array"),
+]
+
+DATABIT_TAG_COLUMNS = [
+    ColumnMeta(key="id", label="ID", type="uuid"),
+    ColumnMeta(key="name", label="Name", type="string"),
+    ColumnMeta(key="description", label="Description", type="string"),
 ]
 
 
@@ -122,6 +162,18 @@ class DataBitUpdate:
 # Helpers
 # ---------------------------------------------------------------------------
 
+async def _get_tags_for_bit(
+    conn: psycopg.AsyncConnection, bit_id: UUID
+) -> list[dict]:
+    async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        await cur.execute(sql_select_bit_tags(), {"bit_id": bit_id})
+        rows = await cur.fetchall()
+    return [
+        {"id": str(row["id"]), "name": row["name"], "description": row["description"] or ""}
+        for row in rows
+    ]
+
+
 async def _get_bit_by_id(
     conn: psycopg.AsyncConnection, bit_id: UUID
 ) -> SingleRowResponse:
@@ -130,7 +182,9 @@ async def _get_bit_by_id(
         row = await cur.fetchone()
     if not row:
         raise NotFoundException(detail="Data bit not found")
-    return SingleRowResponse(columns=DATABIT_DETAIL_COLUMNS, data=dict(row))
+    data = dict(row)
+    data["tags"] = await _get_tags_for_bit(conn, bit_id)
+    return SingleRowResponse(columns=DATABIT_DETAIL_COLUMNS, data=data)
 
 
 # ---------------------------------------------------------------------------
@@ -239,3 +293,65 @@ class DataBitsController(Controller):
         count = await db.execute(conn, sql_delete_bit(), {"id": bit_id})
         if count == 0:
             raise NotFoundException(detail="Data bit not found")
+
+    # -------------------------------------------------------------------------
+    # Tag Endpoints
+    # -------------------------------------------------------------------------
+
+    @get("/tags", guards=[require_capability("databits:read")])
+    async def list_databit_tags(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+    ) -> MultiRowResponse:
+        """Return all available databit tags."""
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(sql_select_all_databit_tags())
+            rows = await cur.fetchall()
+        return MultiRowResponse(
+            columns=DATABIT_TAG_COLUMNS,
+            data=[
+                {"id": str(r["id"]), "name": r["name"], "description": r["description"] or ""}
+                for r in rows
+            ],
+        )
+
+    @post("/{bit_id:uuid}/tags/{tag_id:uuid}", status_code=200, guards=[require_capability("databits:write")])
+    async def add_bit_tag(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+        bit_id: UUID,
+        tag_id: UUID,
+    ) -> MultiRowResponse:
+        """Add a tag to a data bit."""
+        # Verify the bit exists
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT id FROM databits.bits WHERE id = %(id)s", {"id": bit_id})
+            if not await cur.fetchone():
+                raise NotFoundException(detail="Data bit not found")
+
+        # Verify the tag exists
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT id FROM databits.tags WHERE id = %(id)s", {"id": tag_id})
+            if not await cur.fetchone():
+                raise NotFoundException(detail="Tag not found")
+
+        await db.execute(conn, sql_insert_bit_tag(), {"tag_id": tag_id, "bit_id": bit_id})
+
+        tags = await _get_tags_for_bit(conn, bit_id)
+        return MultiRowResponse(columns=DATABIT_TAG_COLUMNS, data=tags)
+
+    @delete("/{bit_id:uuid}/tags/{tag_id:uuid}", status_code=200, guards=[require_capability("databits:write")])
+    async def remove_bit_tag(
+        self,
+        conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
+        bit_id: UUID,
+        tag_id: UUID,
+    ) -> MultiRowResponse:
+        """Remove a tag from a data bit."""
+        await db.execute(conn, sql_delete_bit_tag(), {"bit_id": bit_id, "tag_id": tag_id})
+
+        tags = await _get_tags_for_bit(conn, bit_id)
+        return MultiRowResponse(columns=DATABIT_TAG_COLUMNS, data=tags)

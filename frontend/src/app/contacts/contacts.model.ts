@@ -38,6 +38,12 @@ export interface ContactUrl extends ContactBitBase {
 
 export type ContactBit = ContactEmail | ContactPhone | ContactAddress | ContactUrl;
 
+export interface ContactTag {
+  id: string;
+  name: string;
+  parentId: string | null;
+}
+
 export interface Persona {
   id: string;
   firstName: string;
@@ -49,6 +55,7 @@ export interface Persona {
   anniversary: string | null;
   isCorporate: boolean;
   bits: ContactBit[];
+  tags: ContactTag[];
   shares?: PersonaShare[];
   ownerId?: string;
   isOwner?: boolean;

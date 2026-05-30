@@ -55,6 +55,13 @@ export class ApiService {
       .pipe(catchError(this.handleError));
   }
 
+  /** POST returning a MultiRowResponse body */
+  createMany<T, D>(url: string, data: D): Observable<MultiRowResponse<T>> {
+    return this.http
+      .post<MultiRowResponse<T>>(url, data)
+      .pipe(catchError(this.handleError));
+  }
+
   /** PUT update */
   update<T, D>(url: string, data: D): Observable<SingleRowResponse<T>> {
     return this.http
@@ -65,6 +72,13 @@ export class ApiService {
   /** DELETE */
   delete(url: string): Observable<void> {
     return this.http.delete<void>(url).pipe(catchError(this.handleError));
+  }
+
+  /** DELETE returning a MultiRowResponse body (status 200) */
+  deleteMany<T>(url: string): Observable<MultiRowResponse<T>> {
+    return this.http
+      .delete<MultiRowResponse<T>>(url)
+      .pipe(catchError(this.handleError));
   }
 
   /** Extract data from single row response */

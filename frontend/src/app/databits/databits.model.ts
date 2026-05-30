@@ -1,3 +1,9 @@
+export interface DataBitTag {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface DataBit {
   id: string;
   caption: string;
@@ -5,6 +11,7 @@ export interface DataBit {
   website: string;
   uname: string;
   pword: string;
+  tags: DataBitTag[];
 }
 
 export interface DataBitListItem {
