@@ -21,7 +21,7 @@ from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse
 # ---------------------------------------------------------------------------
 
 
-def sql_select_personas(filter_search: bool = False) -> str:
+def sql_select_personas(filter_search: bool = False, filter_tag: bool = False) -> str:
     """List all contacts accessible to the current user."""
     search_condition = """
         AND (
@@ -34,6 +34,14 @@ def sql_select_personas(filter_search: bool = False) -> str:
             )
         )
     """ if filter_search else ""
+
+    tag_condition = """
+        AND EXISTS (
+            SELECT 1 FROM contacts.tagpersona tp
+            JOIN contacts.tags t ON t.id = tp.tag_id
+            WHERE tp.persona_id = p.id AND t.name = %(tag)s
+        )
+    """ if filter_tag else ""
 
     return f"""
         SELECT
@@ -60,6 +68,7 @@ def sql_select_personas(filter_search: bool = False) -> str:
         WHERE
             ps.user_id = %(user_id)s
             {search_condition}
+            {tag_condition}
         ORDER BY pc.entity_name
         LIMIT %(limit)s OFFSET %(offset)s
     """
@@ -914,16 +923,18 @@ class ContactsController(Controller):
         conn: psycopg.AsyncConnection,
         current_user: AuthenticatedUser,
         search: str | None = Parameter(default=None, description="Search query"),
+        tag: str | None = Parameter(default=None, description="Filter by tag name (exact match)"),
         limit: int = Parameter(default=50, le=500, ge=1),
         offset: int = Parameter(default=0, ge=0),
     ) -> MultiRowResponse:
         """List all contacts accessible to the current user."""
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
             await cur.execute(
-                sql_select_personas(filter_search=True),
+                sql_select_personas(filter_search=True, filter_tag=tag is not None),
                 {
                     "user_id": current_user.id,
                     "search": search,
+                    "tag": tag,
                     "limit": limit,
                     "offset": offset,
                 },

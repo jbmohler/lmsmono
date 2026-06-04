@@ -754,6 +754,137 @@ def _write_payee_summary_xlsx(path: str, payload: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Tagged-contacts dump
+# ---------------------------------------------------------------------------
+
+
+def _format_memo(text: str, indent: str = "    ") -> str:
+    return "\n".join(f"{indent}{line}" for line in text.splitlines())
+
+
+def cmd_dump_tagged_contacts(args: argparse.Namespace) -> None:
+    client = ensure_auth(args.url)
+
+    resp = client.get("/api/contacts", params={"tag": args.tag, "limit": 500})
+    if resp.status_code != 200:
+        print(f"Error fetching contacts: HTTP {resp.status_code}", file=sys.stderr)
+        client.close()
+        sys.exit(1)
+
+    contact_list: list[dict] = resp.json().get("data", [])
+    first_contact = True
+
+    for summary in contact_list:
+        contact_id: str = summary["id"]
+
+        detail_resp = client.get(f"/api/contacts/{contact_id}")
+        if detail_resp.status_code != 200:
+            print(f"Warning: could not fetch {contact_id}", file=sys.stderr)
+            continue
+
+        contact: dict = detail_resp.json()["data"]
+        url_bits = sorted(
+            [b for b in contact.get("bits", []) if b["bit_type"] == "url"],
+            key=lambda b: b["bit_sequence"],
+        )
+
+        if not first_contact:
+            print("\n---")
+        first_contact = False
+
+        print(contact["entity_name"])
+        if contact.get("memo"):
+            print(_format_memo(contact["memo"]))
+
+        for bit in url_bits:
+            print()
+            if bit.get("name"):
+                print(f"Name:  {bit['name']}")
+            print(f"url:  {bit['url']}")
+            if bit.get("username"):
+                print(f"username:  {bit['username']}")
+            if bit.get("has_password"):
+                pw_resp = client.get(
+                    f"/api/contacts/{contact_id}/bits/{bit['id']}/password"
+                )
+                if pw_resp.status_code == 200:
+                    print(f"password:  {pw_resp.json()['data']['password']}")
+            if bit.get("memo"):
+                print(_format_memo(bit["memo"]))
+
+    client.close()
+
+
+# ---------------------------------------------------------------------------
+# Per-year financial dump
+# ---------------------------------------------------------------------------
+
+
+def _fetch_json(client: httpx.Client, path: str, params: dict) -> dict | None:
+    resp = client.get(path, params=params)
+    if resp.status_code != 200:
+        try:
+            detail = resp.json().get("detail", f"HTTP {resp.status_code}")
+        except Exception:
+            detail = f"HTTP {resp.status_code}"
+        print(f"  Warning: {path} – {detail}", file=sys.stderr)
+        return None
+    return resp.json()
+
+
+def cmd_dumpyears(args: argparse.Namespace) -> None:
+    from_year: int = args.from_year
+    to_year: int = args.to_year or datetime.date.today().year
+    out_dir: str = args.dir
+
+    client = ensure_auth(args.url)
+
+    for year in range(from_year, to_year + 1):
+        year_dir = os.path.join(out_dir, str(year))
+        os.makedirs(year_dir, exist_ok=True)
+        d1, d2 = f"{year}-01-01", f"{year}-12-31"
+
+        payload = _fetch_json(
+            client,
+            "/api/reports/multi-period-balance-sheet",
+            {"year": year, "month": 12, "periods": 1},
+        )
+        if payload:
+            _write_balance_sheet_html(
+                os.path.join(year_dir, f"bal_sheet_{year}.html"),
+                payload["periods"][0],
+                payload["data"],
+            )
+
+        payload = _fetch_json(
+            client,
+            "/api/reports/profit-loss-transactions",
+            {"d1": d1, "d2": d2},
+        )
+        if payload:
+            _write_pl_transactions_html(
+                os.path.join(year_dir, f"detail_pl_{year}.html"),
+                year,
+                payload["data"],
+            )
+
+        payload = _fetch_json(
+            client,
+            "/api/reports/transaction-detail",
+            {"d1": d1, "d2": d2},
+        )
+        if payload:
+            _write_transaction_detail_html(
+                os.path.join(year_dir, f"transactions_{year}.html"),
+                payload,
+            )
+
+        print(f"  {year}")
+
+    client.close()
+
+
+# ---------------------------------------------------------------------------
 # Logout
 # ---------------------------------------------------------------------------
 
@@ -863,6 +994,30 @@ def main() -> None:
     ps.add_argument("--d2", default=None, metavar="DATE", help="End date YYYY-MM-DD (default: last of last month)")
     ps.add_argument("--output", "-o", default=None, metavar="FILE", help="Output .xlsx file")
     ps.set_defaults(func=cmd_payee_summary)
+
+    # dump-tagged-contacts command
+    dtc = subparsers.add_parser(
+        "dump-tagged-contacts",
+        help="Dump contacts with a given tag to stdout (text format)",
+    )
+    dtc.add_argument("tag", metavar="TAG", help="Tag name (exact match)")
+    dtc.set_defaults(func=cmd_dump_tagged_contacts)
+
+    # dumpyears command
+    dy = subparsers.add_parser(
+        "dumpyears",
+        help="Export per-year financial reports to a directory tree",
+    )
+    dy.add_argument("dir", metavar="DIR", help="Output directory")
+    dy.add_argument(
+        "--from-year", type=int, default=2001, dest="from_year",
+        metavar="YEAR", help="First year to export (default: 2001)",
+    )
+    dy.add_argument(
+        "--to-year", type=int, default=None, dest="to_year",
+        metavar="YEAR", help="Last year to export (default: current year)",
+    )
+    dy.set_defaults(func=cmd_dumpyears)
 
     # logout command
     lo = subparsers.add_parser("logout", help="Clear saved session")
