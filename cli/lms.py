@@ -379,20 +379,23 @@ def _write_pl_transactions_html(path: str, year: int, rows: list[dict]) -> None:
         "  <h1>P&amp;L Transactions</h1>",
         f"  <p>Year: {year}</p>",
         "  <table>",
-        "<tr><th>Account Type</th><th>Journal</th><th>Account</th><th>Date</th><th>Payee</th><th>Memo</th><th>Amount</th></tr>",
+        "<tr><th>Date</th><th>Reference</th><th>Account Type</th><th>Account</th><th>Journal</th><th>Payee</th><th>Memo</th><th>Debit</th><th>Credit</th></tr>",
     ]
     for row in rows:
         iso = row["trandate"]
         date_fmt = f"{iso[5:7]}/{iso[8:10]}/{iso[:4]}"
-        amount = f"{float(row.get('amount') or 0.0):,.2f}"
+        debit = float(row.get("debit") or 0.0)
+        credit = float(row.get("credit") or 0.0)
         lines.append(
-            f"<tr><td>{row['atype_name']}</td>"
-            f"<td>{row['journal']['name']}</td>"
+            f"<tr><td>{date_fmt}</td>"
+            f"<td>{row.get('reference') or ''}</td>"
+            f"<td>{row['atype_name']}</td>"
             f"<td>{row['acc_name']}</td>"
-            f"<td>{date_fmt}</td>"
+            f"<td>{row['journal']['name']}</td>"
             f"<td>{row.get('payee') or ''}</td>"
             f"<td>{row.get('memo') or ''}</td>"
-            f"<td>{amount}</td></tr>"
+            f"<td>{f'{debit:,.2f}' if debit else ''}</td>"
+            f"<td>{f'{credit:,.2f}' if credit else ''}</td></tr>"
         )
     lines += [
         "  </table>",
@@ -594,16 +597,18 @@ def _write_pl_transactions_xlsx(
     d2: str,
     rows: list[dict],
 ) -> None:
-    # Sort by type order, then date within each type
-    rows = sorted(rows, key=lambda r: (r["atype_sort"], r["trandate"]))
+    rows = sorted(rows, key=lambda r: (r["atype_sort"], r["trandate"], r["id"]))
 
-    rs = ReportSheet("P&L Transactions", n_text=5, n_val=1)
+    rs = ReportSheet("P&L Transactions", n_text=7, n_val=2)
     rs.write_title("Profit & Loss — Transactions")
     rs.write_generated()
     rs.write_note(f"{d1}  through  {d2}")
     rs.write_blank()
-    rs.write_headers(["Journal", "Account", "Date", "Payee", "Memo"], ["Amount"])
-    rs.set_col_widths([16, 22, 12, 30, 30, 14])
+    rs.write_headers(
+        ["Date", "Reference", "Account Type", "Account", "Journal", "Payee", "Memo"],
+        ["Debit", "Credit"],
+    )
+    rs.set_col_widths([12, 14, 16, 22, 14, 28, 28, 14, 14])
 
     current_atype: str | None = None
     current_is_debit: bool = False
@@ -633,9 +638,10 @@ def _write_pl_transactions_xlsx(
             section_data_start = rs.row
 
         rs.write_data_row(
-            [row["journal"]["name"], row["acc_name"], row["trandate"],
+            [row["trandate"], row.get("reference") or "", row["atype_name"],
+             row["acc_name"], row["journal"]["name"],
              row.get("payee") or "", row.get("memo") or ""],
-            [float(row.get("amount") or 0.0)],
+            [float(row.get("debit") or 0.0), float(row.get("credit") or 0.0)],
         )
 
     flush_type()

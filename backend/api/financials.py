@@ -205,6 +205,7 @@ def sql_profit_loss_transactions() -> str:
             journals.id AS jrn_id,
             journals.jrn_name,
             transactions.tid AS id,
+            transactions.tranref AS reference,
             transactions.trandate,
             transactions.payee,
             transactions.memo,
@@ -216,7 +217,7 @@ def sql_profit_loss_transactions() -> str:
         JOIN hacc.journals ON journals.id = accounts.journal_id
         WHERE transactions.trandate BETWEEN %(d1)s AND %(d2)s
             AND NOT accounttypes.balance_sheet
-        ORDER BY accounttypes.sort, transactions.trandate, accounts.acc_name
+        ORDER BY accounttypes.sort, transactions.trandate, transactions.tid
     """
 
 
@@ -324,17 +325,18 @@ PL_TRANSACTION_COLUMNS = [
     ColumnMeta(key="acc_name", label="Account", type="string"),
     ColumnMeta(key="journal", label="Journal", type="ref"),
     ColumnMeta(key="id", label="ID", type="uuid"),
+    ColumnMeta(key="reference", label="Reference", type="string"),
     ColumnMeta(key="trandate", label="Date", type="date"),
     ColumnMeta(key="payee", label="Payee", type="string"),
     ColumnMeta(key="memo", label="Memo", type="string"),
-    ColumnMeta(key="amount", label="Amount", type="currency"),
+    ColumnMeta(key="debit", label="Debit", type="currency"),
+    ColumnMeta(key="credit", label="Credit", type="currency"),
 ]
 
 
 def transform_pl_txn_row(row: dict) -> dict:
-    """Transform a P&L transaction row, sign-adjusting for credit accounts."""
-    raw = row["sum"] or 0.0
-    amount = raw if row["debit_account"] else -raw
+    """Transform a P&L transaction row into debit/credit columns."""
+    raw = float(row["sum"] or 0.0)
     return {
         "atype_id": row["atype_id"],
         "atype_name": row["atype_name"],
@@ -344,12 +346,14 @@ def transform_pl_txn_row(row: dict) -> dict:
         "acc_name": row["acc_name"],
         "journal": {"id": str(row["jrn_id"]), "name": row["jrn_name"]},
         "id": row["id"],
+        "reference": row["reference"],
         "trandate": row["trandate"].isoformat()
         if hasattr(row["trandate"], "isoformat")
         else row["trandate"],
         "payee": row["payee"],
         "memo": row["memo"],
-        "amount": amount,
+        "debit": raw if raw > 0 else 0.0,
+        "credit": -raw if raw < 0 else 0.0,
     }
 
 
@@ -679,9 +683,10 @@ class FinancialsController(Controller):
                     t.memo,
                     s.sum,
                     (
-                        SELECT string_agg(a2.acc_name, '; ' ORDER BY a2.acc_name)
+                        SELECT string_agg(a2.acc_name, '; ' ORDER BY at2.sort, a2.acc_name)
                         FROM hacc.splits s2
                         JOIN hacc.accounts a2 ON a2.id = s2.account_id
+                        JOIN hacc.accounttypes at2 ON at2.id = a2.type_id
                         WHERE s2.stid = t.tid
                     ) AS accounts
                 FROM hacc.transactions t
