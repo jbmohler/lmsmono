@@ -597,7 +597,7 @@ def _write_pl_transactions_xlsx(
     d2: str,
     rows: list[dict],
 ) -> None:
-    rows = sorted(rows, key=lambda r: (r["atype_sort"], r["trandate"], r["id"]))
+    rows = sorted(rows, key=lambda r: (r["atype_sort"], r["trandate"], r.get("payee") or "", r.get("memo") or "", r["id"]))
 
     rs = ReportSheet("P&L Transactions", n_text=7, n_val=2)
     rs.write_title("Profit & Loss — Transactions")

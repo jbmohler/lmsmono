@@ -217,7 +217,7 @@ def sql_profit_loss_transactions() -> str:
         JOIN hacc.journals ON journals.id = accounts.journal_id
         WHERE transactions.trandate BETWEEN %(d1)s AND %(d2)s
             AND NOT accounttypes.balance_sheet
-        ORDER BY accounttypes.sort, transactions.trandate, transactions.tid
+        ORDER BY accounttypes.sort, transactions.trandate, transactions.payee, transactions.memo, transactions.tid
     """
 
 
