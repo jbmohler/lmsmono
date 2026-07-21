@@ -2,6 +2,7 @@
 """LMS command-line client."""
 
 import argparse
+import calendar
 import datetime
 import getpass
 import json
@@ -417,8 +418,6 @@ def _rolling_half_periods(anchor_year: int, anchor_month: int, n_periods: int) -
     Each window ends on the last day of the anchor month and steps back 6
     months at a time.  label is the end month formatted as 'Mon YYYY'.
     """
-    import calendar
-
     end_year, end_month = anchor_year, anchor_month
     periods: list[tuple[str, str, str]] = []
 
@@ -445,6 +444,29 @@ def _rolling_half_periods(anchor_year: int, anchor_month: int, n_periods: int) -
     return periods
 
 
+def _fetch_pl_periods(
+    client: httpx.Client,
+    periods: list[tuple[str, str, str]],
+) -> list[tuple[str, list[dict]]] | None:
+    """Fetch profit & loss data for each (label, d1, d2) window.
+
+    Returns None after reporting the failure if any period could not be
+    fetched, since a partial set of columns would be misleading.
+    """
+    period_data: list[tuple[str, list[dict]]] = []
+    for label, d1, d2 in periods:
+        resp = client.get("/api/reports/profit-loss", params={"d1": d1, "d2": d2})
+        if resp.status_code != 200:
+            try:
+                detail = resp.json().get("detail", f"HTTP {resp.status_code}")
+            except Exception:
+                detail = f"HTTP {resp.status_code}"
+            print(f"Error fetching {label}: {detail}", file=sys.stderr)
+            return None
+        period_data.append((label, resp.json()["data"]))
+    return period_data
+
+
 def cmd_profit_loss(args: argparse.Namespace) -> None:
     today = datetime.date.today()
     prior_month_end = today.replace(day=1) - datetime.timedelta(days=1)
@@ -455,19 +477,11 @@ def cmd_profit_loss(args: argparse.Namespace) -> None:
     periods = _rolling_half_periods(year, month, n_years * 2)
 
     client = ensure_auth(args.url)
-    period_data: list[tuple[str, list[dict]]] = []
-    for label, d1, d2 in periods:
-        resp = client.get("/api/reports/profit-loss", params={"d1": d1, "d2": d2})
-        if resp.status_code != 200:
-            client.close()
-            try:
-                detail = resp.json().get("detail", f"HTTP {resp.status_code}")
-            except Exception:
-                detail = f"HTTP {resp.status_code}"
-            print(f"Error fetching {label}: {detail}", file=sys.stderr)
-            sys.exit(1)
-        period_data.append((label, resp.json()["data"]))
+    period_data = _fetch_pl_periods(client, periods)
     client.close()
+
+    if period_data is None:
+        sys.exit(1)
 
     output: str = args.output or f"profit_loss_{year}_{month:02d}.xlsx"
     _write_profit_loss_xlsx(output, periods, period_data)
@@ -891,6 +905,95 @@ def cmd_dumpyears(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Monthly report bundle
+# ---------------------------------------------------------------------------
+
+
+def cmd_monthly(args: argparse.Namespace) -> None:
+    """Export the reports produced early each month.
+
+    Three standing reports, plus one payee summary per --summary-account.
+    Everything defaults to the month that just ended, so a run on or around
+    the 5th needs no arguments beyond an output directory.
+    """
+    today = datetime.date.today()
+    prior_month_end = today.replace(day=1) - datetime.timedelta(days=1)
+    year: int = args.year or prior_month_end.year
+    month: int = args.month or prior_month_end.month
+
+    last_day = calendar.monthrange(year, month)[1]
+    d1 = datetime.date(year, month, 1).isoformat()
+    d2 = datetime.date(year, month, last_day).isoformat()
+    ym = f"{year}-{month:02d}"
+
+    out_dir: str = args.dir
+    os.makedirs(out_dir, exist_ok=True)
+
+    summary_accounts: list[str] = args.summary_accounts or []
+    expected = 3 + len(summary_accounts)
+
+    client = ensure_auth(args.url)
+    written = 0
+
+    print(f"=== Monthly reports for {ym} ===")
+
+    # Balance sheet as of the end of the month
+    payload = _fetch_json(
+        client,
+        "/api/reports/multi-period-balance-sheet",
+        {"year": year, "month": month, "periods": 1},
+    )
+    if payload:
+        path = os.path.join(out_dir, f"balance_sheet_{year}_{month:02d}.xlsx")
+        _write_balance_sheet_xlsx(path, payload["periods"], payload["data"])
+        print(f"Written: {path}")
+        written += 1
+
+    # Detailed profit & loss transactions for the month
+    payload = _fetch_json(
+        client,
+        "/api/reports/profit-loss-transactions",
+        {"d1": d1, "d2": d2},
+    )
+    if payload:
+        path = os.path.join(out_dir, f"pl_transactions_{ym}.xlsx")
+        _write_pl_transactions_xlsx(path, d1, d2, payload["data"])
+        print(f"Written: {path}")
+        written += 1
+
+    # Multi-period profit & loss — four rolling 6-month windows
+    periods = _rolling_half_periods(year, month, 4)
+    period_data = _fetch_pl_periods(client, periods)
+    if period_data:
+        path = os.path.join(out_dir, f"profit_loss_{year}_{month:02d}.xlsx")
+        _write_profit_loss_xlsx(path, periods, period_data)
+        print(f"Written: {path}")
+        written += 1
+
+    # One payee summary per requested account
+    for account in summary_accounts:
+        account_id = resolve_account_id(client, account)
+        payload = _fetch_json(
+            client,
+            "/api/reports/payee-summary",
+            {"account_id": account_id, "date1": d1, "date2": d2},
+        )
+        if payload:
+            account_name: str = payload.get("account_name", account)
+            safe_name = account_name.replace(" ", "_").replace("/", "-")[:30]
+            path = os.path.join(out_dir, f"payee_summary_{safe_name}_{ym}.xlsx")
+            _write_payee_summary_xlsx(path, payload)
+            print(f"Written: {path}")
+            written += 1
+
+    client.close()
+
+    if written < expected:
+        print(f"Error: only {written} of {expected} reports written", file=sys.stderr)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
 # Logout
 # ---------------------------------------------------------------------------
 
@@ -1024,6 +1127,26 @@ def main() -> None:
         metavar="YEAR", help="Last year to export (default: current year)",
     )
     dy.set_defaults(func=cmd_dumpyears)
+
+    # monthly command
+    mo = subparsers.add_parser(
+        "monthly",
+        help="Export the month-end report bundle (balance sheet, detailed P&L, "
+             "multi-period P&L, payee summary)",
+    )
+    mo.add_argument(
+        "dir", nargs="?", default=".", metavar="DIR",
+        help="Output directory (default: current directory)",
+    )
+    mo.add_argument("--year", type=int, default=None, help="Report year (default: prior month's year)")
+    mo.add_argument("--month", type=int, default=None, help="Report month 1-12 (default: prior month)")
+    mo.add_argument(
+        "--summary-account", action="append", default=None,
+        dest="summary_accounts", metavar="NAME",
+        help="Account to summarize by payee; repeat for one summary per account "
+             "(default: none)",
+    )
+    mo.set_defaults(func=cmd_monthly)
 
     # logout command
     lo = subparsers.add_parser("logout", help="Clear saved session")

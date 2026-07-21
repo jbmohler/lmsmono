@@ -13,4 +13,5 @@ Standalone Python CLI for exporting LMS reports to Excel.
 - `ensure_auth()` manages the session cookie (`~/.lms/session`); returns a ready `httpx.Client`
 - `resolve_account_id(client, name)` fetches `GET /api/accounts` and resolves a name string (exact then substring) to a UUID
 - Each command fetches JSON from the API, passes it to a `_write_*_xlsx()` helper, then prints the output path
+- `monthly` and `dumpyears` are composite commands: they reuse the same `_write_*` helpers over one session and write into a directory, using `_fetch_json()` so a single failing report warns instead of aborting the rest
 - `ReportSheet` methods are called in top-to-bottom order; see the class docstring in `xlsx.py` for the full API
