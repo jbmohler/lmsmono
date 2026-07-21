@@ -131,8 +131,12 @@ class ReportSheet:
             self.ws.cell(self.row, col, text).font = Font(name=REPORT_FONT, bold=True, size=10)
         self.row += 1
 
-    def write_data_row(self, texts: list[str], values: list[float]) -> int:
-        """Row: text cells then right-aligned currency cells. Returns row number."""
+    def write_data_row(self, texts: list[str], values: list[float | None]) -> int:
+        """Row: text cells then right-aligned currency cells. Returns row number.
+
+        A None value leaves the cell empty rather than showing 0.00; =SUM()
+        over the column ignores it.
+        """
         for col, val in enumerate(texts, start=1):
             self.ws.cell(self.row, col, val)
         for i, val in enumerate(values):
@@ -196,6 +200,39 @@ class ReportSheet:
         written = self.row
         self.row += 1
         return written
+
+    def write_formula_row(
+        self,
+        label: str,
+        formulas: dict[int, str],
+        fill: PatternFill = FILL_SUBTOTAL,
+    ) -> int:
+        """Row: caller-supplied formula per value column index. Returns row number.
+
+        Value columns absent from `formulas` are left empty.  Use this when a
+        total belongs in only some columns, or when it has to reference a
+        column other than its own; build the references with val_ref() and
+        val_range().
+        """
+        self._fill_row(fill)
+        self.ws.cell(self.row, 1, label).font = Font(name=REPORT_FONT, bold=True, size=11)
+        for i, formula in formulas.items():
+            c = self.ws.cell(self.row, self.val_col + i, formula)
+            c.number_format = CURRENCY_FMT
+            c.font = Font(name=REPORT_FONT, bold=True, size=11)
+            c.alignment = Alignment(horizontal="right")
+        written = self.row
+        self.row += 1
+        return written
+
+    def val_ref(self, row: int, i: int = 0) -> str:
+        """A1 reference to value column i on the given row, e.g. 'H12'."""
+        return f"{get_column_letter(self.val_col + i)}{row}"
+
+    def val_range(self, first_row: int, last_row: int, i: int = 0) -> str:
+        """A1 range over value column i, e.g. 'H5:H20'."""
+        col = get_column_letter(self.val_col + i)
+        return f"{col}{first_row}:{col}{last_row}"
 
     # ------------------------------------------------------------------
     # Finishing

@@ -578,6 +578,10 @@ def _write_profit_loss_xlsx(
 # Profit & loss transactions export
 # ---------------------------------------------------------------------------
 
+# Value-column indexes of the Debit and Credit columns
+COL_DEBIT = 0
+COL_CREDIT = 1
+
 
 def cmd_pl_transactions(args: argparse.Namespace) -> None:
     today = datetime.date.today()
@@ -613,16 +617,16 @@ def _write_pl_transactions_xlsx(
 ) -> None:
     rows = sorted(rows, key=lambda r: (r["atype_sort"], r["trandate"], r.get("payee") or "", r.get("memo") or "", r["id"]))
 
-    rs = ReportSheet("P&L Transactions", n_text=7, n_val=2)
+    rs = ReportSheet("P&L Transactions", n_text=6, n_val=2)
     rs.write_title("Profit & Loss — Transactions")
     rs.write_generated()
     rs.write_note(f"{d1}  through  {d2}")
     rs.write_blank()
     rs.write_headers(
-        ["Date", "Reference", "Account Type", "Account", "Journal", "Payee", "Memo"],
+        ["Date", "Reference", "Account", "Journal", "Payee", "Memo"],
         ["Debit", "Credit"],
     )
-    rs.set_col_widths([12, 14, 16, 22, 14, 28, 28, 14, 14])
+    rs.set_col_widths([12, 14, 22, 14, 28, 28, 14, 14])
 
     current_atype: str | None = None
     current_is_debit: bool = False
@@ -631,9 +635,22 @@ def _write_pl_transactions_xlsx(
     expense_type_rows: list[int] = []
 
     def flush_type() -> None:
+        """Total the section in the column matching its normal balance.
+
+        A debit-natured type totals in Debit, a credit-natured one in Credit,
+        each net of the opposite column so refunds and corrections posted
+        against the section reduce it rather than being dropped.
+        """
         if current_atype is None:
             return
-        type_row = rs.write_subtotal_row(f"Total {current_atype}", section_data_start)
+        last_row = rs.row - 1
+        natural = COL_DEBIT if current_is_debit else COL_CREDIT
+        opposite = COL_CREDIT if current_is_debit else COL_DEBIT
+        formula = (
+            f"=SUM({rs.val_range(section_data_start, last_row, natural)})"
+            f"-SUM({rs.val_range(section_data_start, last_row, opposite)})"
+        )
+        type_row = rs.write_formula_row(f"Total {current_atype}", {natural: formula})
         if current_is_debit:
             expense_type_rows.append(type_row)
         else:
@@ -651,21 +668,23 @@ def _write_pl_transactions_xlsx(
             rs.write_section_header(atype)
             section_data_start = rs.row
 
+        debit = float(row.get("debit") or 0.0)
+        credit = float(row.get("credit") or 0.0)
         rs.write_data_row(
-            [row["trandate"], row.get("reference") or "", row["atype_name"],
+            [row["trandate"], row.get("reference") or "",
              row["acc_name"], row["journal"]["name"],
              row.get("payee") or "", row.get("memo") or ""],
-            [float(row.get("debit") or 0.0), float(row.get("credit") or 0.0)],
+            [debit or None, credit or None],
         )
 
     flush_type()
 
-    rs.write_signed_ref_row(
-        "Net Income",
-        add_rows=income_type_rows,
-        sub_rows=expense_type_rows,
-        fill=FILL_SUBTOTAL,
-    )
+    # Net income is a credit figure: income totals (credit column) less expense
+    # totals (debit column).  It stays in the credit column when negative.
+    add_refs = [rs.val_ref(r, COL_CREDIT) for r in income_type_rows]
+    sub_refs = [rs.val_ref(r, COL_DEBIT) for r in expense_type_rows]
+    net = "+".join(add_refs) + "".join(f"-{ref}" for ref in sub_refs)
+    rs.write_formula_row("Net Income", {COL_CREDIT: f"={net or 0}"})
     rs.save(path)
 
 
