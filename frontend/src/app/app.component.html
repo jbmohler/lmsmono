@@ -8,16 +8,7 @@
         <img src="/assets/logo.svg" alt="LMS logo" class="h-7 w-7">
         LMS
       </a>
-      <div class="flex items-center gap-4">
-        <span class="text-sm text-slate-300">{{ user()?.username }}</span>
-        <button
-          type="button"
-          (click)="logout()"
-          class="text-sm text-slate-400 hover:text-white"
-        >
-          Sign out
-        </button>
-      </div>
+      <app-user-menu />
     </div>
     <!-- Tab bar -->
     <div class="bg-slate-700 px-4 overflow-x-auto min-w-0">

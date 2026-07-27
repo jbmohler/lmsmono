@@ -30,6 +30,8 @@ class SessionConfig:
     secret_key: str = ""
     expire_minutes: int = 1440  # 24 hours
     secure_cookie: bool = False  # Set True in production
+    remember_days: int = 60  # Remember-me device token lifetime
+    remember_cookie_name: str = "remember_token"
 
 
 @dataclass
@@ -50,25 +52,48 @@ class AppConfig:
     smtp: SmtpConfig = field(default_factory=SmtpConfig)
     app_base_url: str = "http://localhost:4200"
 
+    def validate(self) -> None:
+        """Raise if any secret needed to run safely is missing.
+
+        The dataclass defaults are empty strings, so a missing or partial config
+        file would otherwise start the app with an empty JWT signing key - which
+        lets anyone mint a password reset token - or with vault encryption
+        silently disabled.
+        """
+        missing = []
+
+        if not self.session.secret_key:
+            missing.append("session.secret_key")
+
+        if not self.encryption.vault_key:
+            missing.append("encryption.vault_key")
+
+        if missing:
+            raise ValueError(
+                f"Config is missing required secrets: {', '.join(missing)}. "
+                "Set them in the config file (see secrets/config.example.json)."
+            )
+
     @classmethod
     def load(cls) -> "AppConfig":
         config_path = os.environ.get("CONFIG_FILE", "/run/secrets/config.json")
         path = pathlib.Path(config_path)
 
-        if path.exists():
-            with open(path) as f:
-                data = json.load(f)
-            db_data = data.get("database", {})
-            enc_data = data.get("encryption", {})
-            session_data = data.get("session", {})
-            smtp_data = data.get("smtp", {})
-            return cls(
-                database=DatabaseConfig(**db_data),
-                encryption=EncryptionConfig(**enc_data),
-                session=SessionConfig(**session_data),
-                smtp=SmtpConfig(**smtp_data),
-                app_base_url=data.get("app_base_url", "http://localhost:4200"),
-            )
+        if not path.exists():
+            raise FileNotFoundError(f"Config file not found at {config_path}")
 
-        print(f"Warning: Config file not found at {config_path}")
-        return cls()
+        with open(path) as f:
+            data = json.load(f)
+        db_data = data.get("database", {})
+        enc_data = data.get("encryption", {})
+        session_data = data.get("session", {})
+        smtp_data = data.get("smtp", {})
+        config = cls(
+            database=DatabaseConfig(**db_data),
+            encryption=EncryptionConfig(**enc_data),
+            session=SessionConfig(**session_data),
+            smtp=SmtpConfig(**smtp_data),
+            app_base_url=data.get("app_base_url", "http://localhost:4200"),
+        )
+        config.validate()
+        return config

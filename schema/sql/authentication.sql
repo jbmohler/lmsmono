@@ -55,7 +55,7 @@ create table devicetokens (
   id character(32) primary key,
   userid uuid references users(id) not null,
   device_name text,
-  tokenhash varchar(60) CHECK (tokenhash ~ '^[\x21-\x7F]*$'),
+  tokenhash varchar(255) CHECK (tokenhash ~ '^[\x21-\x7F]*$'),
   issued timestamp without time zone not null,
   expires timestamp without time zone not null,
   inactive boolean not null default false
@@ -63,7 +63,7 @@ create table devicetokens (
 
 create table sessions (
   id uuid primary key,
-  refresh_hash varchar(60) CHECK (refresh_hash ~ '^[\x21-\x7F]*$'),
+  refresh_hash varchar(255) CHECK (refresh_hash ~ '^[\x21-\x7F]*$'),
   userid uuid references users(id) not null,
   ipaddress character varying(45),
   devtok_id character(32) references devicetokens(id),

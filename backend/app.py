@@ -91,9 +91,9 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
         await init_pool(config.database.conninfo)
         print("Database pool initialized")
 
-    if config.encryption.vault_key:
-        init_crypto(config.encryption.vault_key)
-        print("Vault encryption initialized")
+    # Key presence is guaranteed by AppConfig.validate() during load().
+    init_crypto(config.encryption.vault_key)
+    print("Vault encryption initialized")
 
     yield
 

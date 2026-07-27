@@ -14,8 +14,8 @@ export class AuthService {
   readonly initialized = this._initialized.asReadonly();
   readonly capabilities = computed(() => new Set(this.currentUser()?.capabilities ?? []));
 
-  login(username: string, password: string): Observable<User> {
-    const request: LoginRequest = { username, password };
+  login(username: string, password: string, remember: boolean): Observable<User> {
+    const request: LoginRequest = { username, password, remember };
     return this.http.post<LoginResponse>('/api/auth/login', request).pipe(
       map(response => this.mapResponseToUser(response)),
       tap(user => this.currentUser.set(user))
@@ -24,6 +24,12 @@ export class AuthService {
 
   logout(): Observable<void> {
     return this.http.post<void>('/api/auth/logout', {}).pipe(
+      tap(() => this.currentUser.set(null))
+    );
+  }
+
+  logoutAll(): Observable<void> {
+    return this.http.post<void>('/api/auth/logout-all', {}).pipe(
       tap(() => this.currentUser.set(null))
     );
   }

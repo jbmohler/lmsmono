@@ -33,6 +33,16 @@
         />
       </div>
 
+      <label class="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          [(ngModel)]="remember"
+          [disabled]="loading()"
+          class="w-auto"
+        />
+        Remember me on this device
+      </label>
+
       <button
         type="button"
         (click)="onSubmit()"

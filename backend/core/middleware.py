@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from litestar.middleware import AbstractMiddleware
 from litestar.types import Receive, Scope, Send
 
-from core.auth import AuthenticatedUser
+from core.auth import AuthenticatedUser, parse_session_id
 import core.db as db
 from core.queries_admin import sql_select_user_capabilities
 
@@ -50,7 +50,11 @@ class SessionMiddleware(AbstractMiddleware):
         await self.app(scope, receive, send)
 
     def _get_session_cookie(self, scope: Scope) -> str | None:
-        """Extract session_id from request cookies."""
+        """Extract session_id from request cookies.
+
+        Returns None for a malformed value, which leaves the request
+        unauthenticated exactly as an unknown session id would.
+        """
         headers = dict(scope.get("headers", []))
         cookie_header = headers.get(b"cookie", b"").decode()
 
@@ -60,7 +64,7 @@ class SessionMiddleware(AbstractMiddleware):
         for cookie in cookie_header.split(";"):
             cookie = cookie.strip()
             if cookie.startswith("session_id="):
-                return cookie.split("=", 1)[1]
+                return parse_session_id(cookie.split("=", 1)[1])
 
         return None
 
