@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, range, defer } from 'rxjs';
@@ -23,6 +23,7 @@ const PING_COUNT = 25;
   selector: 'app-diagnostics',
   templateUrl: './diagnostics.component.html',
   styleUrl: './diagnostics.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [],
 })
 export class DiagnosticsComponent {

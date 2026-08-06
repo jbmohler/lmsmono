@@ -7,6 +7,7 @@ import {
   viewChild,
   viewChildren,
   afterNextRender,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '@core/auth/auth.service';
@@ -20,6 +21,7 @@ import { AuthService } from '@core/auth/auth.service';
   selector: 'app-user-menu',
   templateUrl: './user-menu.component.html',
   styleUrl: './user-menu.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(document:click)': 'onDocumentClick($event)',
   },

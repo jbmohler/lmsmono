@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed, inject, effect, viewChild, ElementRef, Pipe, PipeTransform } from '@angular/core';
+import { Component, input, output, signal, computed, inject, effect, viewChild, ElementRef, Pipe, PipeTransform, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Persona,
@@ -89,6 +89,7 @@ class MemoNeedsExpandPipe implements PipeTransform {
     IsPasswordExpiredPipe,
     MemoNeedsExpandPipe,
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(keydown)': 'handleKeydown($event)',
   },

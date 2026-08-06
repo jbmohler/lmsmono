@@ -1,4 +1,4 @@
-import { Component, input, output, inject, signal, effect } from '@angular/core';
+import { Component, input, output, inject, signal, effect, ChangeDetectionStrategy } from '@angular/core';
 import { Persona, ContactBit } from '../contacts.model';
 import { ContactsService } from '../services/contacts.service';
 import { ContactDetailComponent } from '../contact-detail/contact-detail.component';
@@ -7,6 +7,7 @@ import { ContactDetailComponent } from '../contact-detail/contact-detail.compone
   selector: 'app-contact-view',
   templateUrl: './contact-view.component.html',
   styleUrl: './contact-view.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [ContactDetailComponent],
 })
 export class ContactViewComponent {

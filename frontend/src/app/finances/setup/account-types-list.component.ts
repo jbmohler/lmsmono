@@ -1,9 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { AccountTypeService } from '../services/account-type.service';
 
 @Component({
   selector: 'app-account-types-list',
   templateUrl: './account-types-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './account-types-list.component.scss',
 })
 export class AccountTypesListComponent {

@@ -1,4 +1,4 @@
-import { Component, computed, signal, inject, effect } from '@angular/core';
+import { Component, computed, signal, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, Subject, combineLatest } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
@@ -24,6 +24,7 @@ interface CalendarDay {
   templateUrl: './transaction-calendar.component.html',
   styleUrl: './transaction-calendar.component.scss',
   imports: [TransactionEntryComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

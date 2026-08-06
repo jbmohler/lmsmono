@@ -1,4 +1,4 @@
-import { Component, input, output, inject, signal, effect } from '@angular/core';
+import { Component, input, output, inject, signal, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 
 import { ApiService } from '@core/api/api.service';
@@ -24,6 +24,7 @@ type Tab = 'info' | 'contacts' | 'transactions';
   templateUrl: './account-sidebar.component.html',
   styleUrl: './account-sidebar.component.scss',
   imports: [CurrencyPipe, DatePipe, ContactViewComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

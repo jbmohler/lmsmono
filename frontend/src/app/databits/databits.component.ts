@@ -7,6 +7,7 @@ import {
   afterNextRender,
   inject,
   effect,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -19,6 +20,7 @@ import { DataBit, DataBitListItem } from './databits.model';
   templateUrl: './databits.component.html',
   styleUrl: './databits.component.scss',
   imports: [FormsModule, DataBitDetailComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

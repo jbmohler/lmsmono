@@ -1,4 +1,4 @@
-import { Component, ElementRef, output, input, viewChild, signal, computed, afterNextRender, inject, effect } from '@angular/core';
+import { Component, ElementRef, output, input, viewChild, signal, computed, afterNextRender, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { AccountService } from '@finances/services/account.service';
@@ -9,6 +9,7 @@ import { AccountType } from '@finances/models/account.model';
   selector: 'app-account-edit-dialog',
   templateUrl: './account-edit-dialog.component.html',
   styleUrl: './account-edit-dialog.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [FormsModule],
 })
 export class AccountEditDialogComponent {

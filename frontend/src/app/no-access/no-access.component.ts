@@ -1,10 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 
 @Component({
   selector: 'app-no-access',
   templateUrl: './no-access.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './no-access.component.scss',
 })
 export class NoAccessComponent {

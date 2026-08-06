@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { AccountService } from '../services/account.service';
 import { AccountEditDialogComponent } from './account-edit-dialog/account-edit-dialog.component';
 
@@ -6,6 +6,7 @@ import { AccountEditDialogComponent } from './account-edit-dialog/account-edit-d
   selector: 'app-accounts-list',
   templateUrl: './accounts-list.component.html',
   styleUrl: './accounts-list.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [AccountEditDialogComponent],
 })
 export class AccountsListComponent {

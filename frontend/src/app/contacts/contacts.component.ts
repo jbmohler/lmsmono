@@ -6,6 +6,7 @@ import {
   afterNextRender,
   inject,
   effect,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -19,6 +20,7 @@ import { Persona, PersonaListItem } from './contacts.model';
   templateUrl: './contacts.component.html',
   styleUrl: './contacts.component.scss',
   imports: [FormsModule, ContactDetailComponent, ContactViewComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

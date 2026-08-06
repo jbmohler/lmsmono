@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -14,6 +14,7 @@ type FilterMode = 'all' | 'uncleared' | 'pending';
   selector: 'app-reconcile',
   templateUrl: './reconcile.component.html',
   styleUrl: './reconcile.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [CurrencyPipe, DatePipe],
 })
 export class ReconcileComponent {

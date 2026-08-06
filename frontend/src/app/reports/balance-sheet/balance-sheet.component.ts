@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
@@ -14,6 +14,7 @@ import { AccountEditDialogComponent } from '../../finances/setup/account-edit-di
   templateUrl: './balance-sheet.component.html',
   styleUrl: './balance-sheet.component.scss',
   imports: [RouterLink, CurrencyPipe, AccountSidebarComponent, TransactionEntryComponent, AccountEditDialogComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

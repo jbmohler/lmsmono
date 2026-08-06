@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -17,6 +17,7 @@ interface DateRange {
   templateUrl: './profit-loss-transactions.component.html',
   styleUrl: './profit-loss-transactions.component.scss',
   imports: [RouterLink, CurrencyPipe, DatePipe, TransactionEntryComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

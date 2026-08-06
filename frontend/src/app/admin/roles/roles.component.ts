@@ -6,6 +6,7 @@ import {
   ElementRef,
   afterNextRender,
   inject,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -19,6 +20,7 @@ import { Role, RoleCapability, RoleCapabilityUpdate } from '../models/role.model
   templateUrl: './roles.component.html',
   styleUrl: './roles.component.scss',
   imports: [FormsModule, KeyValuePipe],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

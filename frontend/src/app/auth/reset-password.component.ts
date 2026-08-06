@@ -1,4 +1,4 @@
-import { Component, inject, signal, afterNextRender, viewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, afterNextRender, viewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -8,6 +8,7 @@ import { HttpClient } from '@angular/common/http';
   templateUrl: './reset-password.component.html',
   styleUrl: './reset-password.component.scss',
   imports: [FormsModule, RouterLink],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(keydown.enter)': 'onSubmit()',
   },

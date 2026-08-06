@@ -1,4 +1,4 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, input, output, ChangeDetectionStrategy } from '@angular/core';
 
 export interface TagNode {
   id: string;
@@ -16,6 +16,7 @@ interface TreeNode extends TagNode {
   selector: 'app-tag-selector',
   templateUrl: './tag-selector.component.html',
   styleUrl: './tag-selector.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [],
 })
 export class TagSelectorComponent {

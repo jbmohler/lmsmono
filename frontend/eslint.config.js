@@ -21,6 +21,12 @@ module.exports = tseslint.config(
         "error",
         { type: "element", prefix: "app", style: "kebab-case" },
       ],
+      // Angular 22 made OnPush the default; the v22 migration stamped
+      // ChangeDetectionStrategy.Eager on every existing component to preserve
+      // pre-v22 behaviour. Converting to OnPush is a behavioural change that
+      // needs per-component review, so it is tracked separately rather than
+      // being forced by the linter.
+      "@angular-eslint/prefer-on-push-component-change-detection": "off",
     },
   },
   {

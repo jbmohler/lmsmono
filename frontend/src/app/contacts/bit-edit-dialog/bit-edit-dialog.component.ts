@@ -7,6 +7,7 @@ import {
   viewChild,
   ElementRef,
   afterNextRender,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -31,6 +32,7 @@ export interface BitEditResult {
   templateUrl: './bit-edit-dialog.component.html',
   styleUrl: './bit-edit-dialog.component.scss',
   imports: [FormsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(keydown)': 'handleKeydown($event)',
   },

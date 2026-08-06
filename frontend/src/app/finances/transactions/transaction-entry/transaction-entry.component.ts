@@ -1,4 +1,4 @@
-import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender, inject, effect } from '@angular/core';
+import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { KeyValuePipe } from '@angular/common';
 import { Subject } from 'rxjs';
@@ -20,6 +20,7 @@ interface TransactionLine {
   selector: 'app-transaction-entry',
   templateUrl: './transaction-entry.component.html',
   styleUrl: './transaction-entry.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [FormsModule, KeyValuePipe, QuillEditorComponent],
 })
 export class TransactionEntryComponent {

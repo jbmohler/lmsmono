@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 interface ReportItem {
@@ -13,6 +13,7 @@ interface ReportItem {
   selector: 'app-reports',
   templateUrl: './reports.component.html',
   styleUrl: './reports.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [RouterLink],
 })
 export class ReportsComponent {

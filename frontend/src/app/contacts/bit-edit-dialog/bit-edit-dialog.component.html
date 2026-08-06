@@ -21,7 +21,7 @@
         <input
           id="label"
           type="text"
-          [ngModel]="editBit()?.label"
+          [ngModel]="$safeNavigationMigration(editBit()?.label)"
           (ngModelChange)="updateField('label', $event)"
           name="label"
           placeholder="e.g., Work, Home, Mobile"
@@ -356,7 +356,7 @@
       <label for="memo">Notes</label>
       <textarea
         id="memo"
-        [ngModel]="editBit()?.memo"
+        [ngModel]="$safeNavigationMigration(editBit()?.memo)"
         (ngModelChange)="updateField('memo', $event)"
         name="memo"
         rows="2"

@@ -1,4 +1,4 @@
-import { Component, inject, signal, afterNextRender, viewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, afterNextRender, viewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
@@ -8,6 +8,7 @@ import { AuthService } from '../core/auth/auth.service';
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
   imports: [FormsModule, RouterLink],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(keydown.enter)': 'onSubmit()',
   },

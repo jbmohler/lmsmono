@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -7,6 +7,7 @@ import { map } from 'rxjs';
   selector: 'app-report-viewer',
   templateUrl: './report-viewer.component.html',
   styleUrl: './report-viewer.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [RouterLink],
 })
 export class ReportViewerComponent {

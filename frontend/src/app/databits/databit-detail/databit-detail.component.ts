@@ -6,6 +6,7 @@ import {
   computed,
   inject,
   effect,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DataBitsService } from '../services/databits.service';
@@ -17,6 +18,7 @@ import { TagSelectorComponent } from '@shared/components/tag-selector/tag-select
   templateUrl: './databit-detail.component.html',
   styleUrl: './databit-detail.component.scss',
   imports: [FormsModule, TagSelectorComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(keydown)': 'handleKeydown($event)',
   },

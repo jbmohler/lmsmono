@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe, KeyValuePipe } from '@angular/common';
@@ -18,6 +18,7 @@ interface GenerateParams {
   templateUrl: './account-running-balance.component.html',
   styleUrl: './account-running-balance.component.scss',
   imports: [RouterLink, CurrencyPipe, DatePipe, KeyValuePipe, TransactionEntryComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

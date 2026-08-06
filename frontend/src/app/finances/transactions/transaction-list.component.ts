@@ -1,4 +1,4 @@
-import { Component, afterNextRender, inject, signal, viewChild, ElementRef, computed } from '@angular/core';
+import { Component, afterNextRender, inject, signal, viewChild, ElementRef, computed, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
@@ -22,6 +22,7 @@ function defaultFromDate(): string {
   templateUrl: './transaction-list.component.html',
   styleUrl: './transaction-list.component.scss',
   imports: [FormsModule, DatePipe, TransactionEntryComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleGlobalKeydown($event)',
   },

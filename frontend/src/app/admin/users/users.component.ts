@@ -6,6 +6,7 @@ import {
   ElementRef,
   afterNextRender,
   inject,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -18,6 +19,7 @@ import { User, UserRole, UserRoleUpdate } from '../models/user.model';
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss',
   imports: [FormsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '(window:keydown)': 'handleKeydown($event)',
   },

@@ -8,6 +8,7 @@ import {
   viewChild,
   ElementRef,
   afterNextRender,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
@@ -19,6 +20,7 @@ import { PersonaShare } from '../contacts.model';
   selector: 'app-sharing-dialog',
   templateUrl: './sharing-dialog.component.html',
   styleUrl: './sharing-dialog.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [FormsModule],
 })
 export class SharingDialogComponent {

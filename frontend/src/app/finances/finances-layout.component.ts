@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs/operators';
@@ -10,6 +10,7 @@ import { Account } from '@finances/models/account.model';
   selector: 'app-finances-layout',
   templateUrl: './finances-layout.component.html',
   styleUrl: './finances-layout.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
 })
 export class FinancesLayoutComponent {

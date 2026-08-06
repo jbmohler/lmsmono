@@ -2,6 +2,7 @@
   "name": "lms-frontend",
   "version": "0.0.1",
   "private": true,
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "ng": "ng",
     "build:css": "tailwindcss --cwd src -i styles.css -o styles.built.css",
@@ -13,16 +14,16 @@
     "knip": "knip"
   },
   "dependencies": {
-    "@angular/animations": "^21.0.0",
-    "@angular/cdk": "^21.0.0",
-    "@angular/common": "^21.0.0",
-    "@angular/compiler": "^21.0.0",
-    "@angular/core": "^21.0.0",
-    "@angular/forms": "^21.0.0",
-    "@angular/platform-browser": "^21.0.0",
-    "@angular/platform-browser-dynamic": "^21.0.0",
-    "@angular/router": "^21.0.0",
-    "ngx-quill": "^30.1.3",
+    "@angular/animations": "^22.1.0",
+    "@angular/cdk": "^22.1.1",
+    "@angular/common": "^22.1.0",
+    "@angular/compiler": "^22.1.0",
+    "@angular/core": "^22.1.0",
+    "@angular/forms": "^22.1.0",
+    "@angular/platform-browser": "^22.1.0",
+    "@angular/platform-browser-dynamic": "^22.1.0",
+    "@angular/router": "^22.1.0",
+    "ngx-quill": "^31.0.1",
     "quill": "^2.0.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.8.0",
@@ -37,19 +38,19 @@
     ]
   },
   "devDependencies": {
-    "@angular/build": "^21.0.0",
-    "@angular/cli": "^21.0.0",
-    "@angular/compiler-cli": "^21.0.0",
+    "@angular/build": "^22.1.3",
+    "@angular/cli": "^22.1.3",
+    "@angular/compiler-cli": "^22.1.0",
     "@eslint/js": "^9.0.0",
     "@tailwindcss/cli": "^4.1.18",
     "@types/node": "^22.0.0",
-    "angular-eslint": "^19.0.0",
+    "angular-eslint": "^22.1.0",
     "concurrently": "^9.2.1",
-    "eslint": "^9.0.0",
+    "eslint": "^9.28.0",
     "knip": "^5.0.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "~5.9.0",
-    "typescript-eslint": "^8.0.0",
-    "vitest": "^3.0.0"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.33.1",
+    "vitest": "^4.1.10"
   }
 }

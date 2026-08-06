@@ -1,9 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { JournalService } from '../services/journal.service';
 
 @Component({
   selector: 'app-journals-list',
   templateUrl: './journals-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './journals-list.component.scss',
 })
 export class JournalsListComponent {
