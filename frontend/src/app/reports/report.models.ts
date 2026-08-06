@@ -80,6 +80,32 @@ export interface MultiPeriodAccountTypeGroup {
   subtotals: number[];
 }
 
+/** One rolling window of a multi-period profit & loss report. */
+export interface ProfitLossPeriod {
+  /** Ending month, e.g. "Jun 2026". */
+  label: string;
+  d1: string;
+  d2: string;
+}
+
+export interface MultiPeriodProfitLossAccount {
+  id: string;
+  acc_name: string;
+  description: string;
+  journal: ItemRef;
+  /** One amount per period, aligned with the report's period list. */
+  amounts: number[];
+}
+
+export interface MultiPeriodProfitLossGroup {
+  atype_id: string;
+  atype_name: string;
+  atype_sort: number;
+  debit_account: boolean;
+  accounts: MultiPeriodProfitLossAccount[];
+  subtotals: number[];
+}
+
 export interface PayeeSummaryRow {
   payee: string | null;
   debit: number;

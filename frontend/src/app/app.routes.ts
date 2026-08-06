@@ -130,6 +130,12 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'reports/multi-period-profit-loss',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./reports/multi-period-profit-loss/multi-period-profit-loss.component').then(m => m.MultiPeriodProfitLossComponent),
+  },
+  {
     path: 'reports/multi-period-balance-sheet',
     canActivate: [authGuard],
     loadComponent: () =>

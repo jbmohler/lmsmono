@@ -1,0 +1,199 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="flex items-center justify-between w-full">
+      <div class="flex items-center gap-4">
+        <a
+          routerLink="/reports"
+          class="inline-flex items-center text-gray-400 hover:text-gray-900"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <h1 class="text-xl font-semibold text-gray-900">Multi-Period Profit &amp; Loss</h1>
+      </div>
+      <div class="hidden md:flex items-center gap-3">
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="end-month">Ending:</label>
+          <select id="end-month" [value]="endMonth()" (change)="onEndMonthChange($event)">
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+          <input
+            id="end-year"
+            type="number"
+            class="w-20"
+            aria-label="Ending year"
+            [value]="endYear()"
+            (change)="onEndYearChange($event)"
+          />
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="months-per-period">Months / period:</label>
+          <input
+            id="months-per-period"
+            type="number"
+            class="w-16"
+            min="1"
+            max="24"
+            [value]="monthsPerPeriod()"
+            (change)="onMonthsPerPeriodChange($event)"
+          />
+        </div>
+        <div class="flex items-center gap-2 input-compact">
+          <label class="label-compact" for="period-count">Periods:</label>
+          <input
+            id="period-count"
+            type="number"
+            class="w-16"
+            min="1"
+            max="12"
+            [value]="periodCount()"
+            (change)="onPeriodCountChange($event)"
+          />
+        </div>
+        <button class="btn btn-primary" (click)="generate()">Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="md:hidden">
+      <div class="card p-6 text-center text-gray-500 flex flex-col gap-1">
+        <p class="text-sm">This report is best viewed on a larger screen.</p>
+        <a routerLink="/reports" class="text-sm text-blue-600 hover:text-blue-800">Back to Reports</a>
+      </div>
+    </div>
+    <div class="hidden md:flex h-full gap-4">
+      <div class="flex-1 overflow-x-auto overflow-y-auto">
+        @if (groups().length > 0) {
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th class="sticky left-0 bg-white z-10">Account</th>
+                  <th
+                    class="text-right text-xs font-normal text-gray-400"
+                    [attr.colspan]="periods().length"
+                  >
+                    {{ periodCaption() }}
+                  </th>
+                </tr>
+                <tr>
+                  <th class="sticky left-0 bg-white z-10"></th>
+                  @for (p of periods(); track p.label) {
+                    <th class="text-right whitespace-nowrap" [title]="p.d1 + ' through ' + p.d2">
+                      {{ p.label }}
+                    </th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (group of groups(); track group.atype_id; let first = $first) {
+                  @if (!first) {
+                    <tr class="group-spacer">
+                      <td [attr.colspan]="1 + periods().length"><div class="h-4"></div></td>
+                    </tr>
+                  }
+                  <tr class="group-header">
+                    <td [attr.colspan]="1 + periods().length" class="sticky left-0">{{ group.atype_name }}</td>
+                  </tr>
+                  @for (acct of group.accounts; track acct.id) {
+                    <tr
+                      class="row-clickable"
+                      [class.bg-blue-50]="selectedAccountId() === acct.id"
+                      (click)="selectAccount(acct.id)"
+                    >
+                      <td class="sticky left-0 bg-inherit z-10">
+                        <span class="cell-primary">{{ acct.acc_name }}</span>
+                        @if (acct.description) {
+                          <span class="text-xs text-gray-400 ml-2">{{ acct.description }}</span>
+                        }
+                      </td>
+                      @for (amount of acct.amounts; track $index) {
+                        <td class="text-right tabular-nums whitespace-nowrap">{{ amount | currency }}</td>
+                      }
+                    </tr>
+                  }
+                  <tr class="font-semibold">
+                    <td class="sticky left-0 bg-white z-10">Total {{ group.atype_name }}</td>
+                    @for (st of group.subtotals; track $index) {
+                      <td class="text-right tabular-nums whitespace-nowrap">{{ st | currency }}</td>
+                    }
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="group-spacer">
+                  <td [attr.colspan]="1 + periods().length"><div class="h-4"></div></td>
+                </tr>
+                <tr class="font-semibold bg-gray-50">
+                  <td class="sticky left-0 bg-gray-50 z-10">Net Income</td>
+                  @for (net of netIncome(); track $index) {
+                    <td
+                      class="text-right text-sm font-bold tabular-nums whitespace-nowrap"
+                      [class.text-green-700]="net >= 0"
+                      [class.text-red-700]="net < 0"
+                    >
+                      {{ net | currency }}
+                    </td>
+                  }
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+
+        @if (groups().length === 0) {
+          <div class="card p-6 text-center text-gray-500 flex flex-col gap-1">
+            @if (loadError(); as message) {
+              <p class="text-sm text-red-700">{{ message }}</p>
+            } @else {
+              <p class="text-sm">No profit &amp; loss data for these parameters.</p>
+            }
+            <p class="text-xs text-gray-400">
+              Choose an ending month, months per period, and number of periods, then click Generate.
+            </p>
+          </div>
+        }
+      </div>
+
+      @if (selectedAccountId(); as acctId) {
+        <div class="w-[28rem] flex-shrink-0 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+          <app-account-sidebar
+            [accountId]="acctId"
+            (sidebarClose)="closeSidebar()"
+            (transactionOpen)="openTransaction($event)"
+            (accountEdit)="openAccountEdit($event)"
+          />
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+@if (showEntryDialog()) {
+  <app-transaction-entry
+    [transactionId]="editTransactionId()"
+    (dialogClose)="closeEntryDialog()"
+    (dialogSave)="closeEntryDialog()"
+  />
+}
+
+@if (showAccountEditDialog()) {
+  <app-account-edit-dialog
+    [accountId]="editAccountId()"
+    (dialogClose)="closeAccountEditDialog()"
+    (dialogSave)="onAccountSaved()"
+  />
+}

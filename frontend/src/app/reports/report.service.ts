@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 import { ApiService } from '@core/api/api.service';
 import { MultiRowResponse } from '@core/api/api.types';
 import {
@@ -23,6 +23,17 @@ export class ReportService {
 
   profitAndLoss(d1: string, d2: string): Observable<MultiRowResponse<ProfitLossRow>> {
     return this.api.getMany<ProfitLossRow>('/api/reports/profit-loss', { d1, d2 });
+  }
+
+  /**
+   * Profit & loss for several date windows — one request per period, since the
+   * endpoint takes a single range. forkJoin fails the whole report if any
+   * period fails: a partial set of columns would be misleading.
+   */
+  multiPeriodProfitLoss(
+    periods: { d1: string; d2: string }[],
+  ): Observable<MultiRowResponse<ProfitLossRow>[]> {
+    return forkJoin(periods.map(p => this.profitAndLoss(p.d1, p.d2)));
   }
 
   profitLossTransactions(
