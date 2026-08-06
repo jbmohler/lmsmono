@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed, inject, effect, Pipe, PipeTransform } from '@angular/core';
+import { Component, input, output, signal, computed, inject, effect, viewChild, ElementRef, Pipe, PipeTransform } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Persona,
@@ -111,9 +111,24 @@ export class ContactDetailComponent {
 
   localContactTags = signal<ContactTag[]>([]);
 
+  // First name for an individual, company name for a corporate entity —
+  // whichever is rendered first in the edit form.
+  private nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
+  private pendingNameFocus = signal(false);
+
   constructor() {
     effect(() => {
+      // Track contact() so a fresh new-contact (Ctrl+Shift+N pressed again while
+      // the blank form is open) re-clones the form and re-focuses the name field.
+      this.contact();
       if (this.startInEditMode()) this.enterEditMode();
+    });
+    effect(() => {
+      const el = this.nameInput();
+      if (el && this.pendingNameFocus()) {
+        this.pendingNameFocus.set(false);
+        el.nativeElement.focus();
+      }
     });
     effect(() => {
       // Sync local tag state when contact changes
@@ -170,6 +185,7 @@ export class ContactDetailComponent {
   enterEditMode(): void {
     this.editData.set(JSON.parse(JSON.stringify(this.contact())));
     this.isEditing.set(true);
+    this.pendingNameFocus.set(true);
   }
 
   cancelEdit(): void {
@@ -186,6 +202,19 @@ export class ContactDetailComponent {
 
   updateField(field: keyof Persona, value: string | boolean): void {
     this.editData.update(data => data ? { ...data, [field]: value } : data);
+  }
+
+  /**
+   * Switch between company and individual. Corporate entities must have no
+   * first name and no title (see chk_corp_names in contacts.personas).
+   */
+  setCorporate(isCorporate: boolean): void {
+    this.editData.update(data => {
+      if (!data) return data;
+      return isCorporate
+        ? { ...data, isCorporate, firstName: '', title: '' }
+        : { ...data, isCorporate };
+    });
   }
 
   getBitTypeLabel(bitType: ContactBit['bitType']): string {

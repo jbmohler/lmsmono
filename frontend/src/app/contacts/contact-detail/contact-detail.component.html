@@ -24,11 +24,36 @@
       <div class="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4">
         <!-- Basic Info -->
         <div class="card p-4 flex flex-col gap-4">
+          <!-- Company / Individual -->
+          <div role="radiogroup" aria-label="Contact type" class="flex items-center gap-6">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="radio"
+                name="entityKind"
+                class="w-4 h-4 accent-blue-600"
+                [checked]="data.isCorporate"
+                (change)="setCorporate(true)"
+              />
+              Company
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="radio"
+                name="entityKind"
+                class="w-4 h-4 accent-blue-600"
+                [checked]="!data.isCorporate"
+                (change)="setCorporate(false)"
+              />
+              Individual
+            </label>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @if (!data.isCorporate) {
               <div>
                 <label class="label-compact">First Name</label>
                 <input
+                  #nameInput
                   type="text"
                   [ngModel]="data.firstName"
                   (ngModelChange)="updateField('firstName', $event)"
@@ -40,14 +65,15 @@
                 {{ data.isCorporate ? 'Company Name' : 'Last Name' }}
               </label>
               <input
+                #nameInput
                 type="text"
                 [ngModel]="data.lastName"
                 (ngModelChange)="updateField('lastName', $event)"
               />
             </div>
           </div>
-          @if (!data.isCorporate) {
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @if (!data.isCorporate) {
               <div>
                 <label class="label-compact">Title</label>
                 <input
@@ -57,16 +83,16 @@
                   placeholder="Mr., Ms., Dr."
                 />
               </div>
-              <div>
-                <label class="label-compact">Organization</label>
-                <input
-                  type="text"
-                  [ngModel]="data.organization"
-                  (ngModelChange)="updateField('organization', $event)"
-                />
-              </div>
+            }
+            <div [class.md:col-span-2]="data.isCorporate">
+              <label class="label-compact">Organization</label>
+              <input
+                type="text"
+                [ngModel]="data.organization"
+                (ngModelChange)="updateField('organization', $event)"
+              />
             </div>
-          }
+          </div>
         </div>
 
         <!-- Notes -->
