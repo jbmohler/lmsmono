@@ -517,7 +517,8 @@ def _write_profit_loss_xlsx(
                 amounts[aid] = [0.0] * n
             amounts[aid][i] = float(row.get("amount") or 0.0)
 
-    # Sort accounts by atype_sort, journal name, acc_name
+    # Sort accounts by atype_sort, journal name, acc_name — matching the
+    # ORDER BY the API applies, since merging periods loses the row order
     ordered = sorted(
         account_meta.keys(),
         key=lambda aid: (

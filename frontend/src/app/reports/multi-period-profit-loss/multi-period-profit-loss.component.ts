@@ -249,6 +249,7 @@ export class MultiPeriodProfitLossComponent {
       }
     });
 
+    // Matches the ORDER BY the API applies, since merging periods loses row order
     const ordered = [...byAccount.values()].sort(
       (a, b) =>
         a.meta.atype_sort - b.meta.atype_sort ||

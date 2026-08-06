@@ -252,7 +252,7 @@ def sql_profit_and_loss() -> str:
         JOIN hacc.accounts ON accounts.id = deltas.account_id
         JOIN hacc.accounttypes ON accounttypes.id = accounts.type_id
         JOIN hacc.journals ON journals.id = accounts.journal_id
-        ORDER BY accounttypes.sort, journals.jrn_name
+        ORDER BY accounttypes.sort, journals.jrn_name, accounts.acc_name
     """
 
 
