@@ -54,10 +54,12 @@
           </div>
         } @empty {
           <div class="p-4 text-center text-gray-500 text-sm">
-            @if (searchQuery()) {
-              No data bits match "{{ searchQuery() }}"
-            } @else {
+            @if (appliedSearch()) {
+              No data bits match "{{ appliedSearch() }}"
+            } @else if (listLoaded()) {
               No data bits yet
+            } @else {
+              Type above to search, or press Enter to list all
             }
           </div>
         }

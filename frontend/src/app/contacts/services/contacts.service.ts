@@ -17,6 +17,9 @@ import {
   ContactTag,
 } from '@contacts/contacts.model';
 
+/** Largest page the contacts endpoint accepts (Parameter(le=500)). */
+const MAX_LIST_LIMIT = 500;
+
 /**
  * API response types (snake_case from backend)
  */
@@ -360,6 +363,23 @@ export class ContactsService {
   // Search query — changes trigger a new backend request (debounced)
   search = signal('');
 
+  /**
+   * The search term whose results are currently in the list. Empty means the
+   * list is either unloaded or an explicit unfiltered listing — see listLoaded.
+   */
+  private _appliedSearch = signal('');
+  appliedSearch = this._appliedSearch.asReadonly();
+
+  /** Whether the current list came from an actual request. */
+  private _listLoaded = signal(false);
+  listLoaded = this._listLoaded.asReadonly();
+
+  /**
+   * Set by listAll() to load without a search term. Stays set across refreshes
+   * so saving does not blank the list, and clears as soon as the term changes.
+   */
+  private showAll = false;
+
   // Contact list with refresh trigger
   private refreshList$ = new Subject<void>();
 
@@ -370,7 +390,17 @@ export class ContactsService {
     combineLatest([
       this.user$,
       this.refreshList$.pipe(startWith(undefined)),
-      toObservable(this.search).pipe(debounceTime(300), distinctUntilChanged(), startWith(this.search())),
+      toObservable(this.search).pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        // Typing a term ends an explicit "list all". Only a non-empty term
+        // does so: a debounced empty value can land after the user cleared the
+        // box and pressed Enter, and must not cancel that explicit request.
+        tap(term => {
+          if (term.trim()) this.showAll = false;
+        }),
+        startWith(this.search())
+      ),
     ]).pipe(
       // Only load if user is logged in
       filter(([user]) => user !== null),
@@ -378,16 +408,34 @@ export class ContactsService {
         this.loading.set(true);
         this.error.set(null);
       }),
-      switchMap(([, , search]) =>
-        this.api.getMany<ApiPersonaListItem>('/api/contacts', search ? { search } : undefined).pipe(
-          tap(() => this.loading.set(false)),
+      switchMap(([, , search]) => {
+        const term = search.trim();
+        // Require a search first, unless the user explicitly asked for the
+        // full list — never load everything by default.
+        if (!term && !this.showAll) {
+          this.loading.set(false);
+          this._appliedSearch.set('');
+          this._listLoaded.set(false);
+          return of({ columns: [], data: [] });
+        }
+        const params = term ? { search: term } : { limit: MAX_LIST_LIMIT };
+        return this.api.getMany<ApiPersonaListItem>('/api/contacts', params).pipe(
+          tap(() => {
+            this.loading.set(false);
+            this._appliedSearch.set(term);
+            this._listLoaded.set(true);
+          }),
           catchError(err => {
             this.loading.set(false);
+            // Leave appliedSearch empty so a failed request is not mistaken
+            // for "no matches" and does not close an open detail.
+            this._appliedSearch.set('');
+            this._listLoaded.set(false);
             this.error.set(err.message || 'Failed to load contacts');
             return of({ columns: [], data: [] });
           })
-        )
-      )
+        );
+      })
     )
   );
 
@@ -411,6 +459,15 @@ export class ContactsService {
 
   /** Trigger a refresh of the contact list */
   refreshContacts(): void {
+    this.refreshList$.next();
+  }
+
+  /**
+   * Explicitly load the full list with no search term, capped at the API's
+   * maximum page size. Stays in effect until the search term changes.
+   */
+  listAll(): void {
+    this.showAll = true;
     this.refreshList$.next();
   }
 

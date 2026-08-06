@@ -41,6 +41,15 @@ export class DatabitsComponent {
   loading = this.databitsService.loading;
   error = this.databitsService.error;
 
+  /** Term behind the current results; empty until a search has been run. */
+  appliedSearch = this.databitsService.appliedSearch;
+
+  /** Whether the current list came from a request at all. */
+  listLoaded = this.databitsService.listLoaded;
+
+  /** Last search term the detail pane was reconciled against. */
+  private lastReconciledSearch: string | null = null;
+
   activeDetailId = computed(() => (this.creatingNew() ? null : this.selectedBitId()));
   showDetail = computed(() => this.creatingNew() || !!this.selectedBitId());
 
@@ -51,6 +60,39 @@ export class DatabitsComponent {
 
     effect(() => {
       this.databitsService.search.set(this.searchQuery());
+    });
+
+    // Keep the detail pane consistent with the search results: if the open
+    // data bit is not among them, fall back to the first match (or nothing).
+    effect(() => {
+      const list = this.bits();
+      const term = this.appliedSearch();
+
+      // No search run yet (or the request failed) - the empty list is not a
+      // statement about the open bit, so leave the selection alone.
+      if (!term) {
+        this.lastReconciledSearch = null;
+        return;
+      }
+      // Only reconcile when the search itself changed. A plain list refresh
+      // (after a save) must not kick the user off the record they just edited.
+      if (term === this.lastReconciledSearch) return;
+      this.lastReconciledSearch = term;
+
+      if (this.creatingNew()) return;
+
+      const id = this.selectedBitId();
+      if (!id) return;
+      if (list.some(b => b.id === id)) return;
+
+      const next = list.length > 0 ? list[0] : null;
+      this.selectedBitId.set(next?.id ?? null);
+      // Don't force the mobile detail pane open just because results changed.
+      if (!next) this.mobileShowDetail.set(false);
+      void this.router.navigate([], {
+        queryParams: next ? { id: next.id } : {},
+        replaceUrl: true,
+      });
     });
 
     const initialId = this.route.snapshot.queryParamMap.get('id');
@@ -86,6 +128,13 @@ export class DatabitsComponent {
         event.preventDefault();
         this.navigateList(event.key === 'ArrowDown' ? 1 : -1);
       }
+    }
+
+    if (event.key === 'Enter' && isSearchFocused && !this.searchQuery().trim()) {
+      // Enter on an empty search box explicitly lists everything (up to the
+      // API's page cap) instead of leaving the search-first empty state.
+      event.preventDefault();
+      this.databitsService.listAll();
     }
   }
 

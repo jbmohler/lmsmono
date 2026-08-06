@@ -42,6 +42,15 @@ export class ContactsComponent {
   loading = this.contactsService.loading;
   error = this.contactsService.error;
 
+  /** Term behind the current results; empty until a search has been run. */
+  appliedSearch = this.contactsService.appliedSearch;
+
+  /** Whether the current list came from a request at all. */
+  listLoaded = this.contactsService.listLoaded;
+
+  /** Last search term the detail pane was reconciled against. */
+  private lastReconciledSearch: string | null = null;
+
   constructor() {
     afterNextRender(() => {
       this.searchInput()?.nativeElement.focus();
@@ -49,6 +58,37 @@ export class ContactsComponent {
 
     effect(() => {
       this.contactsService.search.set(this.searchQuery());
+    });
+
+    // Keep the detail pane consistent with the search results: if the open
+    // contact is not among them, fall back to the first match (or nothing).
+    effect(() => {
+      const list = this.filteredContacts();
+      const term = this.appliedSearch();
+
+      // No search run yet (or the request failed) - the empty list is not a
+      // statement about the open contact, so leave the selection alone.
+      if (!term) {
+        this.lastReconciledSearch = null;
+        return;
+      }
+      // Only reconcile when the search itself changed. A plain list refresh
+      // (after a save) must not kick the user off the record they just edited.
+      if (term === this.lastReconciledSearch) return;
+      this.lastReconciledSearch = term;
+
+      const id = this.selectedContactId();
+      if (!id) return;
+      if (list.some(c => c.id === id)) return;
+
+      const next = list.length > 0 ? list[0] : null;
+      this.selectedContactId.set(next?.id ?? null);
+      // Don't force the mobile detail pane open just because results changed.
+      if (!next) this.mobileShowDetail.set(false);
+      void this.router.navigate([], {
+        queryParams: next ? { id: next.id } : {},
+        replaceUrl: true,
+      });
     });
 
     // Read ?id= from URL on load
@@ -84,6 +124,14 @@ export class ContactsComponent {
         event.preventDefault();
         this.navigateList(event.key === 'ArrowDown' ? 1 : -1);
       }
+    }
+
+    if (event.key === 'Enter' && isSearchFocused && !this.searchQuery().trim()) {
+      // Enter on an empty search box explicitly lists everything (up to the
+      // API's page cap) instead of leaving the search-first empty state.
+      event.preventDefault();
+      this.contactsService.listAll();
+      return;
     }
 
     if (event.key === 'Enter' && isSearchFocused) {
