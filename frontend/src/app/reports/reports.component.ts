@@ -1,13 +1,23 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+/** Reports sharing a group share its icon. */
+type ReportGroup = 'balance-sheet' | 'profit-loss' | 'transaction-detail' | 'other-report';
+
 interface ReportItem {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  group: ReportGroup;
   desktopOnly?: boolean;
 }
+
+const GROUP_LABELS: Record<ReportGroup, string> = {
+  'balance-sheet': 'Balance sheet',
+  'profit-loss': 'Profit & loss',
+  'transaction-detail': 'Transaction detail',
+  'other-report': 'Other',
+};
 
 @Component({
   selector: 'app-reports',
@@ -17,62 +27,68 @@ interface ReportItem {
   imports: [RouterLink],
 })
 export class ReportsComponent {
+  // Ordered by subject: account balances, then profit & loss, then
+  // transaction detail, then everything else.
   reports: ReportItem[] = [
     {
       id: 'balance-sheet',
       name: 'Balance Sheet',
       description: 'Assets, liabilities, and equity at a point in time',
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>',
-    },
-    {
-      id: 'profit-loss',
-      name: 'Profit & Loss',
-      description: 'Income and expenses over a period',
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>',
-    },
-    {
-      id: 'profit-loss-transactions',
-      name: 'P&L Transactions',
-      description: 'Individual transactions behind the P&L',
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>',
-    },
-    {
-      id: 'multi-period-profit-loss',
-      name: 'Multi-Period Profit & Loss',
-      description: 'Income and expenses compared across rolling periods',
-      desktopOnly: true,
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 20h18M7 20V10m5 10V4m5 16v-6" /></svg>',
+      group: 'balance-sheet',
     },
     {
       id: 'multi-period-balance-sheet',
       name: 'Multi-Period Balance Sheet',
       description: 'Balance sheet compared across annual periods',
       desktopOnly: true,
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18M3 18h18M3 6h18" /></svg>',
+      group: 'balance-sheet',
     },
     {
       id: 'account-running-balance',
       name: 'Account Running Balance',
       description: 'Ledger view of a single account with speculative future transactions',
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>',
+      group: 'transaction-detail',
+    },
+    {
+      id: 'profit-loss',
+      name: 'Profit & Loss',
+      description: 'Income and expenses over a period',
+      group: 'profit-loss',
+    },
+    {
+      id: 'multi-period-profit-loss',
+      name: 'Multi-Period Profit & Loss',
+      description: 'Income and expenses compared across rolling periods',
+      desktopOnly: true,
+      group: 'profit-loss',
+    },
+    {
+      id: 'profit-loss-transactions',
+      name: 'P&L Transactions',
+      description: 'Individual transactions behind the P&L',
+      group: 'transaction-detail',
     },
     {
       id: 'payee-summary',
       name: 'Payee Summary',
       description: 'Spending totals grouped by payee for a single account',
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>',
+      group: 'transaction-detail',
     },
     {
       id: 'account-activity',
       name: 'Account Activity',
       description: 'Detailed activity by account',
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>',
+      group: 'transaction-detail',
     },
     {
       id: 'tax-summary',
       name: 'Tax Summary',
       description: 'Tax-relevant totals and categories',
-      icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>',
+      group: 'other-report',
     },
   ];
+
+  groupLabel(group: ReportGroup): string {
+    return GROUP_LABELS[group];
+  }
 }

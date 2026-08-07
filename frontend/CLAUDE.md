@@ -10,10 +10,20 @@ Always serve SVG files from the Angular assets folder (`src/assets/`), never inl
 <img src="/assets/logo.svg" alt="description" class="h-7 w-7">
 ```
 
+**All icons live in `src/assets/icons/`** — the directory is named for what the
+files are, not their format (everything under `assets/` is an SVG). Brand assets
+stay at the `assets/` root. Do not add a second icon directory.
+
 Current assets:
 - `logo.svg` — branch/limb logo, tan on transparent (for dark backgrounds)
 - `favicon.svg` — branch/limb favicon, dark brown on transparent (for light browser tabs)
-- `icons/sprite.svg` — icon sprite sheet
+- `icons/sprite.svg` — icon sprite sheet, referenced inline via
+  `<svg><use href="/assets/icons/sprite.svg#name"/></svg>` so the icon inherits
+  the surrounding `currentColor`
+- `icons/balance-sheet.svg`, `icons/profit-loss.svg`, `icons/transaction-detail.svg`,
+  `icons/other-report.svg` — report group icons on the Reports index, referenced
+  with `<img>`. Standalone files cannot inherit `currentColor`, so their stroke
+  colour is baked in.
 
 ## Angular Patterns
 

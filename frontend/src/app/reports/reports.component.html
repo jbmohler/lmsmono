@@ -15,12 +15,22 @@
             [class.hidden]="report.desktopOnly"
             [class.md:block]="report.desktopOnly"
           >
-            <div class="flex items-start gap-3">
-              <div class="p-2 bg-blue-50 rounded-lg text-blue-600" [innerHTML]="report.icon"></div>
-              <div class="flex flex-col gap-1">
-                <h2 class="text-lg font-medium text-gray-900">{{ report.name }}</h2>
-                <p class="text-sm text-gray-500">{{ report.description }}</p>
+            <!--
+              The icon and title share a grid row, so the row is as tall as the
+              icon and the two centre on each other with no hardcoded heights.
+              The description sits in column 2 of the next row, indented under
+              the title.
+            -->
+            <div class="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1">
+              <div class="p-2 bg-blue-50 rounded-lg" [title]="groupLabel(report.group)">
+                <img
+                  [src]="'/assets/icons/' + report.group + '.svg'"
+                  alt=""
+                  class="w-6 h-6 block"
+                />
               </div>
+              <h2 class="text-lg font-medium text-gray-900">{{ report.name }}</h2>
+              <p class="col-start-2 text-sm text-gray-500">{{ report.description }}</p>
             </div>
           </a>
         }
