@@ -1,4 +1,4 @@
-import { Component, input, output, inject, signal, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, inject, signal, effect, viewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { Persona, ContactBit } from '../contacts.model';
 import { ContactsService } from '../services/contacts.service';
 import { ContactDetailComponent } from '../contact-detail/contact-detail.component';
@@ -19,9 +19,35 @@ export class ContactViewComponent {
   contact = signal<Persona | null>(null);
   loading = signal(false);
 
+  private pane = viewChild<ElementRef<HTMLElement>>('pane');
+  /** Contact the pane has already taken focus for. */
+  private focusedContactId: string | null = null;
+
   constructor() {
     effect(() => {
       void this.load(this.contactId());
+    });
+
+    // Take focus when a contact finishes loading so the shortcuts in
+    // app-contact-detail (p / l) work without clicking the pane first.
+    effect(() => {
+      const contact = this.contact();
+      const el = this.pane()?.nativeElement;
+      if (!contact || !el) return;
+      if (this.focusedContactId === contact.id) return;
+      this.focusedContactId = contact.id;
+
+      // Never pull focus out of a field being typed in — the contact list
+      // auto-selects the first match while the user is still typing a search.
+      const active = document.activeElement as HTMLElement | null;
+      const isTyping =
+        active?.tagName === 'INPUT' ||
+        active?.tagName === 'TEXTAREA' ||
+        active?.tagName === 'SELECT' ||
+        active?.isContentEditable === true;
+      if (isTyping) return;
+
+      el.focus({ preventScroll: true });
     });
   }
 

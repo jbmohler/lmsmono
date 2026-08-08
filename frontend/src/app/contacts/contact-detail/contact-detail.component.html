@@ -130,11 +130,58 @@
           }
         </div>
       </div>
-      @if (contact().isOwner !== false) {
-        <button (click)="enterEditMode()" class="btn btn-secondary shrink-0">
-          Edit
-        </button>
-      }
+      <div class="flex items-center gap-2 shrink-0">
+        @if (hotkeyMessage(); as message) {
+          <span class="text-xs text-gray-500">{{ message }}</span>
+        }
+
+        <!-- Keyboard shortcut help: shown on hover and on keyboard focus -->
+        <div class="relative group">
+          <button
+            type="button"
+            class="w-6 h-6 rounded-full border border-gray-300 text-gray-500 text-xs leading-none hover:bg-gray-50 hover:text-gray-700"
+            aria-label="Keyboard shortcuts"
+            aria-describedby="contact-shortcuts"
+          >
+            ?
+          </button>
+          <div
+            id="contact-shortcuts"
+            class="hidden group-hover:block group-focus-within:block absolute right-0 top-full mt-1 z-50 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3"
+            role="tooltip"
+          >
+            <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Keyboard shortcuts</h3>
+            <dl class="mt-2 flex flex-col gap-1.5 text-xs text-gray-700">
+              <div class="flex items-baseline gap-2">
+                <dt><kbd class="kbd">p</kbd></dt>
+                <dd class="text-gray-600">Copy first password</dd>
+              </div>
+              <div class="flex items-baseline gap-2">
+                <dt><kbd class="kbd">l</kbd></dt>
+                <dd class="text-gray-600">Open first link in a new tab</dd>
+              </div>
+              <div class="flex items-baseline gap-2">
+                <dt><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">S</kbd></dt>
+                <dd class="text-gray-600">Save while editing</dd>
+              </div>
+              <div class="flex items-baseline gap-2">
+                <dt><kbd class="kbd">Esc</kbd></dt>
+                <dd class="text-gray-600">Cancel editing</dd>
+              </div>
+              <div class="flex items-baseline gap-2">
+                <dt class="whitespace-nowrap"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Shift</kbd>+<kbd class="kbd">N</kbd></dt>
+                <dd class="text-gray-600">New contact</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+
+        @if (contact().isOwner !== false) {
+          <button (click)="enterEditMode()" class="btn btn-secondary">
+            Edit
+          </button>
+        }
+      </div>
     </div>
 
     <!-- Sharing Row -->

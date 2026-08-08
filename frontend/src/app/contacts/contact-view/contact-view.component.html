@@ -9,6 +9,9 @@
     </div>
   </div>
 } @else if (contact(); as c) {
+  <!-- tabindex -1 so the pane can take focus when a contact loads, which is
+       what makes the single-letter shortcuts fire without a click first -->
+  <div #pane tabindex="-1" class="h-full outline-none">
   <app-contact-detail
     [contact]="c"
     (back)="back.emit()"
@@ -19,4 +22,5 @@
     (bitDeleted)="onBitDeleted($event)"
     (bitMoved)="onBitMoved($event)"
   />
+  </div>
 }

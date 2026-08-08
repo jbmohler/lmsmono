@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed, inject, effect, viewChild, ElementRef, Pipe, PipeTransform, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, signal, computed, inject, effect, viewChild, ElementRef, DestroyRef, Pipe, PipeTransform, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Persona,
@@ -91,7 +91,9 @@ class MemoNeedsExpandPipe implements PipeTransform {
   ],
   changeDetection: ChangeDetectionStrategy.Eager,
   host: {
-    '(keydown)': 'handleKeydown($event)',
+    // window-scoped: after clicking a contact, focus sits on body, so an
+    // element-scoped listener would never see these keys
+    '(window:keydown)': 'handleKeydown($event)',
   },
 })
 export class ContactDetailComponent {
@@ -136,6 +138,8 @@ export class ContactDetailComponent {
       this.localContactTags.set(this.contact().tags ?? []);
     });
     void this.contactsService.loadTagTree();
+
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.hotkeyMessageTimer));
   }
   editingBit = signal<ContactBit | null>(null);
   shares = computed(() => this.contact().shares ?? []);
@@ -172,6 +176,27 @@ export class ContactDetailComponent {
     [...this.contact().bits].sort((a, b) => a.bitSequence - b.bitSequence)
   );
 
+  /** "First" means first as displayed, i.e. lowest bit sequence. */
+  private firstUrlBit(predicate: (bit: ContactUrl) => boolean): ContactUrl | null {
+    for (const bit of this.sortedBits()) {
+      if (bit.bitType === 'url' && predicate(bit)) return bit;
+    }
+    return null;
+  }
+
+  firstPasswordBit = computed(() => this.firstUrlBit(bit => bit.hasPassword));
+  firstLinkBit = computed(() => this.firstUrlBit(bit => !!bit.url));
+
+  /** Transient feedback for shortcuts that had nothing to act on. */
+  hotkeyMessage = signal<string | null>(null);
+  private hotkeyMessageTimer?: ReturnType<typeof setTimeout>;
+
+  private flashMessage(message: string): void {
+    this.hotkeyMessage.set(message);
+    clearTimeout(this.hotkeyMessageTimer);
+    this.hotkeyMessageTimer = setTimeout(() => this.hotkeyMessage.set(null), 2000);
+  }
+
   handleKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape' && this.isEditing()) {
       event.preventDefault();
@@ -181,6 +206,46 @@ export class ContactDetailComponent {
       event.preventDefault();
       this.saveEdit();
     }
+
+    // Single-letter shortcuts, matching the 's' convention on the contact list.
+    // Never while typing, editing, or with a dialog open.
+    const target = event.target as HTMLElement | null;
+    const isInInput =
+      target?.tagName === 'INPUT' ||
+      target?.tagName === 'TEXTAREA' ||
+      target?.tagName === 'SELECT' ||
+      target?.isContentEditable === true;
+    const busy = this.isEditing() || !!this.editingBit() || this.showSharingDialog();
+    if (isInInput || busy || event.ctrlKey || event.altKey || event.metaKey) return;
+
+    if (event.key === 'p') {
+      event.preventDefault();
+      void this.copyFirstPassword();
+    }
+    if (event.key === 'l') {
+      event.preventDefault();
+      this.openFirstLink();
+    }
+  }
+
+  /** Copy the password of the first link that has one. */
+  async copyFirstPassword(): Promise<void> {
+    const bit = this.firstPasswordBit();
+    if (!bit) {
+      this.flashMessage('No saved password on this contact');
+      return;
+    }
+    await this.copyPassword(bit);
+  }
+
+  /** Open the first link in a new tab. */
+  openFirstLink(): void {
+    const bit = this.firstLinkBit();
+    if (!bit) {
+      this.flashMessage('No link on this contact');
+      return;
+    }
+    window.open(bit.url, '_blank', 'noopener,noreferrer');
   }
 
   enterEditMode(): void {

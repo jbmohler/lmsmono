@@ -139,6 +139,9 @@ export class ContactsComponent {
       const list = this.filteredContacts();
       if (list.length > 0 && !this.selectedContactId()) {
         this.selectContact(list[0]);
+        // Enter is an explicit "open this one", so hand focus to the detail
+        // pane — it only takes focus when the user is not typing in a field.
+        this.searchInput()?.nativeElement.blur();
       }
     }
   }

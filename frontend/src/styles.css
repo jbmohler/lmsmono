@@ -213,6 +213,11 @@ dialog::backdrop {
   @apply text-gray-500 bg-gray-100;
 }
 
+/* Keyboard key, for shortcut hints on light backgrounds */
+.kbd {
+  @apply px-1.5 py-0.5 font-mono text-xs text-gray-700 bg-gray-100 border border-gray-300 rounded;
+}
+
 .badge-blue {
   @apply text-blue-700 bg-blue-100;
 }
