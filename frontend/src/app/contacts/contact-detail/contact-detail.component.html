@@ -135,6 +135,15 @@
           <span class="text-xs text-gray-500">{{ message }}</span>
         }
 
+        @if (contact().isOwner !== false) {
+          <button (click)="enterEditMode()" class="btn btn-secondary">
+            Edit
+          </button>
+          <button (click)="confirmDeleteContact()" class="btn btn-danger">
+            Delete
+          </button>
+        }
+
         <!-- Keyboard shortcut help: shown on hover and on keyboard focus -->
         <div class="relative group">
           <button
@@ -175,12 +184,6 @@
             </dl>
           </div>
         </div>
-
-        @if (contact().isOwner !== false) {
-          <button (click)="enterEditMode()" class="btn btn-secondary">
-            Edit
-          </button>
-        }
       </div>
     </div>
 

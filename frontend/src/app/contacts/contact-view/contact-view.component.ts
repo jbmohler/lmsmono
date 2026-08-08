@@ -15,6 +15,7 @@ export class ContactViewComponent {
 
   contactId = input.required<string>();
   back = output<void>();
+  deleted = output<void>();
 
   contact = signal<Persona | null>(null);
   loading = signal(false);
@@ -74,6 +75,15 @@ export class ContactViewComponent {
     if (!contact.id) return;
     try {
       this.contact.set(await this.contactsService.update(contact.id, contact));
+    } catch {
+      // error handled by service
+    }
+  }
+
+  async onContactDeleted(): Promise<void> {
+    try {
+      await this.contactsService.delete(this.contactId());
+      this.deleted.emit();
     } catch {
       // error handled by service
     }

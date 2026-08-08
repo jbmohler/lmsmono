@@ -103,6 +103,7 @@ export class ContactDetailComponent {
   startInEditMode = input(false);
   back = output<void>();
   contactSaved = output<Persona>();
+  contactDeleted = output<void>();
   contactRefresh = output<void>();
   bitUpdated = output<{ bitId: string; changes: Partial<ContactBit>; password?: string; clearPassword?: boolean }>();
   bitAdded = output<{ bit: ContactBit; password?: string }>();
@@ -335,6 +336,14 @@ export class ContactDetailComponent {
       this.bitAdded.emit({ bit, password });
     } else {
       this.bitUpdated.emit({ bitId: bit.id, changes: bit, password, clearPassword });
+    }
+  }
+
+  /** Delete the whole contact, after confirming — this cannot be undone. */
+  confirmDeleteContact(): void {
+    const name = this.displayName() || 'this contact';
+    if (window.confirm(`Delete ${name} and all of its contact info? This cannot be undone.`)) {
+      this.contactDeleted.emit();
     }
   }
 

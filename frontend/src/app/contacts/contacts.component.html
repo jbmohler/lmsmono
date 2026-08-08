@@ -77,7 +77,11 @@
     [class.md:block]="true"
   >
     @if (selectedContactId(); as id) {
-      <app-contact-view [contactId]="id" (back)="mobileShowDetail.set(false)" />
+      <app-contact-view
+        [contactId]="id"
+        (back)="mobileShowDetail.set(false)"
+        (deleted)="onContactDeleted()"
+      />
     } @else if (newContact(); as contact) {
       <app-contact-detail
         [contact]="contact"

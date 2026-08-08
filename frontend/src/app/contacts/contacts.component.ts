@@ -197,6 +197,13 @@ export class ContactsComponent {
     }
   }
 
+  /** The open contact was deleted — clear the pane and the ?id= param. */
+  onContactDeleted(): void {
+    this.selectedContactId.set(null);
+    this.mobileShowDetail.set(false);
+    void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+  }
+
   // Display helpers
   getDisplayName(contact: PersonaListItem): string {
     return contact.entityName;
