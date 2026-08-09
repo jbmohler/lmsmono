@@ -12,7 +12,9 @@ from core.config import AppConfig
 from core.crypto import init_crypto
 from core.auth import provide_current_user
 from core.db import init_pool, close_pool, provide_connection
+from core.events import broker
 from api.auth import AuthController
+from api.events import EventsController
 from api.health import HealthController, PingController
 from api.accounts import AccountTypesController, AccountsController
 from api.journals import JournalsController
@@ -91,12 +93,15 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None, None]:
         await init_pool(config.database.conninfo)
         print("Database pool initialized")
 
+        broker.start(config.database.conninfo)
+
     # Key presence is guaranteed by AppConfig.validate() during load().
     init_crypto(config.encryption.vault_key)
     print("Vault encryption initialized")
 
     yield
 
+    await broker.stop()
     await close_pool()
     print("Database pool closed")
 
@@ -106,6 +111,7 @@ app = Litestar(
         AuthController,
         HealthController,
         PingController,
+        EventsController,
         AccountTypesController,
         AccountsController,
         JournalsController,

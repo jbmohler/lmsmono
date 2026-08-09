@@ -113,7 +113,18 @@ Check boxes as tasks complete. Claude should read this file at session start to 
 
 _Use this section to leave notes for the next session._
 
-**Last session (2026-01-17):**
+**Last session (2026-08-09):**
+- Added live change notifications: Postgres `LISTEN/NOTIFY` → SSE at `GET /api/events`
+  (`backend/core/events.py`, `backend/api/events.py`)
+- Transaction create/update/delete publish `transactions` events; transaction list and
+  calendar refetch on them
+- One SSE connection per browser: tabs elect a leader via Web Locks and share events
+  over a BroadcastChannel (`frontend/src/app/core/events/change-notification.service.ts`)
+- To extend to another resource: `await events.publish(conn, "<capability-namespace>",
+  action, id, actor=current_user.id)` in the write endpoint, then
+  `changes.forEntity('<namespace>')` in the consuming component
+
+**Earlier (2026-01-17):**
 - Fixed Angular build (TypeScript 5.7→5.9 for Angular 21 compatibility)
 - Fixed Nginx config (dynamic DNS resolution for Docker)
 - Removed exposed PostgreSQL port (now internal only)

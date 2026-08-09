@@ -1,10 +1,17 @@
 import { Component, computed, signal, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, Subject, combineLatest } from 'rxjs';
-import { startWith, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, Subject, combineLatest, merge } from 'rxjs';
+import { auditTime, startWith, switchMap } from 'rxjs/operators';
 import { TransactionEntryComponent } from '../transactions/transaction-entry/transaction-entry.component';
 import { TransactionService } from '../services/transaction.service';
+import { ChangeNotificationService } from '@core/events/change-notification.service';
 import { TransactionFilters } from '@finances/models/transaction.model';
+
+/**
+ * Collapses a local save and the notification it echoes back into one refetch,
+ * and coalesces bursts of changes from other users.
+ */
+const REFRESH_COALESCE_MS = 150;
 
 interface CalendarTransaction {
   id: string;
@@ -31,6 +38,7 @@ interface CalendarDay {
 })
 export class TransactionCalendarComponent {
   private transactionService = inject(TransactionService);
+  private changes = inject(ChangeNotificationService);
 
   weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -54,11 +62,17 @@ export class TransactionCalendarComponent {
   private filters$ = new BehaviorSubject<TransactionFilters>({});
   private refresh$ = new Subject<void>();
 
+  // Refetch on our own writes and on anyone else's, from any tab or user
+  private trigger$ = merge(
+    this.refresh$,
+    this.changes.forEntity('transactions')
+  ).pipe(auditTime(REFRESH_COALESCE_MS), startWith(undefined));
+
   // Local reactive data pipeline
   private listResponse = toSignal(
     combineLatest([
       this.filters$,
-      this.refresh$.pipe(startWith(undefined)),
+      this.trigger$,
     ]).pipe(
       switchMap(([filters]) => this.transactionService.list(filters))
     )

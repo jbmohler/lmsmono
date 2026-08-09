@@ -8,6 +8,8 @@ from litestar.exceptions import HTTPException
 from litestar.params import Parameter
 
 import core.db as db
+import core.events as events
+from core.auth import AuthenticatedUser
 from core.guards import require_capability
 from core.responses import ColumnMeta, MultiRowResponse, SingleRowResponse, make_ref
 
@@ -463,6 +465,7 @@ class TransactionsController(Controller):
     async def create_transaction(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         data: TransactionCreate,
     ) -> SingleRowResponse:
         """Create a new transaction with splits."""
@@ -498,12 +501,17 @@ class TransactionsController(Controller):
                     },
                 )
 
+        await events.publish(
+            conn, "transactions", "created", transaction_id, actor=current_user.id
+        )
+
         return await _get_transaction_by_id(conn, transaction_id)
 
     @put("/{transaction_id:uuid}", guards=[require_capability("transactions:write")])
     async def update_transaction(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         transaction_id: UUID,
         data: TransactionUpdate,
     ) -> SingleRowResponse:
@@ -567,12 +575,17 @@ class TransactionsController(Controller):
                         },
                     )
 
+        await events.publish(
+            conn, "transactions", "updated", transaction_id, actor=current_user.id
+        )
+
         return await _get_transaction_by_id(conn, transaction_id)
 
     @delete("/{transaction_id:uuid}", status_code=204, guards=[require_capability("transactions:write")])
     async def delete_transaction(
         self,
         conn: psycopg.AsyncConnection,
+        current_user: AuthenticatedUser,
         transaction_id: UUID,
     ) -> None:
         """Delete a transaction and its splits."""
@@ -590,6 +603,10 @@ class TransactionsController(Controller):
         )
         if count == 0:
             raise HTTPException(status_code=404, detail="Transaction not found")
+
+        await events.publish(
+            conn, "transactions", "deleted", transaction_id, actor=current_user.id
+        )
 
     @get("/template-search", guards=[require_capability("transactions:read")])
     async def template_search(

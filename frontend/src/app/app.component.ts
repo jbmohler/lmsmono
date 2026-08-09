@@ -1,6 +1,7 @@
-import { Component, inject, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, computed, effect, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from './core/auth/auth.service';
+import { ChangeNotificationService } from '@core/events/change-notification.service';
 import { UserMenuComponent } from '@shared/components/user-menu/user-menu.component';
 import { NAV_TABS } from './nav-tabs';
 
@@ -17,6 +18,7 @@ import { NAV_TABS } from './nav-tabs';
 export class AppComponent {
   private router = inject(Router);
   private auth = inject(AuthService);
+  private changes = inject(ChangeNotificationService);
 
   isLoggedIn = this.auth.isLoggedIn;
 
@@ -24,6 +26,18 @@ export class AppComponent {
     const caps = this.auth.capabilities();
     return NAV_TABS.filter(t => t.hasAccess(caps));
   });
+
+  constructor() {
+    // The stream authenticates with the session cookie, so it can only be held
+    // while there is a session to hold it.
+    effect(() => {
+      if (this.auth.isLoggedIn()) {
+        this.changes.start();
+      } else {
+        this.changes.stop();
+      }
+    });
+  }
 
   handleKeydown(event: KeyboardEvent): void {
     if (event.ctrlKey && event.shiftKey) {

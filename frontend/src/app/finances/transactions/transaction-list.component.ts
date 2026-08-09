@@ -2,14 +2,21 @@ import { Component, afterNextRender, inject, signal, viewChild, ElementRef, comp
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-import { BehaviorSubject, Subject, combineLatest } from 'rxjs';
-import { debounceTime, startWith, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, Subject, combineLatest, merge } from 'rxjs';
+import { auditTime, debounceTime, startWith, switchMap } from 'rxjs/operators';
 import { TransactionEntryComponent } from './transaction-entry/transaction-entry.component';
 import { TransactionService } from '../services/transaction.service';
+import { ChangeNotificationService } from '@core/events/change-notification.service';
 import { TransactionFilters } from '@finances/models/transaction.model';
 import { ColumnMeta } from '@core/api/api.types';
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+/**
+ * Collapses a local save and the notification it echoes back into one refetch,
+ * and coalesces bursts of changes from other users.
+ */
+const REFRESH_COALESCE_MS = 150;
 
 function defaultFromDate(): string {
   const d = new Date();
@@ -29,6 +36,7 @@ function defaultFromDate(): string {
 })
 export class TransactionListComponent {
   private transactionService = inject(TransactionService);
+  private changes = inject(ChangeNotificationService);
 
   searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
@@ -44,11 +52,17 @@ export class TransactionListComponent {
   dateFrom = defaultFromDate();
   dateTo = '';
 
+  // Refetch on our own writes and on anyone else's, from any tab or user
+  private trigger$ = merge(
+    this.refresh$,
+    this.changes.forEntity('transactions')
+  ).pipe(auditTime(REFRESH_COALESCE_MS), startWith(undefined));
+
   // Local reactive data pipeline
   private listResponse = toSignal(
     combineLatest([
       this.filters$.pipe(debounceTime(SEARCH_DEBOUNCE_MS)),
-      this.refresh$.pipe(startWith(undefined)),
+      this.trigger$,
     ]).pipe(
       switchMap(([filters]) => this.transactionService.list(filters))
     )
