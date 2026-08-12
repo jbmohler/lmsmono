@@ -6,6 +6,8 @@ import { Subject, combineLatest, of } from 'rxjs';
 import { distinctUntilChanged, map, startWith, switchMap } from 'rxjs/operators';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 
+import { AuthService } from '@core/auth/auth.service';
+import { ChangeNotificationService } from '@core/events/change-notification.service';
 import { ReconcileData, ReconcileSplit, FinalizeResult, ToggleResult } from '@finances/models/reconcile.model';
 
 type FilterMode = 'all' | 'uncleared' | 'pending';
@@ -20,12 +22,20 @@ type FilterMode = 'all' | 'uncleared' | 'pending';
 export class ReconcileComponent {
   private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
+  private changes = inject(ChangeNotificationService);
+  private auth = inject(AuthService);
 
   accountId = toSignal(
     this.route.paramMap.pipe(map(params => params.get('accountId') ?? ''))
   );
 
   private refresh$ = new Subject<void>();
+
+  // Reconciling is a sensitive, deliberate task - never refetch out from under
+  // someone mid-review. A remote transaction change just flips `stale`; only an
+  // explicit refresh() call reloads the split list.
+  stale = signal(false);
+  private lastChangeEvent = toSignal(this.changes.forEntity('transactions'));
 
   reconcileData = toSignal(
     combineLatest([
@@ -61,7 +71,15 @@ export class ReconcileComponent {
       this.statementDate.set('');
       this.statementBalanceStr.set('');
       this.filterMode.set('all');
+      this.stale.set(false);
     }, { allowSignalWrites: true });
+
+    effect(() => {
+      const event = this.lastChangeEvent();
+      if (event && event.actor !== this.auth.user()?.id) {
+        this.stale.set(true);
+      }
+    });
   }
 
   // Splits with optimistic overrides applied
@@ -76,15 +94,21 @@ export class ReconcileComponent {
   });
 
   // Summary
-  priorBalance = computed(() => this.reconcileData()?.prior_reconciled_balance ?? 0);
+  // Splits store raw sums as debit-positive/credit-negative. Debit-normal accounts
+  // (Asset, Expense) display that as-is; credit-normal accounts (Liability, Equity,
+  // Income) flip the sign so a normal balance shows positive.
+  private balanceSign = computed(() => (this.reconcileData()?.debit_balance ?? true) ? 1 : -1);
+
+  priorBalance = computed(
+    () => (this.reconcileData()?.prior_reconciled_balance ?? 0) * this.balanceSign()
+  );
 
   clearedBalance = computed(() => {
-    const prior = this.priorBalance();
-    // Reconstruct raw sum: positive sum = debit, negative sum = -credit
+    const rawPrior = this.reconcileData()?.prior_reconciled_balance ?? 0;
     const pendingSum = this.splits()
       .filter(s => s.is_pending)
       .reduce((total, s) => total + (s.debit ?? -(s.credit ?? 0)), 0);
-    return prior + pendingSum;
+    return (rawPrior + pendingSum) * this.balanceSign();
   });
 
   statementBalance = computed<number | null>(() => {
@@ -127,6 +151,11 @@ export class ReconcileComponent {
     this.filterMode.set(mode);
   }
 
+  refresh(): void {
+    this.stale.set(false);
+    this.refresh$.next();
+  }
+
   toggle(splitId: string): void {
     const split = this.splits().find(s => s.split_id === splitId);
     if (!split) return;
@@ -164,7 +193,7 @@ export class ReconcileComponent {
           this.statementBalanceStr.set('');
           this.statementDate.set('');
           this.filterMode.set('all');
-          this.refresh$.next();
+          this.refresh();
         },
       });
   }

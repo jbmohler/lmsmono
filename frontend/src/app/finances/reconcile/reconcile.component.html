@@ -17,14 +17,29 @@
           <p class="text-sm italic text-gray-500">{{ recNote() }}</p>
         }
       </div>
-      <button
-        class="btn btn-primary shrink-0"
-        [disabled]="!canFinalize()"
-        (click)="finalize()"
-        title="{{ canFinalize() ? 'Mark all pending splits as reconciled' : 'Difference must be $0.00 to finalize' }}"
-      >
-        Finalize Reconciliation
-      </button>
+      <div class="flex items-center gap-2 shrink-0">
+        @if (stale()) {
+          <button
+            (click)="refresh()"
+            class="btn btn-secondary flex items-center gap-1.5 border-yellow-400 text-yellow-700 bg-yellow-50 hover:bg-yellow-100"
+            title="Other changes have come in. Click to refresh the split list."
+          >
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+            </span>
+            Refresh
+          </button>
+        }
+        <button
+          class="btn btn-primary"
+          [disabled]="!canFinalize()"
+          (click)="finalize()"
+          title="{{ canFinalize() ? 'Mark all pending splits as reconciled' : 'Difference must be $0.00 to finalize' }}"
+        >
+          Finalize Reconciliation
+        </button>
+      </div>
     </div>
 
     <!-- Statement inputs + running totals -->

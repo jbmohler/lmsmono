@@ -13,6 +13,7 @@ export interface ReconcileData {
   account_id: string;
   acc_name: string;
   rec_note: string | null;
+  debit_balance: boolean;
   prior_reconciled_balance: number;
   splits: ReconcileSplit[];
 }

@@ -16,8 +16,9 @@ from core.guards import require_capability
 
 def sql_get_account_info() -> str:
     return """
-        SELECT a.acc_name, a.rec_note
+        SELECT a.acc_name, a.rec_note, t.debit AS debit_balance
         FROM hacc.accounts a
+        JOIN hacc.accounttypes t ON a.type_id = t.id
         WHERE a.id = %(account_id)s
     """
 
@@ -152,6 +153,7 @@ class ReconcileData:
     account_id: str
     acc_name: str
     rec_note: str | None
+    debit_balance: bool
     prior_reconciled_balance: float
     splits: list[ReconcileSplit]
 
@@ -241,6 +243,7 @@ class ReconcileController(Controller):
             account_id=str(account_id),
             acc_name=account_row["acc_name"],
             rec_note=account_row["rec_note"],
+            debit_balance=account_row["debit_balance"],
             prior_reconciled_balance=prior_balance,
             splits=splits,
         )
