@@ -1,10 +1,12 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { Subject, switchMap, startWith, filter } from 'rxjs';
+import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
 import { AccountTypeGroup, ProfitLossRow } from '../report.models';
+import { formatReportDate } from '../report-date';
 import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.component';
 import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
 import { AccountEditDialogComponent } from '../../finances/setup/account-edit-dialog/account-edit-dialog.component';
@@ -26,6 +28,7 @@ interface DateRange {
 })
 export class ProfitLossComponent {
   private reportService = inject(ReportService);
+  private pageTitle = inject(PageTitleService);
 
   filtersOpen = signal(false);
   mobileShowDetail = signal(false);
@@ -68,6 +71,18 @@ export class ProfitLossComponent {
   });
 
   netIncome = computed(() => this.totalIncome() - this.totalExpenses());
+
+  // The generated report's date range, once loaded.
+  dateRangeLabel = computed(() => {
+    if (!this.response()) return '';
+    return `${formatReportDate(this.startDate())} – ${formatReportDate(this.endDate())}`;
+  });
+
+  constructor() {
+    effect(() => {
+      this.pageTitle.setDetail(this.dateRangeLabel() || null);
+    });
+  }
 
   selectAccount(id: string): void {
     this.selectedAccountId.set(

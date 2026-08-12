@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe, KeyValuePipe } from '@angular/common';
 import { Subject, switchMap, filter } from 'rxjs';
 import { AccountService } from '@finances/services/account.service';
+import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
 import { AccountRunningBalanceRow } from '../report.models';
 import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
@@ -26,6 +27,7 @@ interface GenerateParams {
 export class AccountRunningBalanceComponent {
   private reportService = inject(ReportService);
   private accountService = inject(AccountService);
+  private pageTitle = inject(PageTitleService);
 
   filtersOpen = signal(false);
   editTransactionId = signal<string | undefined>(undefined);
@@ -49,6 +51,13 @@ export class AccountRunningBalanceComponent {
   );
 
   rows = computed<AccountRunningBalanceRow[]>(() => this.response()?.data ?? []);
+
+  // Name of the generated report's account, once loaded — not the pending
+  // dropdown selection, so the title doesn't jump ahead of what's on screen.
+  accountName = computed(() => {
+    if (!this.response()) return '';
+    return this.accountService.accounts().find((a) => a.id === this.selectedAccountId())?.acc_name ?? '';
+  });
 
   // Account types with balance_sheet flag for filtering
   private accountTypes = this.accountService.accountTypes;
@@ -79,6 +88,12 @@ export class AccountRunningBalanceComponent {
     }
     return grouped;
   });
+
+  constructor() {
+    effect(() => {
+      this.pageTitle.setDetail(this.accountName() || null);
+    });
+  }
 
   onAccountChange(event: Event): void {
     this.selectedAccountId.set((event.target as HTMLSelectElement).value);

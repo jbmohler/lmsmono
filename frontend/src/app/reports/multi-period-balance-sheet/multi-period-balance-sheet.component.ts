@@ -1,8 +1,9 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { Subject, switchMap, startWith, filter } from 'rxjs';
+import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
 import {
   MultiPeriodAccountTypeGroup,
@@ -30,6 +31,7 @@ interface GenerateParams {
 })
 export class MultiPeriodBalanceSheetComponent {
   private reportService = inject(ReportService);
+  private pageTitle = inject(PageTitleService);
 
   selectedAccountId = signal<string | null>(null);
   editTransactionId = signal<string | undefined>(undefined);
@@ -69,6 +71,19 @@ export class MultiPeriodBalanceSheetComponent {
 
   totalAssets = computed(() => this.sumGroupTotals(this.assetGroups()));
   totalLiabilitiesEquity = computed(() => this.sumGroupTotals(this.liabilityEquityGroups()));
+
+  // Periods are newest-first — periods()[0] is the anchor month the annual
+  // comparisons step back from.
+  anchorPeriodLabel = computed(() => {
+    const periods = this.periods();
+    return periods.length ? `${periods.length} yrs ending ${this.formatPeriodHeader(periods[0])}` : '';
+  });
+
+  constructor() {
+    effect(() => {
+      this.pageTitle.setDetail(this.anchorPeriodLabel() || null);
+    });
+  }
 
   selectAccount(id: string): void {
     this.selectedAccountId.set(this.selectedAccountId() === id ? null : id);

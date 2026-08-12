@@ -1,10 +1,12 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Subject, switchMap, startWith, filter } from 'rxjs';
+import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
 import { ProfitLossTransactionGroup, ProfitLossTransactionRow } from '../report.models';
+import { formatReportDate } from '../report-date';
 import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
 
 interface DateRange {
@@ -24,6 +26,7 @@ interface DateRange {
 })
 export class ProfitLossTransactionsComponent {
   private reportService = inject(ReportService);
+  private pageTitle = inject(PageTitleService);
 
   filtersOpen = signal(false);
   editTransactionId = signal<string | undefined>(undefined);
@@ -62,6 +65,18 @@ export class ProfitLossTransactionsComponent {
   });
 
   netIncome = computed(() => this.totalIncome() - this.totalExpenses());
+
+  // The generated report's date range, once loaded.
+  dateRangeLabel = computed(() => {
+    if (!this.response()) return '';
+    return `${formatReportDate(this.startDate())} – ${formatReportDate(this.endDate())}`;
+  });
+
+  constructor() {
+    effect(() => {
+      this.pageTitle.setDetail(this.dateRangeLabel() || null);
+    });
+  }
 
   openTransaction(id: string): void {
     this.editTransactionId.set(id);

@@ -2,6 +2,7 @@ import {
   Component,
   signal,
   computed,
+  effect,
   viewChild,
   ElementRef,
   afterNextRender,
@@ -11,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 
+import { PageTitleService } from '@core/page-title.service';
 import { UserService } from './services/user.service';
 import { User, UserRole, UserRoleUpdate } from '../models/user.model';
 
@@ -26,6 +28,7 @@ import { User, UserRole, UserRoleUpdate } from '../models/user.model';
 })
 export class UsersComponent {
   private userService = inject(UserService);
+  private pageTitle = inject(PageTitleService);
 
   searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
@@ -52,6 +55,11 @@ export class UsersComponent {
   constructor() {
     afterNextRender(() => {
       this.searchInput()?.nativeElement.focus();
+    });
+
+    // Refine "Users - LMS" into "Users: <username> - LMS" once loaded.
+    effect(() => {
+      this.pageTitle.setDetail(this.selectedUser()?.username || null);
     });
   }
 

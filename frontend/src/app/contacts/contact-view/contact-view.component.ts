@@ -1,7 +1,8 @@
-import { Component, input, output, inject, signal, effect, viewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, inject, signal, effect, viewChild, ElementRef, ChangeDetectionStrategy, DestroyRef } from '@angular/core';
 import { Persona, ContactBit } from '../contacts.model';
 import { ContactsService } from '../services/contacts.service';
 import { ContactDetailComponent } from '../contact-detail/contact-detail.component';
+import { PageTitleService } from '@core/page-title.service';
 
 @Component({
   selector: 'app-contact-view',
@@ -12,6 +13,7 @@ import { ContactDetailComponent } from '../contact-detail/contact-detail.compone
 })
 export class ContactViewComponent {
   private contactsService = inject(ContactsService);
+  private pageTitle = inject(PageTitleService);
 
   contactId = input.required<string>();
   back = output<void>();
@@ -50,6 +52,15 @@ export class ContactViewComponent {
 
       el.focus({ preventScroll: true });
     });
+
+    // Refine "Contacts - LMS" into "Contacts: <name> - LMS" once loaded.
+    effect(() => {
+      const contact = this.contact();
+      const name = contact ? `${contact.firstName} ${contact.lastName}`.trim() : '';
+      this.pageTitle.setDetail(name || null);
+    });
+
+    inject(DestroyRef).onDestroy(() => this.pageTitle.setDetail(null));
   }
 
   private async load(id: string): Promise<void> {

@@ -8,6 +8,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 
 import { AuthService } from '@core/auth/auth.service';
 import { ChangeNotificationService } from '@core/events/change-notification.service';
+import { PageTitleService } from '@core/page-title.service';
 import { ReconcileData, ReconcileSplit, FinalizeResult, ToggleResult } from '@finances/models/reconcile.model';
 
 type FilterMode = 'all' | 'uncleared' | 'pending';
@@ -24,6 +25,7 @@ export class ReconcileComponent {
   private http = inject(HttpClient);
   private changes = inject(ChangeNotificationService);
   private auth = inject(AuthService);
+  private pageTitle = inject(PageTitleService);
 
   accountId = toSignal(
     this.route.paramMap.pipe(map(params => params.get('accountId') ?? ''))
@@ -79,6 +81,12 @@ export class ReconcileComponent {
       if (event && event.actor !== this.auth.user()?.id) {
         this.stale.set(true);
       }
+    });
+
+    // Refine "Reconcile - LMS" into "Reconcile: <account> - LMS" once the
+    // account name loads.
+    effect(() => {
+      this.pageTitle.setDetail(this.accName() || null);
     });
   }
 

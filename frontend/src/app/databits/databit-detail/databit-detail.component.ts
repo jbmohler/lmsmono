@@ -6,12 +6,14 @@ import {
   computed,
   inject,
   effect,
+  DestroyRef,
   ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DataBitsService } from '../services/databits.service';
 import { DataBit, DataBitTag } from '../databits.model';
 import { TagSelectorComponent } from '@shared/components/tag-selector/tag-selector.component';
+import { PageTitleService } from '@core/page-title.service';
 
 @Component({
   selector: 'app-databit-detail',
@@ -25,6 +27,7 @@ import { TagSelectorComponent } from '@shared/components/tag-selector/tag-select
 })
 export class DataBitDetailComponent {
   private databitsService = inject(DataBitsService);
+  private pageTitle = inject(PageTitleService);
 
   bitId = input<string | null>(null);
   back = output<void>();
@@ -62,6 +65,13 @@ export class DataBitDetailComponent {
       }
     });
     void this.databitsService.loadTagList();
+
+    // Refine "Data Bits - LMS" into "Data Bits: <caption> - LMS" once loaded.
+    effect(() => {
+      this.pageTitle.setDetail(this.bit()?.caption || null);
+    });
+
+    inject(DestroyRef).onDestroy(() => this.pageTitle.setDetail(null));
   }
 
   private async load(id: string): Promise<void> {

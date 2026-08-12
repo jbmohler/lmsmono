@@ -1,10 +1,12 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { Subject, switchMap, startWith, filter } from 'rxjs';
+import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
 import { AccountTypeGroup, BalanceSheetRow } from '../report.models';
+import { formatReportDate } from '../report-date';
 import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.component';
 import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
 import { AccountEditDialogComponent } from '../../finances/setup/account-edit-dialog/account-edit-dialog.component';
@@ -21,6 +23,7 @@ import { AccountEditDialogComponent } from '../../finances/setup/account-edit-di
 })
 export class BalanceSheetComponent {
   private reportService = inject(ReportService);
+  private pageTitle = inject(PageTitleService);
 
   filtersOpen = signal(false);
   mobileShowDetail = signal(false);
@@ -57,6 +60,18 @@ export class BalanceSheetComponent {
       .filter((g) => !g.debit_account)
       .reduce((sum, g) => sum + g.subtotal, 0);
   });
+
+  // The generated report's as-of date, once loaded.
+  reportDateLabel = computed(() => {
+    if (!this.response()) return '';
+    return `As of ${formatReportDate(this.reportDate())}`;
+  });
+
+  constructor() {
+    effect(() => {
+      this.pageTitle.setDetail(this.reportDateLabel() || null);
+    });
+  }
 
   selectAccount(id: string): void {
     this.selectedAccountId.set(

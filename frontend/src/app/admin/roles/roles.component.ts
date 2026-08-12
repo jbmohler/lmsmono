@@ -2,6 +2,7 @@ import {
   Component,
   signal,
   computed,
+  effect,
   viewChild,
   ElementRef,
   afterNextRender,
@@ -12,6 +13,7 @@ import { KeyValuePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 
+import { PageTitleService } from '@core/page-title.service';
 import { RoleService } from './services/role.service';
 import { Role, RoleCapability, RoleCapabilityUpdate } from '../models/role.model';
 
@@ -27,6 +29,7 @@ import { Role, RoleCapability, RoleCapabilityUpdate } from '../models/role.model
 })
 export class RolesComponent {
   private roleService = inject(RoleService);
+  private pageTitle = inject(PageTitleService);
 
   searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
@@ -51,6 +54,11 @@ export class RolesComponent {
   constructor() {
     afterNextRender(() => {
       this.searchInput()?.nativeElement.focus();
+    });
+
+    // Refine "Roles - LMS" into "Roles: <role name> - LMS" once loaded.
+    effect(() => {
+      this.pageTitle.setDetail(this.selectedRole()?.role_name || null);
     });
   }
 

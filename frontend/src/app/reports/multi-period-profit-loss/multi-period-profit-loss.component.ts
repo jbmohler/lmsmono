@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { Subject, of, switchMap, startWith, filter, map, catchError } from 'rxjs';
 import { MultiRowResponse } from '@core/api/api.types';
+import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
 import {
   MultiPeriodProfitLossGroup,
@@ -81,6 +82,7 @@ function buildProfitLossPeriods(
 })
 export class MultiPeriodProfitLossComponent {
   private reportService = inject(ReportService);
+  private pageTitle = inject(PageTitleService);
 
   selectedAccountId = signal<string | null>(null);
   editTransactionId = signal<string | undefined>(undefined);
@@ -160,6 +162,16 @@ export class MultiPeriodProfitLossComponent {
     const expenses = this.totalExpenses();
     return this.periods().map((_, i) => (income[i] ?? 0) - (expenses[i] ?? 0));
   });
+
+  // Periods are newest-first (see buildProfitLossPeriods) — periods()[0] is
+  // the anchor month the rolling windows are counted back from.
+  anchorPeriodLabel = computed(() => this.periods()[0]?.label ?? '');
+
+  constructor() {
+    effect(() => {
+      this.pageTitle.setDetail(this.anchorPeriodLabel() || null);
+    });
+  }
 
   selectAccount(id: string): void {
     this.selectedAccountId.set(this.selectedAccountId() === id ? null : id);

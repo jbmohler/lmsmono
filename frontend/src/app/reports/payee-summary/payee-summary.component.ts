@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, KeyValuePipe } from '@angular/common';
 import { Subject, switchMap, filter } from 'rxjs';
 import { AccountService } from '@finances/services/account.service';
+import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
 import { PayeeSummaryRow } from '../report.models';
 
@@ -26,6 +27,7 @@ interface GenerateParams {
 export class PayeeSummaryComponent {
   private reportService = inject(ReportService);
   private accountService = inject(AccountService);
+  private pageTitle = inject(PageTitleService);
 
   filtersOpen = signal(false);
 
@@ -59,6 +61,12 @@ export class PayeeSummaryComponent {
   total = computed(() => this.rows().reduce((sum, r) => sum + r.debit, 0));
 
   accountsByType = this.accountService.accountsByType;
+
+  constructor() {
+    effect(() => {
+      this.pageTitle.setDetail(this.accountName() || null);
+    });
+  }
 
   onAccountChange(event: Event): void {
     this.selectedAccountId.set((event.target as HTMLSelectElement).value);
