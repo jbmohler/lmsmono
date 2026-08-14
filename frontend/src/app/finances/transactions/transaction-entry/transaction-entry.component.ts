@@ -292,7 +292,59 @@ export class TransactionEntryComponent {
           this.addLine();
         }
       }
+      return;
     }
+
+    // Ctrl+Shift+X - swap debit/credit on every line
+    if (event.ctrlKey && event.shiftKey && event.key === 'X') {
+      if (this.currentLineId(event.target as HTMLElement)) {
+        event.preventDefault();
+        this.reverseAllLines();
+      }
+      return;
+    }
+
+    // Ctrl+Shift+A - fill whatever debit or credit the current line needs to balance the transaction
+    if (event.ctrlKey && event.shiftKey && event.key === 'A') {
+      const lineId = this.currentLineId(event.target as HTMLElement);
+      if (lineId) {
+        event.preventDefault();
+        this.autoBalanceLine(lineId);
+      }
+      return;
+    }
+  }
+
+  /** Line id of the row containing the focused element, if any. */
+  private currentLineId(target: HTMLElement): number | null {
+    const row = target.closest('tr[data-line-id]');
+    if (!row) return null;
+    return parseInt(row.getAttribute('data-line-id') || '0', 10) || null;
+  }
+
+  /** Swap debit and credit on every line. */
+  reverseAllLines(): void {
+    this.lines.update(lines =>
+      lines.map(line => ({ ...line, debit: line.credit, credit: line.debit }))
+    );
+  }
+
+  /** Set whichever of debit/credit the line needs to bring the transaction into balance. */
+  autoBalanceLine(lineId: number): void {
+    const others = this.lines().filter(l => l.id !== lineId);
+    const otherDebits = others.reduce((sum, l) => sum + (l.debit || 0), 0);
+    const otherCredits = others.reduce((sum, l) => sum + (l.credit || 0), 0);
+    const amount = Math.round(Math.abs(otherDebits - otherCredits) * 100) / 100;
+
+    this.lines.update(lines =>
+      lines.map(line => {
+        if (line.id !== lineId) return line;
+        if (amount === 0) return { ...line, debit: null, credit: null };
+        return otherDebits > otherCredits
+          ? { ...line, debit: null, credit: amount }
+          : { ...line, debit: amount, credit: null };
+      })
+    );
   }
 
   addLine(): void {

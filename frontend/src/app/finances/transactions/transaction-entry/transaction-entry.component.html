@@ -250,20 +250,6 @@
       </table>
     </div>
 
-    <!-- Add line button -->
-    <button
-      type="button"
-      (click)="addLine()"
-      class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 self-start"
-      tabindex="-1"
-    >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-      </svg>
-      Add line
-      <span class="hidden md:inline text-gray-400 text-xs">(Ctrl+Enter)</span>
-    </button>
-
     <!-- Balance warning -->
     @if (!isBalanced() && (totalDebits() > 0 || totalCredits() > 0)) {
       <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -285,11 +271,63 @@
 
   <!-- Footer -->
   <div class="dialog-footer">
-    <div class="dialog-shortcuts">
-      <span class="font-medium">Shortcuts:</span>
-      Ctrl+S save | Ctrl+Enter add line | Ctrl+Backspace delete line | Esc cancel
+    <div class="flex items-center gap-3">
+      <button
+        type="button"
+        (click)="addLine()"
+        class="btn btn-success"
+        tabindex="-1"
+        title="Add line (Ctrl+Enter)"
+      >
+        + Split
+      </button>
+
+      <!-- Keyboard shortcut help: shown on hover and on keyboard focus -->
+      <div class="relative group">
+        <button
+          type="button"
+          class="w-6 h-6 rounded-full border border-gray-300 text-gray-500 text-xs leading-none hover:bg-gray-50 hover:text-gray-700"
+          aria-label="Keyboard shortcuts"
+          aria-describedby="transaction-entry-shortcuts"
+        >
+          ?
+        </button>
+        <div
+          id="transaction-entry-shortcuts"
+          class="hidden group-hover:block group-focus-within:block absolute left-0 bottom-full mb-1 z-50 w-72 bg-white border border-gray-200 rounded-lg shadow-lg p-3"
+          role="tooltip"
+        >
+          <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Keyboard shortcuts</h3>
+          <dl class="mt-2 flex flex-col gap-1.5 text-xs text-gray-700">
+            <div class="flex items-baseline gap-2">
+              <dt class="whitespace-nowrap"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">S</kbd></dt>
+              <dd class="text-gray-600">Save transaction</dd>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <dt class="whitespace-nowrap"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Enter</kbd></dt>
+              <dd class="text-gray-600">Add line</dd>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <dt class="whitespace-nowrap"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Backspace</kbd></dt>
+              <dd class="text-gray-600">Delete current line</dd>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <dt class="whitespace-nowrap"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Shift</kbd>+<kbd class="kbd">X</kbd></dt>
+              <dd class="text-gray-600">Reverse debit/credit on all lines</dd>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <dt class="whitespace-nowrap"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Shift</kbd>+<kbd class="kbd">A</kbd></dt>
+              <dd class="text-gray-600">Auto-balance current line</dd>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <dt><kbd class="kbd">Esc</kbd></dt>
+              <dd class="text-gray-600">Cancel</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
     </div>
-    <div class="dialog-actions">
+    <div class="dialog-actions ml-auto items-center">
       <button type="button" (click)="onCancel()" class="btn btn-secondary">
         Cancel
       </button>
