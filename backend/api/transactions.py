@@ -95,13 +95,20 @@ def sql_select_transaction_exists() -> str:
 
 
 def sql_select_transaction_splits() -> str:
-    """Get splits for a transaction with account refs."""
+    """Get splits for a transaction with account refs and reconciled status."""
     return """
         SELECT
             s.sid AS id,
             a.id AS account_id,
             a.acc_name AS account_name,
-            s.sum
+            s.sum,
+            EXISTS (
+                SELECT 1
+                FROM hacc.tagsplits ts
+                JOIN hacc.tags tg ON tg.id = ts.tag_id
+                WHERE ts.split_id = s.sid
+                  AND tg.tag_name = 'Bank Reconciled'
+            ) AS reconciled
         FROM hacc.splits s
         JOIN hacc.accounts a ON s.account_id = a.id
         WHERE s.stid = %(transaction_id)s
@@ -206,6 +213,25 @@ def sql_insert_split() -> str:
     """
 
 
+def sql_update_split() -> str:
+    """Update an existing split in place, preserving its sid."""
+    return """
+        UPDATE hacc.splits
+        SET account_id = %(account_id)s, sum = %(sum)s
+        WHERE sid = %(sid)s
+    """
+
+
+def sql_select_split_ids() -> str:
+    """Get the sids of all splits currently belonging to a transaction."""
+    return "SELECT sid FROM hacc.splits WHERE stid = %(id)s"
+
+
+def sql_delete_split() -> str:
+    """Delete a single split by sid."""
+    return "DELETE FROM hacc.splits WHERE sid = %(sid)s"
+
+
 def sql_update_transaction(fields: set[str]) -> str:
     """Update transaction fields dynamically."""
     valid_fields = {"trandate", "tranref", "payee", "memo", "receipt"}
@@ -281,6 +307,7 @@ SPLIT_COLUMNS = [
     ColumnMeta(key="account", label="Account", type="ref"),
     ColumnMeta(key="debit", label="Debit", type="currency"),
     ColumnMeta(key="credit", label="Credit", type="currency"),
+    ColumnMeta(key="reconciled", label="Reconciled", type="boolean"),
 ]
 
 # Columns for the transaction detail response (includes splits)
@@ -312,6 +339,7 @@ class SplitInput:
     account_id: str  # UUID
     debit: float | None = None
     credit: float | None = None
+    id: str | None = None  # UUID of an existing split; omitted for new splits
 
 
 @dataclass
@@ -383,6 +411,7 @@ async def get_transaction_splits(
                 "account": make_ref(str(row["account_id"]), row["account_name"]),
                 "debit": debit,
                 "credit": credit,
+                "reconciled": row["reconciled"],
             })
         return splits
 
@@ -551,29 +580,44 @@ class TransactionsController(Controller):
                 params,
             )
 
-        # Replace splits if provided
+        # Reconcile splits in place: update existing rows by id, insert new
+        # ones, and only delete rows that were actually removed. This
+        # preserves the sid of unchanged/edited splits so tags (e.g. Bank
+        # Reconciled) linked via hacc.tagsplits.split_id stay valid.
         if data.splits is not None:
             validate_splits(data.splits)
 
-            # Delete existing splits
-            await db.execute(
-                conn,
-                sql_delete_transaction_splits(),
-                {"id": transaction_id},
-            )
+            async with conn.cursor() as cur:
+                await cur.execute(sql_select_split_ids(), {"id": transaction_id})
+                existing_ids = {str(row[0]) for row in await cur.fetchall()}
 
-            # Insert new splits
+            incoming_ids = {split.id for split in data.splits if split.id}
+            ids_to_delete = existing_ids - incoming_ids
+
             async with conn.cursor() as cur:
                 for split in data.splits:
                     sum_value = debit_credit_to_sum(split.debit, split.credit)
-                    await cur.execute(
-                        sql_insert_split(),
-                        {
-                            "stid": transaction_id,
-                            "account_id": split.account_id,
-                            "sum": sum_value,
-                        },
-                    )
+                    if split.id and split.id in existing_ids:
+                        await cur.execute(
+                            sql_update_split(),
+                            {
+                                "sid": split.id,
+                                "account_id": split.account_id,
+                                "sum": sum_value,
+                            },
+                        )
+                    else:
+                        await cur.execute(
+                            sql_insert_split(),
+                            {
+                                "stid": transaction_id,
+                                "account_id": split.account_id,
+                                "sum": sum_value,
+                            },
+                        )
+
+                for sid in ids_to_delete:
+                    await cur.execute(sql_delete_split(), {"sid": sid})
 
         await events.publish(
             conn, "transactions", "updated", transaction_id, actor=current_user.id

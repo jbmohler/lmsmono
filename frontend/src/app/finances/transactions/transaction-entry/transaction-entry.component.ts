@@ -14,6 +14,8 @@ interface TransactionLine {
   accountId: string;
   debit: number | null;
   credit: number | null;
+  splitId?: string;
+  reconciled?: boolean;
 }
 
 @Component({
@@ -232,6 +234,8 @@ export class TransactionEntryComponent {
           accountId: split.account.id,
           debit: split.debit,
           credit: split.credit,
+          splitId: split.id,
+          reconciled: split.reconciled,
         }));
         this.lines.set(newLines);
         this.loading.set(false);
@@ -409,6 +413,7 @@ export class TransactionEntryComponent {
         account_id: line.accountId,
         debit: line.debit ?? undefined,
         credit: line.credit ?? undefined,
+        id: line.splitId,
       }));
 
     const id = this.transactionId();

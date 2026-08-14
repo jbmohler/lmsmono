@@ -10,6 +10,7 @@ export interface TransactionSplit {
   account: ItemRef;
   debit: number | null;
   credit: number | null;
+  reconciled: boolean;
 }
 
 /** Transaction header (list view) */
@@ -32,6 +33,7 @@ export interface SplitInput {
   account_id: string;
   debit?: number | null;
   credit?: number | null;
+  id?: string;
 }
 
 /** Data for creating a new transaction */

@@ -175,7 +175,7 @@
         </thead>
         <tbody>
           @for (line of lines(); track trackByLineId($index, line); let i = $index) {
-            <tr [attr.data-line-id]="line.id">
+            <tr [attr.data-line-id]="line.id" [class.bg-green-50]="line.reconciled" [title]="line.reconciled ? 'Reconciled split' : ''">
               <td class="px-2 py-1">
                 <select
                   #lineInput
