@@ -343,15 +343,15 @@
                     }
                     @if (url.hasPassword) {
                       @if (url | isPasswordExpired) {
-                        <span class="expired-indicator shrink-0" title="Password expired">
+                        <span class="expired-indicator shrink-0" title="Password change suggested">
                           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#warning-triangle"/></svg>
                         </span>
                       }
                       <button
                         (click)="copyPassword(url)"
-                        class="badge badge-gray hover:bg-gray-200 cursor-pointer inline-flex items-center gap-1"
+                        class="btn btn-secondary inline-flex items-center gap-1.5"
                       >
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#key"/></svg>
+                        <svg class="w-4 h-4" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#key"/></svg>
                         @if (copyingPasswordId() === url.id) {
                           <span class="text-green-700">Copied!</span>
                         } @else {
