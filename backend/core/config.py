@@ -45,11 +45,17 @@ class SmtpConfig:
 
 
 @dataclass
+class HealthChecksConfig:
+    db_ping_url: str = ""  # healthchecks.io check URL pinged by GET /api/monitoring/db
+
+
+@dataclass
 class AppConfig:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     encryption: EncryptionConfig = field(default_factory=EncryptionConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
     smtp: SmtpConfig = field(default_factory=SmtpConfig)
+    healthchecks: HealthChecksConfig = field(default_factory=HealthChecksConfig)
     app_base_url: str = "http://localhost:4200"
 
     def validate(self) -> None:
@@ -88,11 +94,13 @@ class AppConfig:
         enc_data = data.get("encryption", {})
         session_data = data.get("session", {})
         smtp_data = data.get("smtp", {})
+        healthchecks_data = data.get("healthchecks", {})
         config = cls(
             database=DatabaseConfig(**db_data),
             encryption=EncryptionConfig(**enc_data),
             session=SessionConfig(**session_data),
             smtp=SmtpConfig(**smtp_data),
+            healthchecks=HealthChecksConfig(**healthchecks_data),
             app_base_url=data.get("app_base_url", "http://localhost:4200"),
         )
         config.validate()

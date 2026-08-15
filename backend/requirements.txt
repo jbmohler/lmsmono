@@ -10,6 +10,9 @@ argon2-cffi
 cryptography
 PyJWT
 
+# HTTP client (healthchecks.io pings, etc.)
+httpx
+
 # Development tools
 ruff
 mypy

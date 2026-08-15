@@ -16,6 +16,7 @@ from core.events import broker
 from api.auth import AuthController
 from api.events import EventsController
 from api.health import HealthController, PingController
+from api.monitoring import MonitoringController
 from api.accounts import AccountTypesController, AccountsController
 from api.journals import JournalsController
 from api.transactions import TransactionsController
@@ -111,6 +112,7 @@ app = Litestar(
         AuthController,
         HealthController,
         PingController,
+        MonitoringController,
         EventsController,
         AccountTypesController,
         AccountsController,
