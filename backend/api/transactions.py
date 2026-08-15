@@ -66,7 +66,14 @@ def sql_select_transactions(
             t.trandate,
             t.tranref,
             t.payee,
-            t.memo
+            t.memo,
+            (
+                SELECT string_agg(a.acc_name, '; ' ORDER BY at.sort, a.acc_name)
+                FROM hacc.splits s
+                JOIN hacc.accounts a ON a.id = s.account_id
+                JOIN hacc.accounttypes at ON at.id = a.type_id
+                WHERE s.stid = t.tid
+            ) AS accounts
         FROM hacc.transactions t{fts_lateral}
         WHERE {where_sql}
         ORDER BY t.trandate DESC, t.tid DESC
@@ -302,6 +309,10 @@ TRANSACTION_COLUMNS = [
     ColumnMeta(key="receipt", label="Receipt", type="string"),
 ]
 
+TRANSACTION_LIST_COLUMNS = TRANSACTION_COLUMNS + [
+    ColumnMeta(key="accounts", label="Accounts", type="string"),
+]
+
 SPLIT_COLUMNS = [
     ColumnMeta(key="id", label="ID", type="uuid"),
     ColumnMeta(key="account", label="Account", type="ref"),
@@ -473,7 +484,7 @@ class TransactionsController(Controller):
                 use_limit=not bounded,
             ),
             params,
-            columns=TRANSACTION_COLUMNS,
+            columns=TRANSACTION_LIST_COLUMNS,
         )
 
     @get("/{transaction_id:uuid}", guards=[require_capability("transactions:read")])

@@ -20,6 +20,7 @@ export interface Transaction {
   tranref: string | null;
   payee: string | null;
   memo: string | null;
+  accounts: string | null;
 }
 
 /** Transaction with splits (detail view) */

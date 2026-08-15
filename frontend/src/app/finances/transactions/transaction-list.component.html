@@ -64,12 +64,13 @@
             <th class="hidden md:table-cell">Reference</th>
             <th>Payee</th>
             <th class="hidden md:table-cell">Memo</th>
+            <th class="hidden md:table-cell">Accounts</th>
           </tr>
         </thead>
         <tbody>
           @if (transactions().length === 0) {
             <tr>
-              <td colspan="4" class="text-center py-12">
+              <td colspan="5" class="text-center py-12">
                 <p class="text-sm">No transactions found.</p>
               </td>
             </tr>
@@ -87,6 +88,9 @@
                 </td>
                 <td class="hidden md:table-cell max-w-md truncate">
                   {{ txn.memo || '-' }}
+                </td>
+                <td class="hidden md:table-cell max-w-md truncate">
+                  {{ txn.accounts || '-' }}
                 </td>
               </tr>
             }
