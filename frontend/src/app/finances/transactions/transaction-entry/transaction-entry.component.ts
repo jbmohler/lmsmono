@@ -105,10 +105,14 @@ export class TransactionEntryComponent {
     return this.lines().reduce((sum, line) => sum + (line.credit || 0), 0);
   });
 
+  populatedLines = computed(() => {
+    return this.lines().filter((line) => line.accountId);
+  });
+
   isBalanced = computed(() => {
     const debits = this.totalDebits();
     const credits = this.totalCredits();
-    return debits > 0 && Math.abs(debits - credits) < 0.01;
+    return this.populatedLines().length >= 1 && Math.abs(debits - credits) < 0.01;
   });
 
   balanceDifference = computed(() => {
@@ -273,7 +277,7 @@ export class TransactionEntryComponent {
       const row = target.closest('tr[data-line-id]');
       if (row) {
         const lineId = parseInt(row.getAttribute('data-line-id') || '0', 10);
-        if (lineId && this.lines().length > 2) {
+        if (lineId && this.lines().length > 1) {
           event.preventDefault();
           this.removeLine(lineId);
         }
@@ -366,7 +370,7 @@ export class TransactionEntryComponent {
   }
 
   removeLine(lineId: number): void {
-    if (this.lines().length <= 2) return; // Keep minimum 2 lines
+    if (this.lines().length <= 1) return; // Keep minimum 1 line
 
     const currentLines = this.lines();
     const index = currentLines.findIndex(l => l.id === lineId);
@@ -390,12 +394,14 @@ export class TransactionEntryComponent {
           return { ...line, accountId: value as string };
         } else if (field === 'debit') {
           // Clear credit if entering debit
-          const debit = value === '' || value === null ? null : parseFloat(value as string) || null;
-          return { ...line, debit, credit: debit ? null : line.credit };
+          const parsed = value === '' || value === null ? NaN : parseFloat(value as string);
+          const debit = Number.isNaN(parsed) ? null : parsed;
+          return { ...line, debit, credit: debit !== null ? null : line.credit };
         } else {
           // Clear debit if entering credit
-          const credit = value === '' || value === null ? null : parseFloat(value as string) || null;
-          return { ...line, credit, debit: credit ? null : line.debit };
+          const parsed = value === '' || value === null ? NaN : parseFloat(value as string);
+          const credit = Number.isNaN(parsed) ? null : parsed;
+          return { ...line, credit, debit: credit !== null ? null : line.debit };
         }
       })
     );
@@ -408,11 +414,11 @@ export class TransactionEntryComponent {
     this.errorMessage.set(null);
 
     const splits: SplitInput[] = this.lines()
-      .filter((line) => line.accountId && (line.debit || line.credit))
+      .filter((line) => line.accountId)
       .map((line) => ({
         account_id: line.accountId,
-        debit: line.debit ?? undefined,
-        credit: line.credit ?? undefined,
+        debit: line.debit ?? 0,
+        credit: line.credit ?? 0,
         id: line.splitId,
       }));
 
@@ -472,9 +478,9 @@ export class TransactionEntryComponent {
     return value.toFixed(2);
   }
 
-  /** Format amount for display in input (empty string for null/zero) */
+  /** Format amount for display in input (empty string for null) */
   formatAmount(value: number | null): string {
-    if (value === null || value === 0) {
+    if (value === null) {
       return '';
     }
     return value.toFixed(2);

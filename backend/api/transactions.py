@@ -364,10 +364,10 @@ class TransactionUpdate:
 
 def validate_splits(splits: list[SplitInput]) -> None:
     """Validate that splits balance and are well-formed."""
-    if len(splits) < 2:
+    if len(splits) < 1:
         raise HTTPException(
             status_code=400,
-            detail="Transaction must have at least 2 splits",
+            detail="Transaction must have at least 1 split",
         )
 
     total = 0.0
@@ -376,11 +376,6 @@ def validate_splits(splits: list[SplitInput]) -> None:
             raise HTTPException(
                 status_code=400,
                 detail="Split cannot have both debit and credit",
-            )
-        if not split.debit and not split.credit:
-            raise HTTPException(
-                status_code=400,
-                detail="Split must have either debit or credit",
             )
         total += debit_credit_to_sum(split.debit, split.credit)
 
