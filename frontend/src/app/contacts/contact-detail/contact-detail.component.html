@@ -339,17 +339,12 @@
                 @if (url.username || url.hasPassword) {
                   <div class="flex items-center gap-2 flex-wrap">
                     @if (url.username) {
-                      <span class="text-xs text-gray-500">@{{ url.username }}</span>
+                      <span class="text-sm text-gray-600">@{{ url.username }}</span>
                     }
                     @if (url.hasPassword) {
-                      @if (url | isPasswordExpired) {
-                        <span class="expired-indicator shrink-0" title="Password change suggested">
-                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#warning-triangle"/></svg>
-                        </span>
-                      }
                       <button
                         (click)="copyPassword(url)"
-                        class="btn btn-secondary inline-flex items-center gap-1.5"
+                        class="btn btn-info inline-flex items-center gap-1.5"
                       >
                         <svg class="w-4 h-4" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#key"/></svg>
                         @if (copyingPasswordId() === url.id) {
@@ -358,6 +353,11 @@
                           Copy password
                         }
                       </button>
+                      @if (url | isPasswordExpired) {
+                        <span class="expired-indicator shrink-0" title="Password change suggested">
+                          <svg class="w-6 h-6" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#warning-triangle"/></svg>
+                        </span>
+                      }
                     }
                   </div>
                 }
