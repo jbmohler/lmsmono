@@ -6,7 +6,6 @@ import { Subject, combineLatest, of } from 'rxjs';
 import { distinctUntilChanged, map, startWith, switchMap } from 'rxjs/operators';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 
-import { AuthService } from '@core/auth/auth.service';
 import { ChangeNotificationService } from '@core/events/change-notification.service';
 import { PageTitleService } from '@core/page-title.service';
 import { ReconcileData, ReconcileSplit, FinalizeResult, ToggleResult } from '@finances/models/reconcile.model';
@@ -24,7 +23,6 @@ export class ReconcileComponent {
   private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
   private changes = inject(ChangeNotificationService);
-  private auth = inject(AuthService);
   private pageTitle = inject(PageTitleService);
 
   accountId = toSignal(
@@ -34,8 +32,10 @@ export class ReconcileComponent {
   private refresh$ = new Subject<void>();
 
   // Reconciling is a sensitive, deliberate task - never refetch out from under
-  // someone mid-review. A remote transaction change just flips `stale`; only an
-  // explicit refresh() call reloads the split list.
+  // someone mid-review. Any transaction change (including edits made by this
+  // same user elsewhere, e.g. editing a transaction to finalize this very
+  // reconciliation) just flips `stale`; only an explicit refresh() call
+  // reloads the split list.
   stale = signal(false);
   private lastChangeEvent = toSignal(this.changes.forEntity('transactions'));
 
@@ -77,8 +77,7 @@ export class ReconcileComponent {
     }, { allowSignalWrites: true });
 
     effect(() => {
-      const event = this.lastChangeEvent();
-      if (event && event.actor !== this.auth.user()?.id) {
+      if (this.lastChangeEvent()) {
         this.stale.set(true);
       }
     });

@@ -21,13 +21,10 @@
         @if (stale()) {
           <button
             (click)="refresh()"
-            class="btn btn-secondary flex items-center gap-1.5 border-yellow-400 text-yellow-700 bg-yellow-50 hover:bg-yellow-100"
+            class="btn btn-danger flex items-center gap-1.5"
             title="Other changes have come in. Click to refresh the split list."
           >
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
-            </span>
+            <svg class="w-4 h-4" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#refresh"/></svg>
             Refresh
           </button>
         }
