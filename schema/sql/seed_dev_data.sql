@@ -84,16 +84,28 @@ WHERE atype_name = 'Equity';
 -- ============================================================================
 -- Each transaction must balance: sum of all splits = 0
 -- Positive sum = debit, Negative sum = credit
+--
+-- Dates float relative to the day this script runs, so the data is always
+-- recent instead of drifting further into the past with every fresh dev
+-- database. The base date is the Monday on/before (today - 80 days); every
+-- transaction is that base plus a fixed day-offset chosen to land on a
+-- weekday, so the whole set runs Monday-to-Thursday from ~80 days ago up to
+-- near the present.
 
 -- Helper function to get account ID by name (for readability)
 CREATE OR REPLACE FUNCTION hacc.get_account_id(p_name varchar) RETURNS uuid AS $$
   SELECT id FROM hacc.accounts WHERE acc_name = p_name LIMIT 1;
 $$ LANGUAGE sql;
 
--- Transaction 1: Owner invests capital
+-- Helper function for the floating base date (a Monday, ~80 days back)
+CREATE OR REPLACE FUNCTION hacc.seed_base_date() RETURNS date AS $$
+  SELECT date_trunc('week', CURRENT_DATE - INTERVAL '80 days')::date;
+$$ LANGUAGE sql;
+
+-- Transaction 1: Owner invests capital (day 0, Mon)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-11-01', 'OPEN-001', 'Owner', 'Initial capital investment')
+  VALUES (hacc.seed_base_date(), 'OPEN-001', 'Owner', 'Initial capital investment')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -103,10 +115,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Owner Capital'), -50000.00) -- Credit: increase equity
 ) AS splits(acc_id, amount);
 
--- Transaction 2: Pay rent
+-- Transaction 2: Pay rent (day 4, Fri)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-11-05', 'CHK-001', 'Acme Properties', 'November office rent')
+  VALUES (hacc.seed_base_date() + 4, 'CHK-001', 'Acme Properties', 'Office rent')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -116,10 +128,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Checking'), -2500.00)      -- Credit: decrease asset
 ) AS splits(acc_id, amount);
 
--- Transaction 3: Receive payment from customer
+-- Transaction 3: Receive payment from customer (day 9, Wed)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-11-10', 'DEP-001', 'ABC Corporation', 'Payment for consulting services')
+  VALUES (hacc.seed_base_date() + 9, 'DEP-001', 'ABC Corporation', 'Payment for consulting services')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -129,10 +141,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Service Income'), -5000.00) -- Credit: increase income
 ) AS splits(acc_id, amount);
 
--- Transaction 4: Purchase office supplies on credit card
+-- Transaction 4: Purchase office supplies on credit card (day 11, Fri)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-11-12', 'CC-001', 'Office Depot', 'Printer paper and toner')
+  VALUES (hacc.seed_base_date() + 11, 'CC-001', 'Office Depot', 'Printer paper and toner')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -142,10 +154,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Credit Card'), -150.00)    -- Credit: increase liability
 ) AS splits(acc_id, amount);
 
--- Transaction 5: Pay credit card bill
+-- Transaction 5: Pay credit card bill (day 14, Mon)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-11-15', 'CHK-002', 'Visa', 'Credit card payment')
+  VALUES (hacc.seed_base_date() + 14, 'CHK-002', 'Visa', 'Credit card payment')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -155,10 +167,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Checking'), -150.00)      -- Credit: decrease asset
 ) AS splits(acc_id, amount);
 
--- Transaction 6: Transfer to savings
+-- Transaction 6: Transfer to savings (day 21, Mon)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-11-20', 'TFR-001', 'Internal', 'Monthly savings transfer')
+  VALUES (hacc.seed_base_date() + 21, 'TFR-001', 'Internal', 'Monthly savings transfer')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -168,10 +180,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Checking'), -5000.00)  -- Credit: decrease asset
 ) AS splits(acc_id, amount);
 
--- Transaction 7: Invest in brokerage (Investments journal)
+-- Transaction 7: Invest in brokerage (Investments journal) (day 24, Thu)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-11-25', 'INV-001', 'Fidelity', 'Initial investment deposit')
+  VALUES (hacc.seed_base_date() + 24, 'INV-001', 'Fidelity', 'Initial investment deposit')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -181,10 +193,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Checking'), -10000.00)   -- Credit: decrease asset
 ) AS splits(acc_id, amount);
 
--- Transaction 8: Receive dividend
+-- Transaction 8: Receive dividend (day 30, Wed)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-12-01', 'DIV-001', 'Vanguard ETF', 'Q4 dividend distribution')
+  VALUES (hacc.seed_base_date() + 30, 'DIV-001', 'Vanguard ETF', 'Quarterly dividend distribution')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -194,10 +206,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Dividend Inc'), -125.50)  -- Credit: increase income
 ) AS splits(acc_id, amount);
 
--- Transaction 9: Pay utilities
+-- Transaction 9: Pay utilities (day 35, Mon)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-12-05', 'CHK-003', 'City Utilities', 'December utilities')
+  VALUES (hacc.seed_base_date() + 35, 'CHK-003', 'City Utilities', 'Monthly utilities')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -207,10 +219,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Checking'), -285.00)    -- Credit: decrease asset
 ) AS splits(acc_id, amount);
 
--- Transaction 10: Complex transaction - sale with multiple income sources
+-- Transaction 10: Complex transaction - sale with multiple income sources (day 39, Fri)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-12-10', 'INV-002', 'XYZ Client', 'Product sale with installation service')
+  VALUES (hacc.seed_base_date() + 39, 'INV-002', 'XYZ Client', 'Product sale with installation service')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -221,10 +233,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Service Income'), -1000.00) -- Credit: installation service
 ) AS splits(acc_id, amount);
 
--- Transaction 11: Receive partial payment on invoice
+-- Transaction 11: Receive partial payment on invoice (day 44, Wed)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-12-15', 'DEP-002', 'XYZ Client', 'Partial payment on invoice')
+  VALUES (hacc.seed_base_date() + 44, 'DEP-002', 'XYZ Client', 'Partial payment on invoice')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -234,10 +246,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Accounts Recv'), -2000.00)  -- Credit: decrease receivable
 ) AS splits(acc_id, amount);
 
--- Transaction 12: Bank interest earned
+-- Transaction 12: Bank interest earned (day 60, Fri)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2025-12-31', 'INT-001', 'First National Bank', 'December interest')
+  VALUES (hacc.seed_base_date() + 60, 'INT-001', 'First National Bank', 'Monthly interest')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -247,10 +259,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Interest Inc'), -12.50)  -- Credit: increase income
 ) AS splits(acc_id, amount);
 
--- Transaction 13: Pay insurance (annual premium)
+-- Transaction 13: Pay insurance (annual premium) (day 63, Mon)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2026-01-02', 'CHK-004', 'State Farm', 'Annual business insurance')
+  VALUES (hacc.seed_base_date() + 63, 'CHK-004', 'State Farm', 'Annual business insurance')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -260,10 +272,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Checking'), -1800.00)    -- Credit: decrease asset
 ) AS splits(acc_id, amount);
 
--- Transaction 14: Owner distribution
+-- Transaction 14: Owner distribution (day 74, Fri)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2026-01-15', 'CHK-005', 'Owner', 'Q4 owner distribution')
+  VALUES (hacc.seed_base_date() + 74, 'CHK-005', 'Owner', 'Owner distribution')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -273,10 +285,10 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Checking'), -3000.00)      -- Credit: decrease asset
 ) AS splits(acc_id, amount);
 
--- Transaction 15: Bank fee
+-- Transaction 15: Bank fee (day 80, Thu — near the present)
 WITH txn AS (
   INSERT INTO hacc.transactions (trandate, tranref, payee, memo)
-  VALUES ('2026-01-20', 'FEE-001', 'First National Bank', 'Monthly service charge')
+  VALUES (hacc.seed_base_date() + 80, 'FEE-001', 'First National Bank', 'Monthly service charge')
   RETURNING tid
 )
 INSERT INTO hacc.splits (stid, account_id, sum)
@@ -286,8 +298,9 @@ SELECT txn.tid, acc_id, amount FROM txn,
   (hacc.get_account_id('Checking'), -15.00)     -- Credit: decrease asset
 ) AS splits(acc_id, amount);
 
--- Clean up helper function
+-- Clean up helper functions
 DROP FUNCTION hacc.get_account_id(varchar);
+DROP FUNCTION hacc.seed_base_date();
 
 -- ============================================================================
 -- Reconciliation Tags
