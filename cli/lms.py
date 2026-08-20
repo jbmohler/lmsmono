@@ -385,8 +385,9 @@ def _write_pl_transactions_html(path: str, year: int, rows: list[dict]) -> None:
     for row in rows:
         iso = row["trandate"]
         date_fmt = f"{iso[5:7]}/{iso[8:10]}/{iso[:4]}"
-        debit = float(row.get("debit") or 0.0)
-        credit = float(row.get("credit") or 0.0)
+        amount = float(row.get("amount") or 0.0)
+        debit = amount if amount > 0 else 0.0
+        credit = -amount if amount < 0 else 0.0
         lines.append(
             f"<tr><td>{date_fmt}</td>"
             f"<td>{row.get('reference') or ''}</td>"
@@ -669,8 +670,9 @@ def _write_pl_transactions_xlsx(
             rs.write_section_header(atype)
             section_data_start = rs.row
 
-        debit = float(row.get("debit") or 0.0)
-        credit = float(row.get("credit") or 0.0)
+        amount = float(row.get("amount") or 0.0)
+        debit = amount if amount > 0 else 0.0
+        credit = -amount if amount < 0 else 0.0
         rs.write_data_row(
             [row["trandate"], row.get("reference") or "",
              row["acc_name"], row["journal"]["name"],

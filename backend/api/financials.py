@@ -329,14 +329,14 @@ PL_TRANSACTION_COLUMNS = [
     ColumnMeta(key="trandate", label="Date", type="date"),
     ColumnMeta(key="payee", label="Payee", type="string"),
     ColumnMeta(key="memo", label="Memo", type="string"),
-    ColumnMeta(key="debit", label="Debit", type="currency"),
-    ColumnMeta(key="credit", label="Credit", type="currency"),
+    ColumnMeta(key="amount", label="Amount", type="currency"),
 ]
 
 
 def transform_pl_txn_row(row: dict) -> dict:
-    """Transform a P&L transaction row into debit/credit columns."""
+    """Transform a P&L transaction row, sign-adjusting for credit accounts."""
     raw = float(row["sum"] or 0.0)
+    amount = raw if row["debit_account"] else -raw
     return {
         "atype_id": row["atype_id"],
         "atype_name": row["atype_name"],
@@ -352,8 +352,7 @@ def transform_pl_txn_row(row: dict) -> dict:
         else row["trandate"],
         "payee": row["payee"],
         "memo": row["memo"],
-        "debit": raw if raw > 0 else 0.0,
-        "credit": -raw if raw < 0 else 0.0,
+        "amount": amount,
     }
 
 
