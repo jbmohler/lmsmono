@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { BehaviorSubject, Subject, combineLatest, merge } from 'rxjs';
-import { auditTime, debounceTime, startWith, switchMap } from 'rxjs/operators';
+import { auditTime, debounceTime, startWith, switchMap, tap } from 'rxjs/operators';
 import { TransactionEntryComponent } from './transaction-entry/transaction-entry.component';
 import { TransactionService } from '../services/transaction.service';
 import { ChangeNotificationService } from '@core/events/change-notification.service';
@@ -17,12 +17,6 @@ const SEARCH_DEBOUNCE_MS = 300;
  * and coalesces bursts of changes from other users.
  */
 const REFRESH_COALESCE_MS = 150;
-
-function defaultFromDate(): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 3);
-  return d.toISOString().slice(0, 10);
-}
 
 @Component({
   selector: 'app-transaction-list',
@@ -44,12 +38,12 @@ export class TransactionListComponent {
   editTransactionId = signal<string | undefined>(undefined);
 
   // Local filter state
-  private filters$ = new BehaviorSubject<TransactionFilters>({ from: defaultFromDate() });
+  private filters$ = new BehaviorSubject<TransactionFilters>({});
   private refresh$ = new Subject<void>();
 
   // Bind to template inputs
   searchQuery = '';
-  dateFrom = defaultFromDate();
+  dateFrom = '';
   dateTo = '';
 
   // Refetch on our own writes and on anyone else's, from any tab or user
@@ -58,13 +52,24 @@ export class TransactionListComponent {
     this.changes.forEntity('transactions')
   ).pipe(auditTime(REFRESH_COALESCE_MS), startWith(undefined));
 
+  // True while a search request is in flight; the previous results stay visible underneath
+  searching = signal(false);
+
   // Local reactive data pipeline
   private listResponse = toSignal(
     combineLatest([
       this.filters$.pipe(debounceTime(SEARCH_DEBOUNCE_MS)),
       this.trigger$,
     ]).pipe(
-      switchMap(([filters]) => this.transactionService.list(filters))
+      tap(() => this.searching.set(true)),
+      switchMap(([filters]) =>
+        this.transactionService.list(filters).pipe(
+          tap({
+            next: () => this.searching.set(false),
+            error: () => this.searching.set(false),
+          })
+        )
+      )
     )
   );
 
@@ -102,9 +107,9 @@ export class TransactionListComponent {
 
   clearFilters(): void {
     this.searchQuery = '';
-    this.dateFrom = defaultFromDate();
+    this.dateFrom = '';
     this.dateTo = '';
-    this.filters$.next({ from: defaultFromDate() });
+    this.filters$.next({});
   }
 
   openEntryDialog(transactionId?: string): void {

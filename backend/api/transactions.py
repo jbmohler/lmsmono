@@ -450,7 +450,7 @@ class TransactionsController(Controller):
     async def list_transactions(
         self,
         conn: psycopg.AsyncConnection,
-        limit: int = Parameter(default=50, le=500),
+        limit: int = Parameter(default=100, le=500),
         offset: int = Parameter(default=0, ge=0),
         q: str | None = Parameter(default=None),
         account_id: str | None = Parameter(default=None),
