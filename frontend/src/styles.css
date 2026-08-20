@@ -7,296 +7,292 @@
 }
 
 /* ==========================================================================
-   Global Element Styles
+   Base Element Styles
+   Bare element selectors belong in @layer base so Tailwind utility classes
+   (in @layer utilities) always win over them in the cascade, regardless of
+   selector specificity. Anything left unlayered here would otherwise beat
+   utility classes unconditionally per the CSS cascade-layers spec.
    ========================================================================== */
 
-/* Form Inputs - base styles for all text-like inputs */
-input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="file"]):not([type="range"]):not([type="color"]),
-textarea,
-select {
-  @apply block w-full max-w-full px-3 py-2 border border-gray-300 rounded-md text-sm
-         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
-}
+@layer base {
+  /* Form Inputs - base styles for all text-like inputs */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="file"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select {
+    @apply block w-full max-w-full px-3 py-2 border border-gray-300 rounded-md text-sm
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+  }
 
-/* Compact input modifier - use on parent or directly */
-.input-compact input,
-.input-compact select,
-.input-compact textarea,
-input.input-compact,
-select.input-compact,
-textarea.input-compact {
-  @apply px-2 py-1.5 rounded;
-}
+  /* Table Styles */
+  table {
+    @apply min-w-full divide-y divide-gray-200;
+  }
 
-/* Labels */
-.form-label {
-  @apply block text-sm font-medium text-gray-700 mb-1;
-}
+  thead {
+    @apply bg-gray-50;
+  }
 
-.label-compact {
-  @apply block text-xs text-gray-600 whitespace-nowrap;
-}
-
-/* ==========================================================================
-   Table Styles
-   ========================================================================== */
-
-table {
-  @apply min-w-full divide-y divide-gray-200;
-}
-
-thead {
-  @apply bg-gray-50;
-}
-
-th {
-  @apply px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
-}
-
-@media (min-width: 768px) {
   th {
-    @apply px-6;
+    @apply px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
   }
-}
 
-th.text-center {
-  @apply text-center;
-}
+  @media (min-width: 768px) {
+    th {
+      @apply px-6;
+    }
+  }
 
-th.text-right {
-  @apply text-right;
-}
+  th.text-center {
+    @apply text-center;
+  }
 
-tbody {
-  @apply bg-white divide-y divide-gray-200;
-}
+  th.text-right {
+    @apply text-right;
+  }
 
-td {
-  @apply px-3 py-3 text-sm text-gray-500 whitespace-nowrap;
-}
+  tbody {
+    @apply bg-white divide-y divide-gray-200;
+  }
 
-@media (min-width: 768px) {
   td {
-    @apply px-6;
+    @apply px-3 py-3 text-sm text-gray-500 whitespace-nowrap;
   }
-}
 
-td.cell-primary {
-  @apply font-medium text-gray-900;
-}
+  @media (min-width: 768px) {
+    td {
+      @apply px-6;
+    }
+  }
 
-tr.row-hover {
-  @apply hover:bg-gray-50;
-}
+  td.cell-primary {
+    @apply font-medium text-gray-900;
+  }
 
-tr.row-clickable {
-  @apply hover:bg-gray-50 cursor-pointer;
-}
+  tr.row-hover {
+    @apply hover:bg-gray-50;
+  }
 
-/* Grouped report tables - spacer and header rows between account type groups */
-tr.group-header > td {
-  @apply !py-2 bg-gray-50 text-sm font-semibold text-gray-700 uppercase tracking-wide;
-}
+  tr.row-clickable {
+    @apply hover:bg-gray-50 cursor-pointer;
+  }
 
-tr.group-spacer > td {
-  @apply !p-0;
-}
+  /* Grouped report tables - spacer and header rows between account type groups */
+  tr.group-header > td {
+    @apply !py-2 bg-gray-50 text-sm font-semibold text-gray-700 uppercase tracking-wide;
+  }
 
-/* ==========================================================================
-   Sub-navigation
-   ========================================================================== */
+  tr.group-spacer > td {
+    @apply !p-0;
+  }
 
-/* Horizontal underline tabs (admin tab bar, finances mobile strip) */
-.subtab-link {
-  @apply px-4 py-2.5 text-sm font-medium text-gray-600 border-b-2 border-transparent
-         whitespace-nowrap hover:text-gray-900 hover:border-gray-300 transition-colors;
-}
-
-.subtab-link-active {
-  @apply border-blue-500 text-blue-600;
-}
-
-/* Sidebar nav links (finances desktop sidebar) */
-.sidebar-link {
-  @apply flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700
-         rounded-md border border-transparent hover:bg-gray-50 transition-colors;
-}
-
-.sidebar-link-active {
-  @apply bg-blue-50 text-blue-700 border-blue-200;
-}
-
-/* ==========================================================================
-   Card / Panel
-   ========================================================================== */
-
-.card {
-  @apply bg-white rounded-lg shadow-sm border border-gray-200;
-}
-
-/* ==========================================================================
-   Buttons
-   ========================================================================== */
-
-.btn {
-  @apply px-4 py-2 text-sm font-medium rounded-md
-         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-         disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700;
-}
-
-.btn-secondary {
-  @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50;
-}
-
-.btn-success {
-  @apply bg-green-600 text-white hover:bg-green-700;
-}
-
-/* Destructive action - reads as an outline button until hovered */
-.btn-danger {
-  @apply bg-white text-red-600 border border-red-300 hover:bg-red-50;
-}
-
-/* Light blue accent - for informational/secondary actions like copy-to-clipboard */
-.btn-info {
-  @apply bg-blue-50 text-blue-600 border border-blue-300 hover:bg-blue-100;
-}
-
-/* ==========================================================================
-   Dialog
-   ========================================================================== */
-
-dialog {
-  @apply bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden p-0 m-auto;
-}
-
-dialog::backdrop {
-  @apply bg-black/50;
-}
-
-/* Mobile: full-screen dialogs */
-@media (max-width: 767px) {
+  /* Dialog */
   dialog {
-    @apply w-full h-full max-w-full max-h-full rounded-none m-0;
+    @apply bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden p-0 m-auto;
+  }
+
+  dialog::backdrop {
+    @apply bg-black/50;
+  }
+
+  /* Mobile: full-screen dialogs */
+  @media (max-width: 767px) {
+    dialog {
+      @apply w-full h-full max-w-full max-h-full rounded-none m-0;
+    }
   }
 }
 
-/* Dialog Header */
-.dialog-header {
-  @apply px-4 md:px-6 py-4 border-b border-gray-200 flex items-center justify-between;
-}
-
-.dialog-header-title {
-  @apply text-lg font-semibold text-gray-900;
-}
-
-.dialog-close-btn {
-  @apply text-gray-400 hover:text-gray-600 p-1 rounded;
-}
-
-/* Dialog Footer */
-.dialog-footer {
-  @apply px-4 md:px-6 py-4 border-t border-gray-200 flex items-center justify-end md:justify-between bg-gray-50;
-}
-
-.dialog-shortcuts {
-  @apply hidden md:block text-xs text-gray-500;
-}
-
-.dialog-actions {
-  @apply flex gap-3;
-}
-
 /* ==========================================================================
-   Badges
+   Component Styles
+   Reusable named classes. Kept in @layer components so, like @layer base,
+   they never outrank a utility class applied alongside them.
    ========================================================================== */
 
-.badge {
-  @apply text-xs font-medium px-2 py-0.5 rounded;
-}
+@layer components {
+  /* Compact input modifier - use on parent or directly */
+  .input-compact input,
+  .input-compact select,
+  .input-compact textarea,
+  input.input-compact,
+  select.input-compact,
+  textarea.input-compact {
+    @apply px-2 py-1.5 rounded;
+  }
 
-.badge-gray {
-  @apply text-gray-500 bg-gray-100;
-}
+  /* Labels */
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
 
-/* Keyboard key, for shortcut hints on light backgrounds */
-.kbd {
-  @apply px-1.5 py-0.5 font-mono text-xs text-gray-700 bg-gray-100 border border-gray-300 rounded;
-}
+  .label-compact {
+    @apply block text-xs text-gray-600 whitespace-nowrap;
+  }
 
-.badge-blue {
-  @apply text-blue-700 bg-blue-100;
-}
+  /* Sub-navigation */
 
-.badge-green {
-  @apply text-green-700 bg-green-100;
-}
+  /* Horizontal underline tabs (admin tab bar, finances mobile strip) */
+  .subtab-link {
+    @apply px-4 py-2.5 text-sm font-medium text-gray-600 border-b-2 border-transparent
+           whitespace-nowrap hover:text-gray-900 hover:border-gray-300 transition-colors;
+  }
 
-.badge-red {
-  @apply text-red-700 bg-red-100;
-}
+  .subtab-link-active {
+    @apply border-blue-500 text-blue-600;
+  }
 
-.badge-yellow {
-  @apply text-yellow-700 bg-yellow-100;
-}
+  /* Sidebar nav links (finances desktop sidebar) */
+  .sidebar-link {
+    @apply flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700
+           rounded-md border border-transparent hover:bg-gray-50 transition-colors;
+  }
 
-/* Primary star indicator */
-.primary-star {
-  @apply text-yellow-500 text-sm shrink-0;
-}
+  .sidebar-link-active {
+    @apply bg-blue-50 text-blue-700 border-blue-200;
+  }
 
-/* ==========================================================================
-   Icon Buttons
-   ========================================================================== */
+  /* Card / Panel */
 
-.icon-btn {
-  @apply text-gray-400 hover:text-gray-600 p-1 transition-colors;
-}
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200;
+  }
 
-.icon-btn-edit {
-  @apply hover:text-blue-600;
-}
+  /* Buttons */
 
-.icon-btn-delete {
-  @apply hover:text-red-600;
-}
+  .btn {
+    @apply px-4 py-2 text-sm font-medium rounded-md
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
 
-.icon-btn-move {
-  @apply text-xs leading-none disabled:opacity-30 disabled:cursor-not-allowed;
-}
+  .btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700;
+  }
 
-.icon-btn-group {
-  @apply flex items-center gap-0.5;
-}
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50;
+  }
 
-.icon-btn-vertical {
-  @apply flex flex-col gap-0.5;
-}
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700;
+  }
 
-/* ==========================================================================
-   Page Layout - Fixed header with scrollable content
-   ========================================================================== */
+  /* Destructive action - reads as an outline button until hovered */
+  .btn-danger {
+    @apply bg-white text-red-600 border border-red-300 hover:bg-red-50;
+  }
 
-/* Container for full-height pages with fixed header */
-.page-container {
-  @apply h-full flex flex-col;
-}
+  /* Light blue accent - for informational/secondary actions like copy-to-clipboard */
+  .btn-info {
+    @apply bg-blue-50 text-blue-600 border border-blue-300 hover:bg-blue-100;
+  }
 
-/* Fixed header area that doesn't scroll.
-   Horizontal padding via px; vertical padding via py.
-   Bottom padding is smaller — the content area's top padding
-   provides the rest of the visual gap. */
-.page-header {
-  @apply shrink-0 bg-gray-100 px-4 py-3 flex flex-col gap-4;
-}
+  /* Dialog Header */
+  .dialog-header {
+    @apply px-4 md:px-6 py-4 border-b border-gray-200 flex items-center justify-between;
+  }
 
-/* Scrollable content area.
-   Matches header's horizontal padding; top padding is the gap
-   between header and first content element. */
-.page-content {
-  @apply flex-1 overflow-y-auto p-4;
+  .dialog-header-title {
+    @apply text-lg font-semibold text-gray-900;
+  }
+
+  .dialog-close-btn {
+    @apply text-gray-400 hover:text-gray-600 p-1 rounded;
+  }
+
+  /* Dialog Footer */
+  .dialog-footer {
+    @apply px-4 md:px-6 py-4 border-t border-gray-200 flex items-center justify-end md:justify-between bg-gray-50;
+  }
+
+  .dialog-shortcuts {
+    @apply hidden md:block text-xs text-gray-500;
+  }
+
+  .dialog-actions {
+    @apply flex gap-3;
+  }
+
+  /* Badges */
+
+  .badge {
+    @apply text-xs font-medium px-2 py-0.5 rounded;
+  }
+
+  .badge-gray {
+    @apply text-gray-500 bg-gray-100;
+  }
+
+  /* Keyboard key, for shortcut hints on light backgrounds */
+  .kbd {
+    @apply px-1.5 py-0.5 font-mono text-xs text-gray-700 bg-gray-100 border border-gray-300 rounded;
+  }
+
+  .badge-blue {
+    @apply text-blue-700 bg-blue-100;
+  }
+
+  .badge-green {
+    @apply text-green-700 bg-green-100;
+  }
+
+  .badge-red {
+    @apply text-red-700 bg-red-100;
+  }
+
+  .badge-yellow {
+    @apply text-yellow-700 bg-yellow-100;
+  }
+
+  /* Primary star indicator */
+  .primary-star {
+    @apply text-yellow-500 text-sm shrink-0;
+  }
+
+  /* Icon Buttons */
+
+  .icon-btn {
+    @apply text-gray-400 hover:text-gray-600 p-1 transition-colors;
+  }
+
+  .icon-btn-edit {
+    @apply hover:text-blue-600;
+  }
+
+  .icon-btn-delete {
+    @apply hover:text-red-600;
+  }
+
+  .icon-btn-move {
+    @apply text-xs leading-none disabled:opacity-30 disabled:cursor-not-allowed;
+  }
+
+  .icon-btn-group {
+    @apply flex items-center gap-0.5;
+  }
+
+  .icon-btn-vertical {
+    @apply flex flex-col gap-0.5;
+  }
+
+  /* Page Layout - Fixed header with scrollable content */
+
+  /* Container for full-height pages with fixed header */
+  .page-container {
+    @apply h-full flex flex-col;
+  }
+
+  /* Fixed header area that doesn't scroll.
+     Horizontal padding via px; vertical padding via py.
+     Bottom padding is smaller — the content area's top padding
+     provides the rest of the visual gap. */
+  .page-header {
+    @apply shrink-0 bg-gray-100 px-4 py-3 flex flex-col gap-4;
+  }
+
+  /* Scrollable content area.
+     Matches header's horizontal padding; top padding is the gap
+     between header and first content element. */
+  .page-content {
+    @apply flex-1 overflow-y-auto p-4;
+  }
 }
