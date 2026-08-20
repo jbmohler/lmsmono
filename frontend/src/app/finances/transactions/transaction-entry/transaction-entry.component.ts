@@ -2,7 +2,7 @@ import { Component, ElementRef, output, input, viewChild, viewChildren, signal, 
 import { FormsModule } from '@angular/forms';
 import { KeyValuePipe } from '@angular/common';
 import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, filter, switchMap, tap } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { QuillEditorComponent } from 'ngx-quill';
 import { AccountService } from '@finances/services/account.service';
@@ -51,17 +51,23 @@ export class TransactionEntryComponent {
   private quickFillQuery$ = new Subject<string>();
   quickFillQuery = signal('');
   quickFillLoading = signal(false);
+  /** Guards against starting a second immediate (Tab/Enter-triggered) fetch while one is in flight. */
+  private quickFillFlushing = signal(false);
   private quickFillResponse = toSignal(
     this.quickFillQuery$.pipe(
       debounceTime(300),
       distinctUntilChanged(),
       filter((q) => q.length >= 2),
       tap(() => this.quickFillLoading.set(true)),
-      switchMap((q) => this.transactionService.searchTemplate(q)),
+      switchMap((q) =>
+        this.transactionService.searchTemplate(q).pipe(map((response) => ({ query: q, response })))
+      ),
       tap(() => this.quickFillLoading.set(false))
     )
   );
-  quickFillResult = computed(() => this.quickFillResponse()?.data ?? null);
+  quickFillResult = computed(() => this.quickFillResponse()?.response.data ?? null);
+  // Lets Tab/Enter tell whether the debounced result is still fresh for what's typed now.
+  quickFillResultQuery = computed(() => this.quickFillResponse()?.query ?? null);
 
   // Edit mode flag
   isEditMode = computed(() => !!this.transactionId());
@@ -174,17 +180,59 @@ export class TransactionEntryComponent {
 
   onQuickFillKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' || event.key === 'Tab') {
-      const result = this.quickFillResult();
-      if (result) {
-        event.preventDefault();
-        this.applyTemplate(result);
-        this.dateInput()?.nativeElement.focus();
+      const query = this.quickFillQuery();
+
+      // Debounced search has already caught up with what's currently typed — trust it.
+      if (this.quickFillResultQuery() === query) {
+        const result = this.quickFillResult();
+        if (result) {
+          event.preventDefault();
+          this.applyTemplate(result);
+          this.dateInput()?.nativeElement.focus();
+        }
+        return;
+      }
+
+      // Too short to search — also prevents a stale match from being applied
+      // on an emptied field.
+      if (query.length < 2) {
+        return;
+      }
+
+      // Fast typist outran the debounce. Force an immediate, non-debounced
+      // lookup for the exact current text instead of trusting a lagging match.
+      event.preventDefault();
+      if (!this.quickFillFlushing()) {
+        this.flushQuickFill(query);
       }
     } else if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       this.clearQuickFill();
     }
+  }
+
+  /** Immediately (non-debounced) fetch a template match for `query` and apply it if still relevant. */
+  private flushQuickFill(query: string): void {
+    this.quickFillFlushing.set(true);
+    this.quickFillLoading.set(true);
+    this.transactionService.searchTemplate(query).subscribe({
+      next: (response) => {
+        // Bail out if the input changed (kept typing, cleared, Escape) while we waited.
+        if (this.quickFillQuery() !== query) {
+          return;
+        }
+        const result = response.data;
+        if (result) {
+          this.applyTemplate(result);
+        }
+        this.dateInput()?.nativeElement.focus();
+      },
+      complete: () => {
+        this.quickFillFlushing.set(false);
+        this.quickFillLoading.set(false);
+      },
+    });
   }
 
   applyTemplateAndFocus(result: TemplateSearchResult): void {
