@@ -1,11 +1,5 @@
 # CLAUDE.md - Development Guidelines
 
-## Development Progress
-
-**Always read `PLAN.md` at session start** to understand current progress. Update checkboxes as tasks complete. Use the Session Notes section to communicate between sessions.
-
----
-
 ## Project Context
 
 LMS is a mature application with a 20-year-old data model. The PostgreSQL schema is stable and well-established. Development focuses on building a modern web interface while respecting the existing data structures.
