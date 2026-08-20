@@ -85,8 +85,8 @@
               <th class="hidden md:table-cell w-28">Reference</th>
               <th>Payee</th>
               <th class="hidden lg:table-cell">Memo</th>
-              <th class="text-right">Amount</th>
-              <th class="text-right">Balance</th>
+              <th class="text-right w-[13ch]">Amount</th>
+              <th class="text-right w-[13ch]">Balance</th>
             </tr>
           </thead>
           <tbody>
@@ -98,7 +98,7 @@
                   <td class="font-semibold text-gray-700 truncate max-w-0">Initial Balance</td>
                   <td class="hidden lg:table-cell text-sm text-gray-400"></td>
                   <td class="text-right tabular-nums text-gray-400">—</td>
-                  <td class="text-right tabular-nums font-semibold">{{ row.balance | currency }}</td>
+                  <td class="text-right tabular-nums font-semibold" [class.text-red-600]="(row.balance ?? 0) < 0">{{ row.balance | currency }}</td>
                 </tr>
               } @else if (row.is_speculative) {
                 <tr
@@ -111,8 +111,12 @@
                     <span class="cell-primary">{{ row.payee }}</span>
                   </td>
                   <td class="hidden lg:table-cell text-sm text-gray-400 truncate max-w-0">{{ row.memo }}</td>
-                  <td class="text-right tabular-nums">{{ row.amount | currency }}</td>
-                  <td class="text-right tabular-nums">{{ row.balance | currency }}</td>
+                  <td
+                    class="text-right tabular-nums"
+                    [class.text-blue-600]="(row.amount ?? 0) > 0"
+                    [class.text-amber-600]="(row.amount ?? 0) < 0"
+                  >{{ row.amount | currency }}</td>
+                  <td class="text-right tabular-nums" [class.text-red-600]="(row.balance ?? 0) < 0">{{ row.balance | currency }}</td>
                 </tr>
               } @else {
                 <tr
@@ -125,8 +129,12 @@
                     <span class="cell-primary">{{ row.payee }}</span>
                   </td>
                   <td class="hidden lg:table-cell text-sm text-gray-400 truncate max-w-0">{{ row.memo }}</td>
-                  <td class="text-right tabular-nums">{{ row.amount | currency }}</td>
-                  <td class="text-right tabular-nums">{{ row.balance | currency }}</td>
+                  <td
+                    class="text-right tabular-nums"
+                    [class.text-blue-600]="(row.amount ?? 0) > 0"
+                    [class.text-amber-600]="(row.amount ?? 0) < 0"
+                  >{{ row.amount | currency }}</td>
+                  <td class="text-right tabular-nums" [class.text-red-600]="(row.balance ?? 0) < 0">{{ row.balance | currency }}</td>
                 </tr>
               }
             }

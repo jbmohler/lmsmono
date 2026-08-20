@@ -35,11 +35,14 @@ export class AccountRunningBalanceComponent {
   newTransactionTemplate = signal<{ payee: string | null; memo: string | null } | undefined>(undefined);
   showEntryDialog = signal(false);
 
-  private today = new Date().toISOString().slice(0, 10);
-  private yearStart = this.today.slice(0, 4) + '-01-01';
+  private defaultStartDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 45);
+    return d.toISOString().slice(0, 10);
+  })();
 
   selectedAccountId = signal('');
-  startDate = signal(this.yearStart);
+  startDate = signal(this.defaultStartDate);
 
   private generate$ = new Subject<GenerateParams>();
 
