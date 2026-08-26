@@ -13,7 +13,8 @@ backend/
 │   ├── config.py       # AppConfig via dataclasses
 │   ├── db.py           # Connection pool + query executors
 │   ├── responses.py    # Column metadata + response models
-│   └── guards.py       # Capability-based auth guards
+│   ├── guards.py       # Capability-based auth guards
+│   └── xlsx.py          # ReportSheet: styled openpyxl workbook builder (ported from cli/xlsx.py)
 ├── api/
 │   ├── health.py       # Health/ping controllers
 │   └── ...             # Add new controllers here
@@ -280,6 +281,32 @@ if not row:
 # With custom status
 raise HTTPException(status_code=409, detail="Conflict: duplicate entry")
 ```
+
+## XLSX Export
+
+Some endpoints return a generated `.xlsx` workbook instead of JSON (e.g. `GET /api/reconcile/{account_id}/export`). Build the workbook with `core.xlsx.ReportSheet` - a stateful row-cursor wrapper around `openpyxl` that gives every export the same fonts, fills, and currency formatting. It is a deliberate byte-for-byte-ish port of `cli/xlsx.py`'s `ReportSheet`: the CLI and backend are separate processes with no shared import path, so keep the two in sync by hand if the shared styling changes rather than trying to import one from the other.
+
+```python
+from litestar import Response
+from core.xlsx import ReportSheet
+
+@get("/{thing_id:uuid}/export", guards=[require_capability("thing:read")])
+async def export_thing_xlsx(self, conn: psycopg.AsyncConnection, thing_id: UUID) -> Response:
+    rs = ReportSheet("Sheet Title", n_text=3, n_val=2)
+    rs.write_title("Report Title")
+    rs.write_generated()
+    rs.write_headers(["Date", "Ref", "Description"], ["Debit", "Credit"])
+    for row in rows:
+        rs.write_data_row([row.date, row.ref, row.desc], [row.debit, row.credit])
+
+    return Response(
+        content=rs.to_bytes(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="report.xlsx"'},
+    )
+```
+
+The frontend triggers the download with a plain `<a [attr.href]="url" download>` rather than a `fetch` + Blob dance - session cookies ride along on a normal navigation, and the browser handles `Content-Disposition: attachment` on its own.
 
 ## Running the Backend
 

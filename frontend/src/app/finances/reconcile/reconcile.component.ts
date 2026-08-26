@@ -144,6 +144,11 @@ export class ReconcileComponent {
   accName = computed(() => this.reconcileData()?.acc_name ?? '');
   recNote = computed(() => this.reconcileData()?.rec_note ?? null);
 
+  exportUrl = computed(() => {
+    const accountId = this.accountId();
+    return accountId ? `/api/reconcile/${accountId}/export` : null;
+  });
+
   // Filtered splits for display
   filteredSplits = computed(() => {
     const mode = this.filterMode();

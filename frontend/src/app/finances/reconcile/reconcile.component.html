@@ -28,6 +28,16 @@
             Refresh
           </button>
         }
+        @if (exportUrl()) {
+          <a
+            [attr.href]="exportUrl()"
+            download
+            class="icon-btn"
+            title="Download outstanding transactions (.xlsx)"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#download"/></svg>
+          </a>
+        }
         <button
           class="btn btn-primary"
           [disabled]="!canFinalize()"

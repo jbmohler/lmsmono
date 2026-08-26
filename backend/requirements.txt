@@ -13,8 +13,12 @@ PyJWT
 # HTTP client (healthchecks.io pings, etc.)
 httpx
 
+# XLSX export
+openpyxl>=3.1
+
 # Development tools
 ruff
 mypy
+types-openpyxl
 pytest
 pytest-asyncio

@@ -1,12 +1,15 @@
+import datetime
+import re
 from dataclasses import dataclass
 from uuid import UUID
 
 import psycopg
 import psycopg.rows
-from litestar import Controller, get, post
+from litestar import Controller, Response, get, post
 from litestar.exceptions import HTTPException, NotFoundException
 
 from core.guards import require_capability
+from core.xlsx import FILL_ASSETS, FILL_SUBTOTAL, ReportSheet
 
 
 # ---------------------------------------------------------------------------
@@ -196,6 +199,86 @@ async def _get_tag_id(conn: psycopg.AsyncConnection, tag_name: str) -> UUID:
         return row[0]
 
 
+async def _fetch_reconcile_data(conn: psycopg.AsyncConnection, account_id: UUID) -> ReconcileData:
+    """Account info, prior reconciled balance, and outstanding (unreconciled) splits."""
+    async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        await cur.execute(sql_get_account_info(), {"account_id": account_id})
+        account_row = await cur.fetchone()
+        if not account_row:
+            raise NotFoundException(detail="Account not found")
+
+        await cur.execute(sql_get_prior_balance(), {"account_id": account_id})
+        balance_row = await cur.fetchone()
+        prior_balance = float(balance_row["prior_balance"]) if balance_row else 0.0
+
+        await cur.execute(sql_get_splits(), {"account_id": account_id})
+        split_rows = await cur.fetchall()
+
+    splits = []
+    for row in split_rows:
+        debit, credit = _sum_to_debit_credit(row["sum"])
+        splits.append(ReconcileSplit(
+            split_id=str(row["split_id"]),
+            trandate=row["trandate"].isoformat(),
+            tranref=row["tranref"],
+            payee=row["payee"],
+            memo=row["memo"],
+            debit=debit,
+            credit=credit,
+            is_pending=row["is_pending"],
+        ))
+
+    return ReconcileData(
+        account_id=str(account_id),
+        acc_name=account_row["acc_name"],
+        rec_note=account_row["rec_note"],
+        debit_balance=account_row["debit_balance"],
+        prior_reconciled_balance=prior_balance,
+        splits=splits,
+    )
+
+
+def _slugify(text: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-")
+    return slug or "account"
+
+
+def _build_outstanding_xlsx(data: ReconcileData) -> bytes:
+    """Build the outstanding-transactions workbook: opening balance, transaction
+    list with a running balance, closing balance. Deliberately generic wording -
+    this same layout serves both AR mini-statements and a reconciler's own view
+    of an external account.
+    """
+    sign = 1.0 if data.debit_balance else -1.0
+
+    rs = ReportSheet("Outstanding Transactions", n_text=3, n_val=3)
+    rs.write_title(f"Outstanding Transactions — {data.acc_name}")
+    rs.write_generated()
+    rs.write_blank()
+    rs.write_headers(["Date", "Ref", "Payee / Memo"], ["Debit", "Credit", "Balance"])
+    rs.set_col_widths([12, 12, 36, 14, 14, 14])
+
+    running = data.prior_reconciled_balance
+    rs.write_value_row("Opening Balance", [None, None, running * sign], fill=FILL_SUBTOTAL)
+
+    for split in data.splits:
+        signed = split.debit if split.debit is not None else -(split.credit or 0.0)
+        running += signed
+
+        description = split.payee or ""
+        if split.memo:
+            description = f"{description} — {split.memo}" if description else split.memo
+
+        rs.write_data_row(
+            [datetime.date.fromisoformat(split.trandate), split.tranref or "", description],
+            [split.debit, split.credit, running * sign],
+        )
+
+    rs.write_value_row("Closing Balance", [None, None, running * sign], fill=FILL_ASSETS)
+
+    return rs.to_bytes()
+
+
 # ---------------------------------------------------------------------------
 # Controller
 # ---------------------------------------------------------------------------
@@ -212,40 +295,22 @@ class ReconcileController(Controller):
         account_id: UUID,
     ) -> ReconcileData:
         """Return account info, prior reconciled balance, and unreconciled splits."""
-        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            await cur.execute(sql_get_account_info(), {"account_id": account_id})
-            account_row = await cur.fetchone()
-            if not account_row:
-                raise NotFoundException(detail="Account not found")
+        return await _fetch_reconcile_data(conn, account_id)
 
-            await cur.execute(sql_get_prior_balance(), {"account_id": account_id})
-            balance_row = await cur.fetchone()
-            prior_balance = float(balance_row["prior_balance"]) if balance_row else 0.0
-
-            await cur.execute(sql_get_splits(), {"account_id": account_id})
-            split_rows = await cur.fetchall()
-
-        splits = []
-        for row in split_rows:
-            debit, credit = _sum_to_debit_credit(row["sum"])
-            splits.append(ReconcileSplit(
-                split_id=str(row["split_id"]),
-                trandate=row["trandate"].isoformat(),
-                tranref=row["tranref"],
-                payee=row["payee"],
-                memo=row["memo"],
-                debit=debit,
-                credit=credit,
-                is_pending=row["is_pending"],
-            ))
-
-        return ReconcileData(
-            account_id=str(account_id),
-            acc_name=account_row["acc_name"],
-            rec_note=account_row["rec_note"],
-            debit_balance=account_row["debit_balance"],
-            prior_reconciled_balance=prior_balance,
-            splits=splits,
+    @get("/{account_id:uuid}/export", guards=[require_capability("accounts:read")])
+    async def export_outstanding_xlsx(
+        self,
+        conn: psycopg.AsyncConnection,
+        account_id: UUID,
+    ) -> Response:
+        """Download the outstanding (unreconciled) transactions as a formatted xlsx."""
+        data = await _fetch_reconcile_data(conn, account_id)
+        content = _build_outstanding_xlsx(data)
+        filename = f"outstanding-{_slugify(data.acc_name)}.xlsx"
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
     @post(

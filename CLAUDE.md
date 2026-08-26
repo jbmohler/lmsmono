@@ -14,6 +14,7 @@ LMS is a mature application with a 20-year-old data model. The PostgreSQL schema
 - **ruff** - linting and formatting
 - **mypy** - type checking
 - **argon2-cffi** - password hashing
+- **openpyxl** - xlsx generation (backend-side exports; same library the `cli/` tool uses)
 - **pytest** + **pytest-asyncio** - testing
 
 See `backend/CLAUDE.md` for detailed Litestar patterns and guidelines.
