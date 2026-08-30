@@ -16,6 +16,9 @@ CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".lms")
 SESSION_FILE = os.path.join(CONFIG_DIR, "session")
 DEFAULT_BASE_URL = "http://localhost:8080"
 
+# Must match core.config.SessionConfig.remember_cookie_name on the backend.
+REMEMBER_COOKIE_NAME = "remember_token"
+
 
 # ---------------------------------------------------------------------------
 # Session management
@@ -44,8 +47,9 @@ def save_session(data: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _do_login(base_url: str) -> str:
-    """Prompt for credentials, POST to login, return session_id."""
+def _do_login(base_url: str) -> tuple[str, str]:
+    """Prompt for credentials, POST to login with remember-me, return
+    (session_id, remember_token)."""
     print("Authentication required.")
     username = input("Username: ").strip()
     password = getpass.getpass("Password: ")
@@ -53,7 +57,7 @@ def _do_login(base_url: str) -> str:
     with httpx.Client(base_url=base_url) as client:
         resp = client.post(
             "/api/auth/login",
-            json={"username": username, "password": password},
+            json={"username": username, "password": password, "remember": True},
         )
 
     if resp.status_code not in (200, 201):
@@ -65,33 +69,39 @@ def _do_login(base_url: str) -> str:
         sys.exit(1)
 
     session_id = resp.cookies.get("session_id")
-    if not session_id:
+    remember_token = resp.cookies.get(REMEMBER_COOKIE_NAME)
+    if not session_id or not remember_token:
         print("Error: No session cookie in response", file=sys.stderr)
         sys.exit(1)
 
-    return session_id
+    return session_id, remember_token
 
 
 def ensure_auth(base_url: str | None) -> httpx.Client:
     """Return an authenticated HTTP client, logging in if necessary.
 
-    Checks the saved session first; re-authenticates on 401.
+    Only the long-lived remember-me token is persisted to disk - never the
+    short-lived session/access token. Each invocation exchanges it for a
+    fresh session via /api/auth/refresh, which also rotates the remember
+    token, so the new value must be saved or the next run's refresh fails.
     """
     session = load_session()
     effective_url = base_url or session.get("base_url") or DEFAULT_BASE_URL
 
-    if session.get("session_id"):
-        client = httpx.Client(
-            base_url=effective_url,
-            cookies={"session_id": session["session_id"]},
+    remember_token = session.get("remember_token")
+    if remember_token:
+        resp = httpx.post(
+            f"{effective_url}/api/auth/refresh",
+            cookies={REMEMBER_COOKIE_NAME: remember_token},
         )
-        resp = client.get("/api/auth/me")
-        if resp.status_code == 200:
-            return client
-        client.close()
+        session_id = resp.cookies.get("session_id")
+        new_remember_token = resp.cookies.get(REMEMBER_COOKIE_NAME)
+        if resp.status_code in (200, 201) and session_id and new_remember_token:
+            save_session({"remember_token": new_remember_token, "base_url": effective_url})
+            return httpx.Client(base_url=effective_url, cookies={"session_id": session_id})
 
-    session_id = _do_login(effective_url)
-    save_session({"session_id": session_id, "base_url": effective_url})
+    session_id, remember_token = _do_login(effective_url)
+    save_session({"remember_token": remember_token, "base_url": effective_url})
     print("Logged in.")
     return httpx.Client(
         base_url=effective_url,
@@ -1024,10 +1034,10 @@ def cmd_logout(args: argparse.Namespace) -> None:
     session = load_session()
     effective_url = args.url or session.get("base_url") or DEFAULT_BASE_URL
 
-    if session.get("session_id"):
+    if session.get("remember_token"):
         with httpx.Client(
             base_url=effective_url,
-            cookies={"session_id": session["session_id"]},
+            cookies={REMEMBER_COOKIE_NAME: session["remember_token"]},
         ) as client:
             client.post("/api/auth/logout")
 
