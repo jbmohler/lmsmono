@@ -18,6 +18,9 @@ interface TransactionLine {
   reconciled?: boolean;
 }
 
+const MIN_YEAR = 2000;
+const MAX_YEAR = 2100;
+
 @Component({
   selector: 'app-transaction-entry',
   templateUrl: './transaction-entry.component.html',
@@ -82,6 +85,19 @@ export class TransactionEntryComponent {
   memo = signal('');
   receipt = signal<string | null>(null);
   receiptOpen = signal(false);
+
+  // A mistyped year (e.g. 0206 or 2206) is easy to enter and hard to spot; keep it in a sane range.
+  isDateYearValid = computed(() => {
+    const year = parseInt(this.date().slice(0, 4), 10);
+    return !isNaN(year) && year >= MIN_YEAR && year <= MAX_YEAR;
+  });
+
+  // Flags a date far from today on a new (unsaved) transaction - often a mistyped
+  // day/month/year rather than an intentional backdated/postdated entry.
+  isDateFarFromToday = computed(() => {
+    if (this.isEditMode()) return false;
+    return this.daysFromToday(this.date()) > 93;
+  });
 
   quillModules = {
     toolbar: [['bold', 'italic'], [{ list: 'bullet' }, { list: 'ordered' }], ['link', 'clean']],
@@ -456,7 +472,7 @@ export class TransactionEntryComponent {
   }
 
   onSave(): void {
-    if (!this.isBalanced() || this.saving()) return;
+    if (!this.isBalanced() || !this.isDateYearValid() || this.saving()) return;
 
     this.saving.set(true);
     this.errorMessage.set(null);
@@ -520,6 +536,17 @@ export class TransactionEntryComponent {
   private todayString(): string {
     const d = new Date();
     return d.toISOString().split('T')[0];
+  }
+
+  /** Absolute number of days between `dateStr` (YYYY-MM-DD) and today, parsed as local dates. */
+  private daysFromToday(dateStr: string): number {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return 0;
+    const entered = new Date(y, m - 1, d);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffMs = Math.abs(entered.getTime() - today.getTime());
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
   }
 
   formatCurrency(value: number): string {

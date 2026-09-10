@@ -86,10 +86,16 @@
               #dateInput
               id="txn-date"
               type="date"
+              min="2000-01-01"
+              max="2100-12-31"
               [ngModel]="date()"
               (ngModelChange)="date.set($event)"
+              [class.border-red-500]="!isDateYearValid()"
               class="w-full"
             />
+            @if (!isDateYearValid()) {
+              <p class="text-xs text-red-600 mt-1">Year must be between 2000 and 2100.</p>
+            }
           </div>
           <div class="flex-1 md:flex-none md:w-32">
             <label for="txn-reference" class="label-compact">Reference</label>
@@ -252,6 +258,15 @@
       </table>
     </div>
 
+    <!-- Far-from-today date warning (new transactions only) -->
+    @if (isDateFarFromToday()) {
+      <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+        <p class="text-sm text-yellow-800">
+          This date is more than 93 days from today - double check the day, month, and year.
+        </p>
+      </div>
+    }
+
     <!-- Balance warning -->
     @if (!isBalanced() && (totalDebits() > 0 || totalCredits() > 0)) {
       <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -336,7 +351,7 @@
       <button
         type="button"
         (click)="onSave()"
-        [disabled]="!isBalanced() || saving()"
+        [disabled]="!isBalanced() || !isDateYearValid() || saving()"
         class="btn btn-primary"
       >
         @if (saving()) {
