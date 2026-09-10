@@ -299,6 +299,22 @@
         + Split
       </button>
 
+      @if (isEditMode()) {
+        <button
+          type="button"
+          (click)="onDelete()"
+          [disabled]="saving() || deleting()"
+          class="btn btn-secondary text-red-600 hover:text-red-700"
+          tabindex="-1"
+        >
+          @if (deleting()) {
+            Deleting...
+          } @else {
+            Delete
+          }
+        </button>
+      }
+
       <!-- Keyboard shortcut help: shown on hover and on keyboard focus -->
       <div class="relative group">
         <button
@@ -351,7 +367,7 @@
       <button
         type="button"
         (click)="onSave()"
-        [disabled]="!isBalanced() || !isDateYearValid() || saving()"
+        [disabled]="!isBalanced() || !isDateYearValid() || saving() || deleting()"
         class="btn btn-primary"
       >
         @if (saving()) {

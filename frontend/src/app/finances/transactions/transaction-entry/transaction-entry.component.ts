@@ -106,6 +106,7 @@ export class TransactionEntryComponent {
   // Loading and saving state
   loading = signal(false);
   saving = signal(false);
+  deleting = signal(false);
   errorMessage = signal<string | null>(null);
 
   // Line items
@@ -517,6 +518,32 @@ export class TransactionEntryComponent {
       error: (err) => {
         this.saving.set(false);
         this.errorMessage.set(err.message || 'Failed to save transaction');
+      },
+    });
+  }
+
+  onDelete(): void {
+    const id = this.transactionId();
+    if (!id || this.saving() || this.deleting()) return;
+
+    const hasReconciledSplit = this.lines().some((line) => line.reconciled);
+    const message = hasReconciledSplit
+      ? 'Delete this transaction? It has splits that have already been reconciled. This cannot be undone.'
+      : 'Delete this transaction? This cannot be undone.';
+    if (!window.confirm(message)) return;
+
+    this.deleting.set(true);
+    this.errorMessage.set(null);
+
+    this.transactionService.delete(id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.dialogSave.emit();
+        this.close();
+      },
+      error: (err) => {
+        this.deleting.set(false);
+        this.errorMessage.set(err.message || 'Failed to delete transaction');
       },
     });
   }
