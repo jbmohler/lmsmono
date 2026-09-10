@@ -154,16 +154,17 @@
             <th>Payee / Memo</th>
             <th class="text-right">Debit</th>
             <th class="text-right">Credit</th>
+            <th class="w-8"></th>
           </tr>
         </thead>
         <tbody>
           @if (reconcileData() === undefined) {
             <tr>
-              <td colspan="6" class="text-center py-8 text-gray-400 text-sm">Loading…</td>
+              <td colspan="7" class="text-center py-8 text-gray-400 text-sm">Loading…</td>
             </tr>
           } @else if (filteredSplits().length === 0) {
             <tr>
-              <td colspan="6" class="text-center py-8 text-gray-400 text-sm">
+              <td colspan="7" class="text-center py-8 text-gray-400 text-sm">
                 @if (splits().length === 0) {
                   No unreconciled transactions for this account.
                 } @else {
@@ -207,6 +208,16 @@
                     {{ split.credit | currency }}
                   }
                 </td>
+                <td>
+                  <button
+                    type="button"
+                    (click)="$event.stopPropagation(); openEdit(split.tid)"
+                    class="icon-btn icon-btn-edit p-1.5"
+                    title="Edit transaction"
+                  >
+                    <svg class="w-4 h-4" viewBox="0 0 24 24"><use href="/assets/icons/sprite.svg#pencil"/></svg>
+                  </button>
+                </td>
               </tr>
             }
           }
@@ -214,5 +225,13 @@
       </table>
     </div>
   </div><!-- /page-content -->
+
+  @if (showEntryDialog()) {
+    <app-transaction-entry
+      [transactionId]="editTransactionId()"
+      (dialogClose)="closeEntryDialog()"
+      (dialogSave)="closeEntryDialog()"
+    />
+  }
 
 </div>

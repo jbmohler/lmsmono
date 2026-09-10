@@ -43,6 +43,7 @@ def sql_get_splits() -> str:
     return """
         SELECT
             s.sid AS split_id,
+            t.tid,
             t.trandate,
             t.tranref,
             t.payee,
@@ -142,6 +143,7 @@ def sql_remove_pending_from_account() -> str:
 @dataclass
 class ReconcileSplit:
     split_id: str
+    tid: str
     trandate: str
     tranref: str | None
     payee: str | None
@@ -219,6 +221,7 @@ async def _fetch_reconcile_data(conn: psycopg.AsyncConnection, account_id: UUID)
         debit, credit = _sum_to_debit_credit(row["sum"])
         splits.append(ReconcileSplit(
             split_id=str(row["split_id"]),
+            tid=str(row["tid"]),
             trandate=row["trandate"].isoformat(),
             tranref=row["tranref"],
             payee=row["payee"],

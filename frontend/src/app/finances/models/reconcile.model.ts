@@ -1,5 +1,6 @@
 export interface ReconcileSplit {
   split_id: string;
+  tid: string;
   trandate: string;
   tranref: string | null;
   payee: string | null;

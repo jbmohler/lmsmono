@@ -9,6 +9,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeNotificationService } from '@core/events/change-notification.service';
 import { PageTitleService } from '@core/page-title.service';
 import { ReconcileData, ReconcileSplit, FinalizeResult, ToggleResult } from '@finances/models/reconcile.model';
+import { TransactionEntryComponent } from '@finances/transactions/transaction-entry/transaction-entry.component';
 
 type FilterMode = 'all' | 'uncleared' | 'pending';
 
@@ -17,7 +18,7 @@ type FilterMode = 'all' | 'uncleared' | 'pending';
   templateUrl: './reconcile.component.html',
   styleUrl: './reconcile.component.scss',
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe, DatePipe, TransactionEntryComponent],
 })
 export class ReconcileComponent {
   private route = inject(ActivatedRoute);
@@ -64,6 +65,10 @@ export class ReconcileComponent {
 
   // Filter
   filterMode = signal<FilterMode>('all');
+
+  // Edit-transaction dialog
+  editTransactionId = signal<string | undefined>(undefined);
+  showEntryDialog = signal(false);
 
   // Reset local state when account changes
   constructor() {
@@ -161,6 +166,16 @@ export class ReconcileComponent {
 
   setFilter(mode: FilterMode): void {
     this.filterMode.set(mode);
+  }
+
+  openEdit(transactionId: string): void {
+    this.editTransactionId.set(transactionId);
+    this.showEntryDialog.set(true);
+  }
+
+  closeEntryDialog(): void {
+    this.showEntryDialog.set(false);
+    this.editTransactionId.set(undefined);
   }
 
   refresh(): void {
