@@ -16,16 +16,10 @@ import {
   ContactPhone,
   ContactAddress,
   ContactUrl,
+  Persona,
 } from '../contacts.model';
 import { ContactsService } from '../services/contacts.service';
 import { PasswordGeneratorService } from '../services/password-generator.service';
-
-export interface BitEditResult {
-  bit: ContactBit;
-  password?: string;
-  clearPassword?: boolean;
-  isNew?: boolean;
-}
 
 @Component({
   selector: 'app-bit-edit-dialog',
@@ -44,7 +38,7 @@ export class BitEditDialogComponent {
   contactId = input.required<string>();
   bit = input.required<ContactBit>();
 
-  saved = output<BitEditResult>();
+  saved = output<Persona>();
   cancelled = output<void>();
 
   dialogEl = viewChild<ElementRef<HTMLDialogElement>>('dialog');
@@ -54,6 +48,14 @@ export class BitEditDialogComponent {
 
   // Loading state for fetching fresh data
   loading = signal(false);
+
+  // Whether a save has been attempted - gates display of validation errors
+  attemptedSave = signal(false);
+
+  // In-flight save to the backend, and the error it produced (if any) - the
+  // dialog stays open and shows this until the save actually succeeds
+  saving = signal(false);
+  saveError = signal<string | null>(null);
 
   // Password handling for URL bits
   passwordVisible = signal(false);
@@ -81,6 +83,9 @@ export class BitEditDialogComponent {
   }
 
   async open(): Promise<void> {
+    this.attemptedSave.set(false);
+    this.saving.set(false);
+    this.saveError.set(null);
     this.passwordVisible.set(false);
     this.decryptedPassword.set(null);
     this.newPassword.set('');
@@ -118,6 +123,7 @@ export class BitEditDialogComponent {
   }
 
   close(): void {
+    if (this.saving()) return;
     const dialog = this.dialogEl()?.nativeElement;
     if (dialog?.open) {
       dialog.close();
@@ -125,26 +131,62 @@ export class BitEditDialogComponent {
     this.cancelled.emit();
   }
 
-  save(): void {
+  /** Required field per bit type is missing. Checked before ever talking to
+   * the backend, and reported inline - the dialog must never close on a
+   * failed save, client- or server-side. */
+  isRequiredFieldMissing(): boolean {
     const bit = this.editBit();
-    if (!bit) return;
+    if (!bit) return false;
+    switch (bit.bitType) {
+      case 'email': return !bit.email;
+      case 'phone': return !bit.number;
+      case 'url': return !bit.url;
+      case 'address': return false;
+    }
+  }
 
-    const result: BitEditResult = { bit, isNew: this.isNewBit() };
+  async save(): Promise<void> {
+    const bit = this.editBit();
+    if (!bit || this.saving()) return;
 
-    // Handle password for URL bits
+    this.attemptedSave.set(true);
+    if (this.isRequiredFieldMissing()) return;
+
+    let password: string | undefined;
+    let clearPassword = false;
     if (bit.bitType === 'url') {
       if (this.clearPassword()) {
-        result.clearPassword = true;
+        clearPassword = true;
       } else if (this.newPassword()) {
-        result.password = this.newPassword();
+        password = this.newPassword();
       }
     }
 
-    const dialog = this.dialogEl()?.nativeElement;
-    if (dialog?.open) {
-      dialog.close();
+    this.saving.set(true);
+    this.saveError.set(null);
+    try {
+      let persona: Persona;
+      if (this.isNewBit()) {
+        persona = await this.contactsService.addBit(this.contactId(), bit, password);
+      } else {
+        const changes: Partial<ContactBit> & { password?: string; clearPassword?: boolean } = {
+          ...bit,
+        };
+        if (password) changes.password = password;
+        if (clearPassword) changes.clearPassword = true;
+        persona = await this.contactsService.updateBit(this.contactId(), bit.id, changes);
+      }
+
+      const dialog = this.dialogEl()?.nativeElement;
+      if (dialog?.open) {
+        dialog.close();
+      }
+      this.saved.emit(persona);
+    } catch (err: unknown) {
+      this.saveError.set(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      this.saving.set(false);
     }
-    this.saved.emit(result);
   }
 
   handleKeydown(event: KeyboardEvent): void {
@@ -154,7 +196,7 @@ export class BitEditDialogComponent {
     }
     if (event.ctrlKey && event.key === 's') {
       event.preventDefault();
-      this.save();
+      void this.save();
     }
   }
 

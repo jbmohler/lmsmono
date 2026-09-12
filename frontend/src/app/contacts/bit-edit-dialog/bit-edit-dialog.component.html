@@ -1,7 +1,7 @@
 <dialog #dialog class="bit-edit-dialog flex flex-col">
   <div class="dialog-header">
     <h2 class="dialog-header-title">{{ getDialogTitle() }}</h2>
-    <button type="button" class="dialog-close-btn" (click)="close()" aria-label="Close">
+    <button type="button" class="dialog-close-btn" (click)="close()" [disabled]="saving()" aria-label="Close">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
       </svg>
@@ -13,7 +13,13 @@
       <p>Loading...</p>
     </div>
   } @else {
-  <form id="bit-form" (ngSubmit)="save()" class="form-body px-4 md:px-6 py-4 overflow-y-auto flex-1">
+  <form id="bit-form" novalidate (ngSubmit)="save()" class="form-body px-4 md:px-6 py-4 overflow-y-auto flex-1">
+    @if (saveError()) {
+      <div class="form-row">
+        <p class="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{{ saveError() }}</p>
+      </div>
+    }
+
     <!-- Common fields -->
     <div class="form-row">
       <label for="label">Label</label>
@@ -55,7 +61,11 @@
           (ngModelChange)="updateField('email', $event)"
           name="email"
           required
+          [class.border-red-500]="attemptedSave() && !emailBit.email"
         />
+        @if (attemptedSave() && !emailBit.email) {
+          <p class="text-xs text-red-600 mt-1">Email is required.</p>
+        }
       </div>
     }
 
@@ -70,7 +80,11 @@
           (ngModelChange)="updateField('number', $event)"
           name="number"
           required
+          [class.border-red-500]="attemptedSave() && !phoneBit.number"
         />
+        @if (attemptedSave() && !phoneBit.number) {
+          <p class="text-xs text-red-600 mt-1">Number is required.</p>
+        }
       </div>
     }
 
@@ -153,7 +167,11 @@
           (ngModelChange)="updateField('url', $event)"
           name="url"
           required
+          [class.border-red-500]="attemptedSave() && !urlBit.url"
         />
+        @if (attemptedSave() && !urlBit.url) {
+          <p class="text-xs text-red-600 mt-1">URL is required.</p>
+        }
       </div>
       <div class="form-row">
         <label for="username">Username</label>
@@ -369,11 +387,11 @@
   <!-- Footer -->
   <div class="dialog-footer !justify-end">
     <div class="dialog-actions">
-      <button type="button" class="btn btn-secondary" (click)="close()">
+      <button type="button" class="btn btn-secondary" (click)="close()" [disabled]="saving()">
         Cancel
       </button>
-      <button type="submit" form="bit-form" class="btn btn-primary" [disabled]="loading()">
-        Save
+      <button type="submit" form="bit-form" class="btn btn-primary" [disabled]="loading() || saving()">
+        {{ saving() ? 'Saving...' : 'Save' }}
       </button>
     </div>
   </div>

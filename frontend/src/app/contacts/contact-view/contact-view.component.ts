@@ -1,5 +1,5 @@
 import { Component, input, output, inject, signal, effect, viewChild, ElementRef, ChangeDetectionStrategy, DestroyRef } from '@angular/core';
-import { Persona, ContactBit } from '../contacts.model';
+import { Persona } from '../contacts.model';
 import { ContactsService } from '../services/contacts.service';
 import { ContactDetailComponent } from '../contact-detail/contact-detail.component';
 import { PageTitleService } from '@core/page-title.service';
@@ -100,34 +100,8 @@ export class ContactViewComponent {
     }
   }
 
-  async onBitAdded(event: { bit: ContactBit; password?: string }): Promise<void> {
-    try {
-      this.contact.set(
-        await this.contactsService.addBit(this.contactId(), event.bit, event.password)
-      );
-    } catch {
-      // error handled by service
-    }
-  }
-
-  async onBitUpdated(event: {
-    bitId: string;
-    changes: Partial<ContactBit>;
-    password?: string;
-    clearPassword?: boolean;
-  }): Promise<void> {
-    try {
-      const changes: Partial<ContactBit> & { password?: string; clearPassword?: boolean } = {
-        ...event.changes,
-      };
-      if (event.password) changes.password = event.password;
-      if (event.clearPassword) changes.clearPassword = true;
-      this.contact.set(
-        await this.contactsService.updateBit(this.contactId(), event.bitId, changes)
-      );
-    } catch {
-      // error handled by service
-    }
+  onBitSaved(persona: Persona): void {
+    this.contact.set(persona);
   }
 
   async onBitDeleted(event: { bitId: string }): Promise<void> {

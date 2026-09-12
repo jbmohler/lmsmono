@@ -9,7 +9,7 @@ import {
   ContactUrl,
   ContactTag,
 } from '../contacts.model';
-import { BitEditDialogComponent, BitEditResult } from '../bit-edit-dialog/bit-edit-dialog.component';
+import { BitEditDialogComponent } from '../bit-edit-dialog/bit-edit-dialog.component';
 import { SharingDialogComponent } from '../sharing-dialog/sharing-dialog.component';
 import { ContactsService } from '../services/contacts.service';
 import { TagSelectorComponent } from '@shared/components/tag-selector/tag-selector.component';
@@ -105,8 +105,7 @@ export class ContactDetailComponent {
   contactSaved = output<Persona>();
   contactDeleted = output<void>();
   contactRefresh = output<void>();
-  bitUpdated = output<{ bitId: string; changes: Partial<ContactBit>; password?: string; clearPassword?: boolean }>();
-  bitAdded = output<{ bit: ContactBit; password?: string }>();
+  bitSaved = output<Persona>();
   bitDeleted = output<{ bitId: string }>();
   bitMoved = output<{ bitId: string; direction: 'up' | 'down' }>();
 
@@ -329,14 +328,9 @@ export class ContactDetailComponent {
     this.editingBit.set(newBit);
   }
 
-  async saveBitFromDialog(result: BitEditResult): Promise<void> {
-    const { bit, password, clearPassword, isNew } = result;
+  saveBitFromDialog(persona: Persona): void {
     this.editingBit.set(null);
-    if (isNew) {
-      this.bitAdded.emit({ bit, password });
-    } else {
-      this.bitUpdated.emit({ bitId: bit.id, changes: bit, password, clearPassword });
-    }
+    this.bitSaved.emit(persona);
   }
 
   /** Delete the whole contact, after confirming — this cannot be undone. */
