@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -19,11 +20,7 @@ export class FinancesLayoutComponent {
 
   setupExpanded = signal(false);
 
-  private oneYearAgo = (() => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 1);
-    return d.toISOString().slice(0, 10);
-  })();
+  private oneYearAgo = LocalDate.now().minusYears(1).toString();
 
   /** Reconcilable accounts (balance sheet, non-retained-earnings, active last year) grouped by type. */
   reconcilableAccountsByType = computed(() => {

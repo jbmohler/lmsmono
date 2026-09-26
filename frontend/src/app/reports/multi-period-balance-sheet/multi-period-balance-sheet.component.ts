@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -5,6 +6,7 @@ import { CurrencyPipe } from '@angular/common';
 import { Subject, switchMap, startWith, filter } from 'rxjs';
 import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
+import { formatMonthYear } from '../report-date';
 import {
   MultiPeriodAccountTypeGroup,
   MultiPeriodBalanceSheetRow,
@@ -39,9 +41,9 @@ export class MultiPeriodBalanceSheetComponent {
   showAccountEditDialog = signal(false);
   editAccountId = signal<string | undefined>(undefined);
 
-  private now = new Date();
-  reportYear = signal(this.now.getFullYear());
-  reportMonth = signal(this.now.getMonth() + 1);
+  private today = LocalDate.now();
+  reportYear = signal(this.today.year());
+  reportMonth = signal(this.today.monthValue());
   reportPeriods = signal(5);
 
   private generate$ = new Subject<GenerateParams>();
@@ -149,8 +151,7 @@ export class MultiPeriodBalanceSheetComponent {
   }
 
   formatPeriodHeader(dateStr: string): string {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    return formatMonthYear(LocalDate.parse(dateStr));
   }
 
   private groupRows(rows: MultiPeriodBalanceSheetRow[], periodCount: number): MultiPeriodAccountTypeGroup[] {

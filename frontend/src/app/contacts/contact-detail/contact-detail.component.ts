@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, input, output, signal, computed, inject, effect, viewChild, ElementRef, DestroyRef, Pipe, PipeTransform, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -58,10 +59,7 @@ class FormatAddressPipe implements PipeTransform {
 class IsPasswordExpiredPipe implements PipeTransform {
   transform(bit: ContactUrl): boolean {
     if (!bit.pwNextResetDt) return false;
-    const expiration = new Date(bit.pwNextResetDt);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return expiration < today;
+    return LocalDate.parse(bit.pwNextResetDt).isBefore(LocalDate.now());
   }
 }
 

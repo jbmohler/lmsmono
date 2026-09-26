@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, computed, signal, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, Subject, combineLatest, merge } from 'rxjs';
@@ -42,8 +43,8 @@ export class TransactionCalendarComponent {
 
   weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  currentYear = signal(new Date().getFullYear());
-  currentMonth = signal(new Date().getMonth());
+  /** First day of the month being displayed. */
+  viewMonth = signal(LocalDate.now().withDayOfMonth(1));
 
   // Transaction entry dialog state
   showEntryDialog = signal(false);
@@ -55,7 +56,8 @@ export class TransactionCalendarComponent {
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
-    return `${months[this.currentMonth()]} ${this.currentYear()}`;
+    const m = this.viewMonth();
+    return `${months[m.monthValue() - 1]} ${m.year()}`;
   });
 
   // Local filter & refresh state
@@ -100,35 +102,26 @@ export class TransactionCalendarComponent {
   constructor() {
     // Update filters when month changes to load relevant transactions
     effect(() => {
-      const year = this.currentYear();
-      const month = this.currentMonth();
-
-      // Calculate date range for visible calendar (includes padding days)
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0);
+      const firstDay = this.viewMonth();
+      const lastDay = firstDay.withDayOfMonth(firstDay.lengthOfMonth());
 
       // Add buffer for prev/next month days shown in calendar
-      const from = new Date(firstDay);
-      from.setDate(from.getDate() - 7);
-      const to = new Date(lastDay);
-      to.setDate(to.getDate() + 14);
+      const from = firstDay.minusDays(7);
+      const to = lastDay.plusDays(14);
 
       this.filters$.next({
-        from: this.formatDate(from.getFullYear(), from.getMonth(), from.getDate()),
-        to: this.formatDate(to.getFullYear(), to.getMonth(), to.getDate()),
+        from: from.toString(),
+        to: to.toString(),
       });
     });
   }
 
   calendarDays = computed<CalendarDay[]>(() => {
-    const year = this.currentYear();
-    const month = this.currentMonth();
+    const firstDay = this.viewMonth();
     const txnMap = this.transactionsByDate();
-
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay();
+    const daysInMonth = firstDay.lengthOfMonth();
+    // Sunday = 0
+    const startDayOfWeek = firstDay.dayOfWeek().value() % 7;
 
     // When the 1st falls on Sun or Mon the default padding (0 or 1) leaves the
     // calendar lopsided with many trailing next-month days.  Show the full prior
@@ -140,13 +133,12 @@ export class TransactionCalendarComponent {
     const days: CalendarDay[] = [];
 
     // Previous month padding
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const prevYear = month === 0 ? year - 1 : year;
-    const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+    const prevMonth = firstDay.minusMonths(1);
+    const daysInPrevMonth = prevMonth.lengthOfMonth();
 
     for (let i = padding - 1; i >= 0; i--) {
       const day = daysInPrevMonth - i;
-      const dateStr = this.formatDate(prevYear, prevMonth, day);
+      const dateStr = prevMonth.withDayOfMonth(day).toString();
       days.push({
         day,
         date: dateStr,
@@ -157,7 +149,7 @@ export class TransactionCalendarComponent {
 
     // Current month days
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = this.formatDate(year, month, day);
+      const dateStr = firstDay.withDayOfMonth(day).toString();
       days.push({
         day,
         date: dateStr,
@@ -167,12 +159,11 @@ export class TransactionCalendarComponent {
     }
 
     // Next month padding to fill grid (6 rows = 42 cells)
-    const nextMonth = month === 11 ? 0 : month + 1;
-    const nextYear = month === 11 ? year + 1 : year;
+    const nextMonth = firstDay.plusMonths(1);
     const remaining = 42 - days.length;
 
     for (let day = 1; day <= remaining; day++) {
-      const dateStr = this.formatDate(nextYear, nextMonth, day);
+      const dateStr = nextMonth.withDayOfMonth(day).toString();
       days.push({
         day,
         date: dateStr,
@@ -193,21 +184,11 @@ export class TransactionCalendarComponent {
   }
 
   previousMonth(): void {
-    if (this.currentMonth() === 0) {
-      this.currentMonth.set(11);
-      this.currentYear.update(y => y - 1);
-    } else {
-      this.currentMonth.update(m => m - 1);
-    }
+    this.viewMonth.update(m => m.minusMonths(1));
   }
 
   nextMonth(): void {
-    if (this.currentMonth() === 11) {
-      this.currentMonth.set(0);
-      this.currentYear.update(y => y + 1);
-    } else {
-      this.currentMonth.update(m => m + 1);
-    }
+    this.viewMonth.update(m => m.plusMonths(1));
   }
 
   openEntryDialog(date?: string, transactionId?: string): void {
@@ -235,12 +216,6 @@ export class TransactionCalendarComponent {
 
   onTransactionSaved(): void {
     this.refresh$.next();
-  }
-
-  private formatDate(year: number, month: number, day: number): string {
-    const m = (month + 1).toString().padStart(2, '0');
-    const d = day.toString().padStart(2, '0');
-    return `${year}-${m}-${d}`;
   }
 
   trackByDate(_index: number, day: CalendarDay): string | null {

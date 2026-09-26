@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -32,7 +33,7 @@ export class BalanceSheetComponent {
   showEntryDialog = signal(false);
   showAccountEditDialog = signal(false);
   editAccountId = signal<string | undefined>(undefined);
-  reportDate = signal(new Date().toISOString().slice(0, 10));
+  reportDate = signal(LocalDate.now().toString());
   private generate$ = new Subject<string>();
 
   private response = toSignal(

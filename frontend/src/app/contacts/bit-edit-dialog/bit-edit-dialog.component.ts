@@ -1,3 +1,4 @@
+import { ChronoUnit, LocalDate } from '@js-joda/core';
 import {
   Component,
   input,
@@ -277,23 +278,17 @@ export class BitEditDialogComponent {
         const bit = this.editBit();
         if (bit && bit.bitType === 'url') {
           const urlBit = bit as ContactUrl;
-          const today = new Date().toISOString().slice(0, 10);
+          const today = LocalDate.now();
 
           if (urlBit.pwResetDt && urlBit.pwNextResetDt) {
-            const lastReset = new Date(urlBit.pwResetDt);
-            const nextReset = new Date(urlBit.pwNextResetDt);
-            const intervalDays = Math.round(
-              (nextReset.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24),
-            );
-            const newNext = new Date();
-            newNext.setDate(newNext.getDate() + intervalDays);
-            this.updateField('pwResetDt', today);
-            this.updateField('pwNextResetDt', newNext.toISOString().slice(0, 10));
+            const lastReset = LocalDate.parse(urlBit.pwResetDt);
+            const nextReset = LocalDate.parse(urlBit.pwNextResetDt);
+            const intervalDays = ChronoUnit.DAYS.between(lastReset, nextReset);
+            this.updateField('pwResetDt', today.toString());
+            this.updateField('pwNextResetDt', today.plusDays(intervalDays).toString());
           } else {
-            const newNext = new Date();
-            newNext.setDate(newNext.getDate() + 365);
-            this.updateField('pwResetDt', today);
-            this.updateField('pwNextResetDt', newNext.toISOString().slice(0, 10));
+            this.updateField('pwResetDt', today.toString());
+            this.updateField('pwNextResetDt', today.plusDays(365).toString());
           }
         }
 
@@ -365,9 +360,6 @@ export class BitEditDialogComponent {
 
   isOverdue(dateStr: string | null): boolean {
     if (!dateStr) return false;
-    const date = new Date(dateStr);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
+    return LocalDate.parse(dateStr).isBefore(LocalDate.now());
   }
 }

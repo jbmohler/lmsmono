@@ -1,6 +1,7 @@
 import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { KeyValuePipe } from '@angular/common';
+import { ChronoUnit, LocalDate } from '@js-joda/core';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -561,19 +562,16 @@ export class TransactionEntryComponent {
   }
 
   private todayString(): string {
-    const d = new Date();
-    return d.toISOString().split('T')[0];
+    return LocalDate.now().toString();
   }
 
-  /** Absolute number of days between `dateStr` (YYYY-MM-DD) and today, parsed as local dates. */
+  /** Absolute number of days between `dateStr` (YYYY-MM-DD) and today, in local time. */
   private daysFromToday(dateStr: string): number {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    if (!y || !m || !d) return 0;
-    const entered = new Date(y, m - 1, d);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diffMs = Math.abs(entered.getTime() - today.getTime());
-    return Math.round(diffMs / (1000 * 60 * 60 * 24));
+    try {
+      return Math.abs(ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.parse(dateStr)));
+    } catch {
+      return 0;
+    }
   }
 
   formatCurrency(value: number): string {

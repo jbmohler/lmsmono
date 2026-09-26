@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -31,8 +32,8 @@ export class ProfitLossTransactionsComponent {
   filtersOpen = signal(false);
   editTransactionId = signal<string | undefined>(undefined);
   showEntryDialog = signal(false);
-  private today = new Date().toISOString().slice(0, 10);
-  private yearStart = this.today.slice(0, 4) + '-01-01';
+  private today = LocalDate.now().toString();
+  private yearStart = LocalDate.now().withDayOfYear(1).toString();
 
   startDate = signal(this.yearStart);
   endDate = signal(this.today);

@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -35,11 +36,7 @@ export class AccountRunningBalanceComponent {
   newTransactionTemplate = signal<{ payee: string | null; memo: string | null } | undefined>(undefined);
   showEntryDialog = signal(false);
 
-  private defaultStartDate = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 45);
-    return d.toISOString().slice(0, 10);
-  })();
+  private defaultStartDate = LocalDate.now().minusDays(45).toString();
 
   selectedAccountId = signal('');
   startDate = signal(this.defaultStartDate);
@@ -70,11 +67,7 @@ export class AccountRunningBalanceComponent {
     new Set(this.accountTypes().filter((t) => t.balance_sheet).map((t) => t.id)),
   );
 
-  private oneYearAgo = (() => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 1);
-    return d.toISOString().slice(0, 10);
-  })();
+  private oneYearAgo = LocalDate.now().minusYears(1).toString();
 
   // Balance sheet accounts active in the last year, grouped by type name
   balanceSheetAccountsByType = computed(() => {

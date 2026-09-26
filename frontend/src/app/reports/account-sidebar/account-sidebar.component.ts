@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, input, output, inject, signal, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 
@@ -110,9 +111,7 @@ export class AccountSidebarComponent {
 
   private loadTransactions(): void {
     const id = this.accountId();
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const from = oneYearAgo.toISOString().slice(0, 10);
+    const from = LocalDate.now().minusYears(1).toString();
     this.accountService
       .getAccountTransactions(id, 200, 0, from)
       .subscribe((resp) => {

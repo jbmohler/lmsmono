@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -6,6 +7,7 @@ import { Subject, of, switchMap, startWith, filter, map, catchError } from 'rxjs
 import { MultiRowResponse } from '@core/api/api.types';
 import { PageTitleService } from '@core/page-title.service';
 import { ReportService } from '../report.service';
+import { formatMonthYear } from '../report-date';
 import {
   MultiPeriodProfitLossGroup,
   ProfitLossPeriod,
@@ -15,31 +17,11 @@ import { AccountSidebarComponent } from '../account-sidebar/account-sidebar.comp
 import { TransactionEntryComponent } from '../../finances/transactions/transaction-entry/transaction-entry.component';
 import { AccountEditDialogComponent } from '../../finances/setup/account-edit-dialog/account-edit-dialog.component';
 
-const MONTH_ABBR = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
 interface GenerateParams {
   endYear: number;
   endMonth: number;
   monthsPerPeriod: number;
   periodCount: number;
-}
-
-function pad(n: number): string {
-  return n.toString().padStart(2, '0');
-}
-
-/** Last calendar day of a 1-based month. */
-function lastDayOfMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
-/** Step a 1-based year/month back by n months. */
-function monthsBack(year: number, month: number, n: number): { year: number; month: number } {
-  const zeroBased = year * 12 + (month - 1) - n;
-  return { year: Math.floor(zeroBased / 12), month: (zeroBased % 12) + 1 };
 }
 
 /**
@@ -54,17 +36,15 @@ function buildProfitLossPeriods(
   periodCount: number,
 ): ProfitLossPeriod[] {
   const periods: ProfitLossPeriod[] = [];
-  let year = endYear;
-  let month = endMonth;
+  let end = LocalDate.of(endYear, endMonth, 1);
 
   for (let i = 0; i < periodCount; i++) {
-    const d2 = `${year}-${pad(month)}-${pad(lastDayOfMonth(year, month))}`;
-    const start = monthsBack(year, month, monthsPerPeriod - 1);
-    const d1 = `${start.year}-${pad(start.month)}-01`;
-
-    periods.push({ label: `${MONTH_ABBR[month - 1]} ${year}`, d1, d2 });
-
-    ({ year, month } = monthsBack(year, month, monthsPerPeriod));
+    periods.push({
+      label: formatMonthYear(end),
+      d1: end.minusMonths(monthsPerPeriod - 1).toString(),
+      d2: end.withDayOfMonth(end.lengthOfMonth()).toString(),
+    });
+    end = end.minusMonths(monthsPerPeriod);
   }
 
   return periods;
@@ -91,9 +71,9 @@ export class MultiPeriodProfitLossComponent {
   editAccountId = signal<string | undefined>(undefined);
 
   // Defaults: the month that just ended, four rolling 6-month windows.
-  private priorMonthEnd = new Date(new Date().getFullYear(), new Date().getMonth(), 0);
-  endYear = signal(this.priorMonthEnd.getFullYear());
-  endMonth = signal(this.priorMonthEnd.getMonth() + 1);
+  private priorMonthEnd = LocalDate.now().withDayOfMonth(1).minusDays(1);
+  endYear = signal(this.priorMonthEnd.year());
+  endMonth = signal(this.priorMonthEnd.monthValue());
   monthsPerPeriod = signal(6);
   periodCount = signal(4);
 

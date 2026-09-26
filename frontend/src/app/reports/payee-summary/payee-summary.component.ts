@@ -1,3 +1,4 @@
+import { LocalDate } from '@js-joda/core';
 import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -31,17 +32,8 @@ export class PayeeSummaryComponent {
 
   filtersOpen = signal(false);
 
-  private lastMonthEnd = (() => {
-    const d = new Date();
-    d.setDate(0);
-    return d.toISOString().slice(0, 10);
-  })();
-  private lastMonthStart = (() => {
-    const d = new Date();
-    d.setDate(0);
-    d.setDate(1);
-    return d.toISOString().slice(0, 10);
-  })();
+  private lastMonthEnd = LocalDate.now().withDayOfMonth(1).minusDays(1).toString();
+  private lastMonthStart = LocalDate.now().minusMonths(1).withDayOfMonth(1).toString();
 
   selectedAccountId = signal('');
   date1 = signal(this.lastMonthStart);
