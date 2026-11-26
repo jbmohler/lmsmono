@@ -10,6 +10,7 @@ import {
   PayeeSummaryResponse,
   ProfitLossRow,
   ProfitLossTransactionRow,
+  UnbalancedTransactionRow,
 } from './report.models';
 
 @Injectable({ providedIn: 'root' })
@@ -19,6 +20,10 @@ export class ReportService {
 
   currentBalanceAccounts(d: string): Observable<MultiRowResponse<BalanceSheetRow>> {
     return this.api.getMany<BalanceSheetRow>('/api/reports/current-balance-accounts', { d });
+  }
+
+  unbalancedTransactions(): Observable<MultiRowResponse<UnbalancedTransactionRow>> {
+    return this.api.getMany<UnbalancedTransactionRow>('/api/reports/unbalanced-transactions');
   }
 
   profitAndLoss(d1: string, d2: string): Observable<MultiRowResponse<ProfitLossRow>> {

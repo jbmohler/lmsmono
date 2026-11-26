@@ -62,6 +62,11 @@ export class BalanceSheetComponent {
       .reduce((sum, g) => sum + g.subtotal, 0);
   });
 
+  /** Assets − (Liabilities + Equity), rounded to cents to avoid float noise. */
+  outOfBalanceAmount = computed(() => {
+    return Math.round((this.totalAssets() - this.totalLiabilitiesEquity()) * 100) / 100;
+  });
+
   // The generated report's as-of date, once loaded.
   reportDateLabel = computed(() => {
     if (!this.response()) return '';

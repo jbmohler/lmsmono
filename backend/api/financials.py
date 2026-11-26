@@ -482,6 +482,70 @@ def transform_arb_row(row: dict, debit_account: bool) -> dict:
     }
 
 
+def sql_unbalanced_transactions() -> str:
+    """Transactions whose splits don't net to zero within some journal.
+
+    Grouped per (transaction, journal): a transaction that balances overall but
+    moves money between journals still shows up, once per affected journal.
+    """
+    return """
+        WITH by_journal AS (
+            SELECT
+                splits.stid,
+                accounts.journal_id,
+                COALESCE(SUM(splits.sum), 0) AS imbalance
+            FROM hacc.splits
+            JOIN hacc.accounts ON accounts.id = splits.account_id
+            GROUP BY splits.stid, accounts.journal_id
+            HAVING COALESCE(SUM(splits.sum), 0) <> 0
+        )
+        SELECT
+            transactions.tid AS id,
+            transactions.trandate,
+            transactions.tranref AS reference,
+            transactions.payee,
+            transactions.memo,
+            journals.id AS jrn_id,
+            journals.jrn_name,
+            by_journal.imbalance,
+            (
+                SELECT COALESCE(SUM(all_splits.sum), 0)
+                FROM hacc.splits all_splits
+                WHERE all_splits.stid = transactions.tid
+            ) AS txn_imbalance
+        FROM by_journal
+        JOIN hacc.transactions ON transactions.tid = by_journal.stid
+        JOIN hacc.journals ON journals.id = by_journal.journal_id
+        ORDER BY journals.jrn_name, transactions.trandate DESC NULLS FIRST, transactions.tid
+    """
+
+
+UNBALANCED_TRANSACTION_COLUMNS = [
+    ColumnMeta(key="id", label="Transaction ID", type="uuid"),
+    ColumnMeta(key="trandate", label="Date", type="date"),
+    ColumnMeta(key="reference", label="Reference", type="string"),
+    ColumnMeta(key="payee", label="Payee", type="string"),
+    ColumnMeta(key="memo", label="Memo", type="string"),
+    ColumnMeta(key="journal", label="Journal", type="ref"),
+    ColumnMeta(key="imbalance", label="Journal Imbalance", type="currency"),
+    ColumnMeta(key="txn_imbalance", label="Transaction Imbalance", type="currency"),
+]
+
+
+def transform_unbalanced_row(row: dict) -> dict:
+    """Transform an unbalanced transaction row (amounts are net debits)."""
+    return {
+        "id": str(row["id"]),
+        "trandate": row["trandate"].isoformat() if row["trandate"] else None,
+        "reference": row["reference"],
+        "payee": row["payee"],
+        "memo": row["memo"],
+        "journal": {"id": str(row["jrn_id"]), "name": row["jrn_name"]},
+        "imbalance": round(row["imbalance"], 2),
+        "txn_imbalance": round(row["txn_imbalance"], 2),
+    }
+
+
 class FinancialsController(Controller):
     path = "/api/reports"
     tags = ["reports"]
@@ -744,3 +808,18 @@ class FinancialsController(Controller):
             rows = await cur.fetchall()
         data = [transform_arb_row(dict(row), debit_account) for row in rows]
         return MultiRowResponse(columns=ACCOUNT_RUNNING_BALANCE_COLUMNS, data=data)
+
+    @get(
+        "/unbalanced-transactions",
+        guards=[require_capability("transactions:read")],
+    )
+    async def unbalanced_transactions(
+        self,
+        conn: psycopg.AsyncConnection,
+    ) -> MultiRowResponse:
+        """Transactions that don't balance within each journal they touch (should be empty)."""
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await cur.execute(sql_unbalanced_transactions())
+            rows = await cur.fetchall()
+        data = [transform_unbalanced_row(dict(row)) for row in rows]
+        return MultiRowResponse(columns=UNBALANCED_TRANSACTION_COLUMNS, data=data)

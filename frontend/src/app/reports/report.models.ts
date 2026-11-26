@@ -130,3 +130,17 @@ export interface AccountRunningBalanceRow {
   balance: number | null;
   is_speculative: boolean;
 }
+
+/** A transaction whose splits don't net to zero within one journal. */
+export interface UnbalancedTransactionRow {
+  id: string;
+  trandate: string | null;
+  reference: string | null;
+  payee: string | null;
+  memo: string | null;
+  journal: ItemRef;
+  /** Net debit of this transaction's splits within this journal. */
+  imbalance: number;
+  /** Net debit of all this transaction's splits (0 when only journals disagree). */
+  txn_imbalance: number;
+}

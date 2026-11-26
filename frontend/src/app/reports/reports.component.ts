@@ -37,6 +37,12 @@ export class ReportsComponent {
       group: 'balance-sheet',
     },
     {
+      id: 'unbalanced-transactions',
+      name: 'Unbalanced Transactions',
+      description: 'Transactions that don\'t balance within each journal (should be empty)',
+      group: 'balance-sheet',
+    },
+    {
       id: 'multi-period-balance-sheet',
       name: 'Multi-Period Balance Sheet',
       description: 'Balance sheet compared across annual periods',

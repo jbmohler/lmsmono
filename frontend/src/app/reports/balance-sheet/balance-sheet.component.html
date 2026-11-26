@@ -104,9 +104,12 @@
                   <td class="hidden md:table-cell"></td>
                   <td class="text-right tabular-nums">{{ totalLiabilitiesEquity() | currency }}</td>
                 </tr>
-                @if (totalAssets() !== totalLiabilitiesEquity()) {
+                @if (outOfBalanceAmount() !== 0) {
                   <tr>
-                    <td colspan="3" class="text-right text-xs font-medium text-red-600">Out of balance</td>
+                    <td colspan="3" class="text-right text-xs font-medium text-red-600">
+                      Out of balance by {{ outOfBalanceAmount() | currency }} ·
+                      <a routerLink="/reports/unbalanced-transactions" class="underline">Unbalanced transactions</a>
+                    </td>
                   </tr>
                 }
               </tfoot>

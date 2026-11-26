@@ -141,6 +141,15 @@ export const routes: Routes = [
       import('./reports/balance-sheet/balance-sheet.component').then(m => m.BalanceSheetComponent),
   },
   {
+    path: 'reports/unbalanced-transactions',
+    canActivate: [authGuard],
+    title: 'Unbalanced Transactions',
+    loadComponent: () =>
+      import('./reports/unbalanced-transactions/unbalanced-transactions.component').then(
+        m => m.UnbalancedTransactionsComponent,
+      ),
+  },
+  {
     path: 'reports/profit-loss',
     canActivate: [authGuard],
     title: 'Profit & Loss',

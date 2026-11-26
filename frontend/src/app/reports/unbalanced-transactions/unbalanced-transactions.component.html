@@ -1,0 +1,96 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="flex items-center justify-between w-full">
+      <div class="flex items-center gap-4">
+        <a
+          routerLink="/reports"
+          class="inline-flex items-center text-gray-400 hover:text-gray-900"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <h1 class="text-xl font-semibold text-gray-900">Unbalanced Transactions</h1>
+      </div>
+      <button class="btn btn-primary" (click)="refresh()">Refresh</button>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <p class="max-w-4xl mb-4 text-sm text-gray-500">
+      Each transaction's debits and credits must net to zero within every journal it touches.
+      Any transaction listed here throws off the balance sheet (or the journal's own balance),
+      so this report should be empty. Amounts are net debits; select a row to fix it.
+    </p>
+
+    @if (groups().length > 0) {
+      <div class="card max-w-4xl overflow-hidden">
+        <table class="table-fixed">
+          <thead>
+            <tr>
+              <th class="w-28">Date</th>
+              <th>Payee</th>
+              <th class="hidden lg:table-cell">Memo</th>
+              <th class="hidden md:table-cell w-36 text-right" title="Net of all the transaction's splits, across every journal">
+                Whole transaction
+              </th>
+              <th class="w-36 text-right">In this journal</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (group of groups(); track group.journal_id; let first = $first) {
+              @if (!first) {
+                <tr class="group-spacer">
+                  <td colspan="5"><div class="h-4"></div></td>
+                </tr>
+              }
+              <tr class="group-header">
+                <td colspan="5">{{ group.journal_name }}</td>
+              </tr>
+              @for (row of group.rows; track row.id) {
+                <tr
+                  class="row-clickable"
+                  tabindex="0"
+                  (click)="openTransaction(row.id)"
+                  (keydown.enter)="openTransaction(row.id)"
+                >
+                  <td class="text-sm text-gray-500 whitespace-nowrap">
+                    {{ row.trandate ? (row.trandate | date: 'shortDate') : 'No date' }}
+                  </td>
+                  <td class="truncate max-w-0">
+                    <span class="cell-primary">{{ row.payee || '(no payee)' }}</span>
+                    @if (row.reference) {
+                      <span class="text-xs text-gray-400 ml-2">#{{ row.reference }}</span>
+                    }
+                  </td>
+                  <td class="hidden lg:table-cell text-sm text-gray-400 truncate max-w-0">{{ row.memo }}</td>
+                  <td class="hidden md:table-cell text-right tabular-nums text-sm text-gray-500">
+                    {{ row.txn_imbalance === 0 ? 'balanced' : (row.txn_imbalance | currency) }}
+                  </td>
+                  <td class="text-right tabular-nums">{{ row.imbalance | currency }}</td>
+                </tr>
+              }
+              <tr class="font-semibold">
+                <td colspan="3" class="truncate">Total {{ group.journal_name }}</td>
+                <td class="hidden md:table-cell"></td>
+                <td class="text-right tabular-nums">{{ group.subtotal | currency }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else if (loaded()) {
+      <div class="card max-w-4xl p-6 text-center flex flex-col gap-1">
+        <p class="text-sm text-green-700">Every transaction balances in every journal.</p>
+      </div>
+    }
+  </div>
+</div>
+
+@if (showEntryDialog()) {
+  <app-transaction-entry
+    [transactionId]="editTransactionId()"
+    (dialogClose)="closeEntryDialog()"
+    (dialogSave)="onTransactionSaved()"
+  />
+}
