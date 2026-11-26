@@ -1,4 +1,5 @@
 create extension if not exists "uuid-ossp";
+create extension if not exists pg_trgm;
 
 create schema hacc;
 
@@ -46,6 +47,23 @@ create table hacc.transactions (
   receipt text
 );
 
+-- Transaction list ordering / date-range filters (ORDER BY trandate DESC, tid DESC)
+create index transactions_trandate_idx on hacc.transactions(trandate desc, tid desc);
+
+-- Full-text search over payee + memo. The expression must match the one in
+-- backend/api/transactions.py sql_select_transactions() exactly, or the
+-- planner will not use this index.
+create index transactions_fts_idx on hacc.transactions using gin ((
+  to_tsvector('simple',  coalesce(payee, '')) ||
+  to_tsvector('simple',  coalesce(memo,  '')) ||
+  to_tsvector('english', coalesce(payee, '')) ||
+  to_tsvector('english', coalesce(memo,  ''))
+));
+
+-- Substring search on tranref (ILIKE '%q%'); without it the OR in the
+-- search query forces a sequential scan.
+create index transactions_tranref_trgm_idx on hacc.transactions using gin (tranref gin_trgm_ops);
+
 
 create table hacc.tags (
   id uuid primary key default uuid_generate_v1mc(),
@@ -61,6 +79,7 @@ create table hacc.splits (
 );
 
 create index stid_idx on hacc.splits(stid);
+create index splits_account_stid_idx on hacc.splits(account_id, stid);
 
 create table hacc.tagsplits (
   tag_id uuid not null references hacc.tags(id),

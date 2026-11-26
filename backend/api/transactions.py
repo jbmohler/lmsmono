@@ -28,7 +28,9 @@ def sql_select_transactions(
 ) -> str:
     """List transactions with optional filters."""
     conditions = []
-    # LATERAL computes the tsvector once per row; only added when needed
+    # LATERAL computes the tsvector once per row; only added when needed.
+    # The expression must match the transactions_fts_idx index definition
+    # (schema/sql/lmshacc.sql) exactly, or the planner falls back to a seq scan.
     fts_lateral = ""
 
     if filter_query:

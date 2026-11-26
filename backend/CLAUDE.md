@@ -371,6 +371,8 @@ See `scripts/fts_simple_english.sql` for the migration SQL and `scripts/migrate-
 
 Transaction list (`GET /api/transactions`) and template-search (`GET /api/transactions/template-search`) apply the same three-branch FTS pattern to `payee` and `memo`. The tsvector is computed inline via a `LATERAL` subquery (no schema view needed). `tranref` stays as `ILIKE` since it is a reference number, not natural-language text.
 
+These searches are backed by indexes on `hacc.transactions` (see `schema/sql/lmshacc.sql`; migration in `scripts/transaction_search_indexes.sql`): a GIN expression index `transactions_fts_idx` whose expression **must match the `LATERAL` tsvector exactly** (Postgres inlines the LATERAL and matches the expression), and a `pg_trgm` GIN index on `tranref` so the `ILIKE '%q%'` branch doesn't force the whole `OR` into a seq scan.
+
 The template-search scoring (exact / prefix / contains CASE expressions) still uses `ILIKE` for ranking quality — FTS only replaces the filter that decides which rows are candidates.
 
 ## Key Differences from FastAPI
