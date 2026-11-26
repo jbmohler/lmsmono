@@ -36,6 +36,7 @@ export class TransactionListComponent {
 
   showEntryDialog = signal(false);
   editTransactionId = signal<string | undefined>(undefined);
+  copyFromId = signal<string | undefined>(undefined);
 
   // Local filter state
   private filters$ = new BehaviorSubject<TransactionFilters>({});
@@ -114,12 +115,20 @@ export class TransactionListComponent {
 
   openEntryDialog(transactionId?: string): void {
     this.editTransactionId.set(transactionId);
+    this.copyFromId.set(undefined);
+    this.showEntryDialog.set(true);
+  }
+
+  openCopy(transactionId: string): void {
+    this.editTransactionId.set(undefined);
+    this.copyFromId.set(transactionId);
     this.showEntryDialog.set(true);
   }
 
   closeEntryDialog(): void {
     this.showEntryDialog.set(false);
     this.editTransactionId.set(undefined);
+    this.copyFromId.set(undefined);
   }
 
   onTransactionSaved(): void {

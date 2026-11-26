@@ -9,6 +9,8 @@
     <h2 class="dialog-header-title">
       @if (isEditMode()) {
         Edit Transaction
+      } @else if (isCopyMode()) {
+        Copy Transaction
       } @else {
         New Transaction
       }
@@ -33,7 +35,7 @@
       </div>
     } @else {
     <!-- Quick-fill search (only for new transactions without a pre-filled template) -->
-    @if (!isEditMode() && !isPrefilled()) {
+    @if (!isEditMode() && !isPrefilled() && !isCopyMode()) {
       <div class="input-compact">
         <label for="quick-fill" class="label-compact">Quick-fill</label>
         <input

@@ -1,4 +1,4 @@
-import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender, inject, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, output, input, viewChild, viewChildren, signal, computed, afterNextRender, inject, effect, ChangeDetectionStrategy, Injector } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { KeyValuePipe } from '@angular/common';
 import { ChronoUnit, LocalDate } from '@js-joda/core';
@@ -32,12 +32,16 @@ const MAX_YEAR = 2100;
 export class TransactionEntryComponent {
   private accountService = inject(AccountService);
   private transactionService = inject(TransactionService);
+  private injector = inject(Injector);
 
   /** Initial date for new transactions */
   initialDate = input<string>();
 
   /** Transaction ID for editing existing transactions */
   transactionId = input<string>();
+
+  /** Transaction ID to copy into a new transaction (payee, memo and splits; date resets to today) */
+  copyFromId = input<string>();
 
   /** Pre-fill payee/memo for a new transaction (e.g. from a speculative row).
    *  Causes quick-fill to be hidden and the template to be auto-applied. */
@@ -75,6 +79,9 @@ export class TransactionEntryComponent {
 
   // Edit mode flag
   isEditMode = computed(() => !!this.transactionId());
+
+  // Copy mode: new transaction pre-filled from an existing one
+  isCopyMode = computed(() => !!this.copyFromId() && !this.transactionId());
 
   // True when opened with a pre-filled template (speculative row) — hides quick-fill
   isPrefilled = computed(() => !!this.initialTemplate() && !this.transactionId());
@@ -152,6 +159,14 @@ export class TransactionEntryComponent {
       }
     });
 
+    // Load source transaction when copying
+    effect(() => {
+      const copyId = this.copyFromId();
+      if (copyId && !this.transactionId()) {
+        this.loadTransaction(copyId, true);
+      }
+    });
+
     // Set initial date from input if provided, then open dialog
     afterNextRender(() => {
       const initial = this.initialDate();
@@ -183,7 +198,7 @@ export class TransactionEntryComponent {
           this.memo.set(template.memo ?? '');
         }
         this.dateInput()?.nativeElement.focus();
-      } else if (this.transactionId()) {
+      } else if (this.transactionId() || this.copyFromId()) {
         this.dateInput()?.nativeElement.focus();
       } else {
         this.quickFillInput()?.nativeElement.focus();
@@ -285,18 +300,22 @@ export class TransactionEntryComponent {
     this.quickFillQuery$.next('');
   }
 
-  private loadTransaction(id: string): void {
+  /** Load a transaction into the form. With `asCopy`, only payee/memo/splits carry over
+   *  (no split IDs, reference, receipt or reconciled state) so saving creates a new transaction. */
+  private loadTransaction(id: string, asCopy = false): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
     this.transactionService.getById(id).subscribe({
       next: (response) => {
         const txn = response.data;
-        this.date.set(txn.trandate);
-        this.reference.set(txn.tranref || '');
         this.payee.set(txn.payee || '');
         this.memo.set(txn.memo || '');
-        this.receipt.set(txn.receipt || null);
+        if (!asCopy) {
+          this.date.set(txn.trandate);
+          this.reference.set(txn.tranref || '');
+          this.receipt.set(txn.receipt || null);
+        }
 
         // Convert splits to lines
         const newLines: TransactionLine[] = txn.splits.map((split) => ({
@@ -304,11 +323,16 @@ export class TransactionEntryComponent {
           accountId: split.account.id,
           debit: split.debit,
           credit: split.credit,
-          splitId: split.id,
-          reconciled: split.reconciled,
+          ...(asCopy ? {} : { splitId: split.id, reconciled: split.reconciled }),
         }));
+        while (newLines.length < 2) {
+          newLines.push({ id: this.nextLineId++, accountId: '', debit: null, credit: null });
+        }
         this.lines.set(newLines);
         this.loading.set(false);
+        if (asCopy) {
+          afterNextRender(() => this.dateInput()?.nativeElement.focus(), { injector: this.injector });
+        }
       },
       error: (err) => {
         this.loading.set(false);

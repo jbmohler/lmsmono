@@ -102,12 +102,13 @@
             <th>Payee</th>
             <th class="hidden md:table-cell">Memo</th>
             <th class="hidden md:table-cell">Accounts</th>
+            <th class="w-8"><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
           @if (transactions().length === 0) {
             <tr>
-              <td colspan="5" class="text-center py-12">
+              <td colspan="6" class="text-center py-12">
                 <p class="text-sm">No transactions found.</p>
               </td>
             </tr>
@@ -129,6 +130,17 @@
                 <td class="hidden md:table-cell max-w-md truncate">
                   {{ txn.accounts || '-' }}
                 </td>
+                <td>
+                  <button
+                    type="button"
+                    (click)="$event.stopPropagation(); openCopy(txn.id)"
+                    class="icon-btn icon-btn-edit p-1.5"
+                    title="Copy transaction"
+                    aria-label="Copy transaction"
+                  >
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><use href="/assets/icons/sprite.svg#copy"/></svg>
+                  </button>
+                </td>
               </tr>
             }
           }
@@ -142,6 +154,7 @@
 @if (showEntryDialog()) {
   <app-transaction-entry
     [transactionId]="editTransactionId()"
+    [copyFromId]="copyFromId()"
     (dialogClose)="closeEntryDialog()"
     (dialogSave)="onTransactionSaved()"
   />
