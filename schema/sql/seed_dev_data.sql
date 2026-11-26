@@ -74,10 +74,18 @@ FROM (VALUES
 JOIN types t ON t.atype_name = acc.type_name
 JOIN journals j ON j.jrn_name = acc.journal_name;
 
--- Mark Retained Earnings as the retained earnings account
+-- Equity is the account type that holds retained earnings
 UPDATE hacc.accounttypes
 SET retained_earnings = true
 WHERE atype_name = 'Equity';
+
+-- Every P&L account rolls its balance into Retained Earn on the balance sheet;
+-- without this, net income drops out and the balance sheet doesn't balance.
+UPDATE hacc.accounts
+SET retearn_id = (SELECT id FROM hacc.accounts WHERE acc_name = 'Retained Earn')
+FROM hacc.accounttypes
+WHERE accounttypes.id = accounts.type_id
+  AND NOT accounttypes.balance_sheet;
 
 -- ============================================================================
 -- Sample Transactions
