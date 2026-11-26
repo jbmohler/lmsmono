@@ -740,10 +740,6 @@ async def _insert_bit(
             )
 
         elif data.bit_type == "url":
-            if not data.url:
-                raise HTTPException(
-                    status_code=400, detail="url field required for url bit"
-                )
             # Encrypt password if provided
             password_enc = None
             if data.password:

@@ -166,12 +166,7 @@
           [ngModel]="urlBit.url"
           (ngModelChange)="updateField('url', $event)"
           name="url"
-          required
-          [class.border-red-500]="attemptedSave() && !urlBit.url"
         />
-        @if (attemptedSave() && !urlBit.url) {
-          <p class="text-xs text-red-600 mt-1">URL is required.</p>
-        }
       </div>
       <div class="form-row">
         <label for="username">Username</label>

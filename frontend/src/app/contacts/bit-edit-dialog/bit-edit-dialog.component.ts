@@ -141,7 +141,7 @@ export class BitEditDialogComponent {
     switch (bit.bitType) {
       case 'email': return !bit.email;
       case 'phone': return !bit.number;
-      case 'url': return !bit.url;
+      case 'url':
       case 'address': return false;
     }
   }
