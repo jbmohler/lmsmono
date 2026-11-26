@@ -944,9 +944,9 @@ def cmd_dumpyears(args: argparse.Namespace) -> None:
 def cmd_monthly(args: argparse.Namespace) -> None:
     """Export the reports produced early each month.
 
-    Three standing reports, plus one payee summary per --summary-account.
-    Everything defaults to the month that just ended, so a run on or around
-    the 5th needs no arguments beyond an output directory.
+    Three standing reports, plus one year-to-date payee summary per
+    --summary-account. Everything defaults to the month that just ended, so a
+    run on or around the 5th needs no arguments beyond an output directory.
     """
     today = datetime.date.today()
     prior_month_end = today.replace(day=1) - datetime.timedelta(days=1)
@@ -956,6 +956,7 @@ def cmd_monthly(args: argparse.Namespace) -> None:
     last_day = calendar.monthrange(year, month)[1]
     d1 = datetime.date(year, month, 1).isoformat()
     d2 = datetime.date(year, month, last_day).isoformat()
+    ytd_start = datetime.date(year, 1, 1).isoformat()
     ym = f"{year}-{month:02d}"
 
     out_dir: str = args.dir
@@ -1002,18 +1003,18 @@ def cmd_monthly(args: argparse.Namespace) -> None:
         print(f"Written: {path}")
         written += 1
 
-    # One payee summary per requested account
+    # One year-to-date payee summary per requested account (Jan 1 to month end)
     for account in summary_accounts:
         account_id = resolve_account_id(client, account)
         payload = _fetch_json(
             client,
             "/api/reports/payee-summary",
-            {"account_id": account_id, "date1": d1, "date2": d2},
+            {"account_id": account_id, "date1": ytd_start, "date2": d2},
         )
         if payload:
             account_name: str = payload.get("account_name", account)
             safe_name = account_name.replace(" ", "_").replace("/", "-")[:30]
-            path = os.path.join(out_dir, f"payee_summary_{safe_name}_{ym}.xlsx")
+            path = os.path.join(out_dir, f"payee_summary_{safe_name}_ytd_{ym}.xlsx")
             _write_payee_summary_xlsx(path, payload)
             print(f"Written: {path}")
             written += 1
@@ -1175,8 +1176,8 @@ def main() -> None:
     mo.add_argument(
         "--summary-account", action="append", default=None,
         dest="summary_accounts", metavar="NAME",
-        help="Account to summarize by payee; repeat for one summary per account "
-             "(default: none)",
+        help="Account to summarize by payee, year to date through the report month; "
+             "repeat for one summary per account (default: none)",
     )
     mo.set_defaults(func=cmd_monthly)
 

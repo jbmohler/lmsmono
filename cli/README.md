@@ -54,7 +54,8 @@ anchored on the previous month. Three are always produced:
 - Detailed P&L transactions for the month
 - Multi-period P&L — four rolling 6-month windows
 
-Plus one payee summary per `--summary-account`, which is repeatable and defaults
+Plus one payee summary per `--summary-account`, covering the year to date
+(January 1 through the end of the report month). It is repeatable and defaults
 to none. Account names are resolved exactly first, then by substring, so a
 partial name works as long as it is unambiguous.
 
